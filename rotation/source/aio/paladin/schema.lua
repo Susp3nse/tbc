@@ -138,10 +138,10 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 4: Holy
     [4] = { name = "Holy", sections = {
         { header = "Healing Thresholds", settings = {
-            { type = "slider", key = "holy_flash_of_light_hp", default = 90, min = 50, max = 100, label = "Flash of Light HP (%)",
-              tooltip = "Use Flash of Light when target below this HP%. Most mana-efficient heal.", format = "%d%%" },
-            { type = "slider", key = "holy_holy_light_hp", default = 60, min = 20, max = 80, label = "Holy Light HP (%)",
-              tooltip = "Use Holy Light when target below this HP%. Big heal for heavy damage.", format = "%d%%" },
+            { type = "slider", key = "holy_holy_light_hp", default = 90, min = 50, max = 100, label = "Holy Light HP (%)",
+              tooltip = "Use Holy Light when target below this HP%. Primary heal — spam this.", format = "%d%%" },
+            { type = "slider", key = "holy_flash_of_light_hp", default = 95, min = 70, max = 100, label = "Flash of Light HP (%)",
+              tooltip = "Use Flash of Light when target below this HP%. Light damage filler when HL would overheal.", format = "%d%%" },
             { type = "checkbox", key = "holy_use_holy_shock", default = true, label = "Holy Shock",
               tooltip = "Use Holy Shock as instant heal (21s CD, 41-pt Holy talent)." },
             { type = "slider", key = "holy_holy_shock_hp", default = 50, min = 20, max = 80, label = "Holy Shock HP (%)",
@@ -156,8 +156,15 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Use Divine Illumination when mana drops below this percent.", format = "%d%%" },
         }},
         { header = "Utility", settings = {
+            { type = "dropdown", key = "holy_seal_choice", default = "wisdom", label = "Seal Choice",
+              tooltip = "Which seal to maintain. None = don't cast any seal.",
+              options = {
+                  { value = "wisdom", text = "Seal of Wisdom" },
+                  { value = "light", text = "Seal of Light" },
+                  { value = "none", text = "None" },
+              }},
             { type = "dropdown", key = "holy_judge_debuff", default = "light", label = "Judge Debuff",
-              tooltip = "Which Judgement debuff to maintain on the boss when safe.",
+              tooltip = "Which Judgement debuff to maintain on the boss when safe. Requires a seal active.",
               options = {
                   { value = "light", text = "Light (Healing)" },
                   { value = "wisdom", text = "Wisdom (Mana)" },
