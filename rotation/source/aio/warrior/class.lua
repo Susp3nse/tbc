@@ -156,6 +156,10 @@ local Constants = {
         protection = 2,  -- Defensive
     },
 
+    -- All-rank arrays for party buff detection (any source, any rank)
+    BATTLE_SHOUT_IDS  = { 6673, 5242, 6192, 11549, 11550, 11551, 2048 },
+    COMMANDING_SHOUT_IDS = { 469 },
+
     BUFF_ID = {
         BATTLE_SHOUT      = 2048,
         COMMANDING_SHOUT  = 469,
@@ -295,8 +299,8 @@ rotation_registry:register_class({
         end
 
         -- Buff tracking
-        ctx.has_battle_shout = (Unit("player"):HasBuffs(Constants.BUFF_ID.BATTLE_SHOUT) or 0) > 0
-        ctx.has_commanding_shout = (Unit("player"):HasBuffs(Constants.BUFF_ID.COMMANDING_SHOUT) or 0) > 0
+        ctx.has_battle_shout = (Unit("player"):HasBuffs(Constants.BATTLE_SHOUT_IDS) or 0) > 0
+        ctx.has_commanding_shout = (Unit("player"):HasBuffs(Constants.COMMANDING_SHOUT_IDS) or 0) > 0
         ctx.death_wish_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.DEATH_WISH) or 0) > 0
         ctx.recklessness_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.RECKLESSNESS) or 0) > 0
         ctx.sweeping_strikes_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.SWEEPING_STRIKES) or 0) > 0

@@ -582,6 +582,25 @@ rotation_registry:register_middleware({
             and (A.Whirlwind:IsReady(TARGET_UNIT, true, nil, nil, true)) then
             return false
         end
+        -- Don't fight inline stance dances: Prot TC needs Battle — yield while TC debuff needs refresh
+        if spec == "protection" and context.stance == Constants.STANCE.BATTLE
+            and context.settings.prot_use_thunder_clap then
+            local tc_debuff = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.THUNDER_CLAP) or 0
+            if tc_debuff <= Constants.TC_REFRESH_WINDOW then
+                return false
+            end
+        end
+        -- Don't fight inline stance dances: Prot Mocking Blow needs Battle — yield while aggro lost & Taunt on CD
+        if spec == "protection" and context.stance == Constants.STANCE.BATTLE
+            and context.settings.prot_use_taunt
+            and not context.settings.prot_no_taunt then
+            if _G.UnitExists("targettarget") and not _G.UnitIsUnit("targettarget", "player") then
+                local taunt_cd = A.Taunt:GetCooldown() or 0
+                if taunt_cd > 0 and (A.MockingBlow:GetCooldown() or 0) <= 0 then
+                    return false
+                end
+            end
+        end
         -- TM check: don't swap if we'd lose significant rage
         local tm_cap = get_tactical_mastery_cap()
         -- Arms needs to return to Battle often (MS/Overpower) — tolerate more rage waste
@@ -681,14 +700,15 @@ rotation_registry:register_middleware({
         if shout_type == "none" then return false end
 
         -- Refresh if missing or duration < 30s (2 min buff, refresh early)
+        -- Use all-rank arrays so we detect shouts from any party member at any rank
         if shout_type == "battle" then
             if not context.has_battle_shout then return true end
-            local dur = Unit(PLAYER_UNIT):HasBuffs(Constants.BUFF_ID.BATTLE_SHOUT) or 0
+            local dur = Unit(PLAYER_UNIT):HasBuffs(Constants.BATTLE_SHOUT_IDS) or 0
             if dur < 30 then return true end
         end
         if shout_type == "commanding" then
             if not context.has_commanding_shout then return true end
-            local dur = Unit(PLAYER_UNIT):HasBuffs(Constants.BUFF_ID.COMMANDING_SHOUT) or 0
+            local dur = Unit(PLAYER_UNIT):HasBuffs(Constants.COMMANDING_SHOUT_IDS) or 0
             if dur < 30 then return true end
         end
         return false
@@ -1384,6 +1404,8 @@ rotation_registry:register_middleware({
 
     matches = function(context)
         if not context.settings.use_auto_tab then return false end
+        -- Protection uses its own threat-aware tab targeting (Prot_ThreatTab strategy)
+        if (context.settings.playstyle or "fury") == "protection" then return false end
         if A.IsInPvP then return false end
         if context.is_mounted then return false end
         if not context.in_combat then

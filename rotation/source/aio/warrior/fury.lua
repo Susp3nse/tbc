@@ -75,6 +75,13 @@ local RAGE_COST_SLAM = 15
 local RAGE_COST_PUMMEL = 10
 local SLAM_MIN_WINDOW = 1.1   -- Improved Slam 1.0s cast + 0.1s latency; only Slam if swing is further away
 
+-- Swing desync: offset MH/OH timers when weapons have matching speeds
+local DESYNC_SPEED_TOLERANCE = 0.2   -- weapon speeds must be within 0.2s to be "matching"
+local DESYNC_SYNC_THRESHOLD  = 0.3   -- MH/OH remaining within 0.3s = "synced"
+local DESYNC_COOLDOWN        = 10    -- seconds between desync attempts
+local DESYNC_SLAM_WINDOW     = 1.6   -- base Slam 1.5s + 0.1s latency (no Improved Slam assumed)
+local desync_last_attempt    = 0     -- GetTime() of last desync Slam
+
 local function should_pool_for_core_fury(context, state)
     -- BT imminent: hold if spending Slam cost would starve BT
     if state.bt_cd > 0 and state.bt_cd <= FILLER_HOLD_WINDOW then
@@ -258,11 +265,12 @@ local Fury_ThunderClap = {
         -- PvP CC break prevention: TC is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
         if state.thunder_clap_duration > 2 then return false end
-        return A.ThunderClap:IsReady(TARGET_UNIT)
+        -- TC is PBAoE — use PLAYER_UNIT for range check (self-cast)
+        return A.ThunderClap:IsReady(PLAYER_UNIT)
     end,
 
     execute = function(icon, context, state)
-        return try_cast(A.ThunderClap, icon, TARGET_UNIT,
+        return try_cast(A.ThunderClap, icon, PLAYER_UNIT,
             format("[FURY] Thunder Clap - Duration: %.1fs", state.thunder_clap_duration))
     end,
 }
@@ -276,6 +284,7 @@ local Fury_DemoShout = {
     matches = function(context, state)
         -- PvP CC break prevention: Demo Shout is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+        if not context.in_melee_range then return false end
         if state.demo_shout_duration > 3 then return false end
         return A.DemoralizingShout:IsReady(PLAYER_UNIT)
     end,
@@ -326,7 +335,50 @@ local Fury_Hamstring = {
     end,
 }
 
--- [13] Heroic Strike / Cleave (off-GCD rage dump)
+-- [13] Swing Desync (Slam injection to offset MH/OH timers)
+-- When both weapons have matching speeds and swings are synced, a single Slam
+-- resets the MH swing timer without affecting OH, creating a timing offset.
+-- This smooths rage generation and lets Flurry/WF procs benefit both hands.
+local abs = math.abs
+
+local Fury_SwingDesync = {
+    requires_combat = true,
+    requires_enemy = true,
+
+    matches = function(context, state)
+        if not context.settings.fury_swing_desync then return false end
+        -- Must be dual-wielding
+        if not Player:HasWeaponOffHand(true) then return false end
+        -- Can't Slam while moving
+        if context.is_moving then return false end
+        -- Cooldown between desync attempts
+        local now = _G.GetTime()
+        if (now - desync_last_attempt) < DESYNC_COOLDOWN then return false end
+        -- Weapon speeds must be similar (identical or near-identical = sync risk)
+        local mh_speed = Player:GetSwingMax(1) or 0
+        local oh_speed = Player:GetSwingMax(2) or 0
+        if mh_speed <= 0 or oh_speed <= 0 then return false end
+        if abs(mh_speed - oh_speed) > DESYNC_SPEED_TOLERANCE then return false end
+        -- Both hands must be actively swinging
+        local mh_remaining = Player:GetSwing(1) or 0
+        local oh_remaining = Player:GetSwing(2) or 0
+        if mh_remaining <= 0 or oh_remaining <= 0 then return false end
+        -- Check if swings are synced (remaining times close together)
+        if abs(mh_remaining - oh_remaining) > DESYNC_SYNC_THRESHOLD then return false end
+        -- Need enough swing time left for base Slam (1.5s) to land before next auto
+        if mh_remaining < DESYNC_SLAM_WINDOW then return false end
+        -- Don't starve BT/WW if they're coming off CD soon
+        if should_pool_for_core_fury(context, state) then return false end
+        return A.Slam:IsReady(TARGET_UNIT)
+    end,
+
+    execute = function(icon, context, state)
+        desync_last_attempt = _G.GetTime()
+        return try_cast(A.Slam, icon, TARGET_UNIT, "[FURY] Slam (swing desync)")
+    end,
+}
+
+-- [14] Heroic Strike / Cleave (off-GCD rage dump)
 local Fury_HeroicStrike = {
     requires_combat = true,
     requires_enemy = true,
@@ -398,6 +450,7 @@ rotation_registry:register("fury", {
     named("DemoShout",       Fury_DemoShout),
     named("Slam",            Fury_Slam),
     named("Hamstring",       Fury_Hamstring),
+    named("SwingDesync",     Fury_SwingDesync),
     named("HeroicStrike",    Fury_HeroicStrike),
 }, {
     context_builder = get_fury_state,

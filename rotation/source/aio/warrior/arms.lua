@@ -284,12 +284,12 @@ local Arms_ThunderClap = {
         -- PvP CC break prevention: TC is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
         if state.thunder_clap_duration > 2 then return false end
-        -- TC requires Battle or Defensive Stance (not Berserker)
-        return A.ThunderClap:IsReady(TARGET_UNIT)
+        -- TC is PBAoE — use PLAYER_UNIT for range check (self-cast)
+        return A.ThunderClap:IsReady(PLAYER_UNIT)
     end,
 
     execute = function(icon, context, state)
-        return try_cast(A.ThunderClap, icon, TARGET_UNIT,
+        return try_cast(A.ThunderClap, icon, PLAYER_UNIT,
             format("[ARMS] Thunder Clap - Duration: %.1fs", state.thunder_clap_duration))
     end,
 }
@@ -303,6 +303,7 @@ local Arms_DemoShout = {
     matches = function(context, state)
         -- PvP CC break prevention: Demo Shout is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+        if not context.in_melee_range then return false end
         if state.demo_shout_duration > 3 then return false end
         return A.DemoralizingShout:IsReady(PLAYER_UNIT)
     end,
