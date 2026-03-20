@@ -733,7 +733,10 @@ local Cat_MangleBuilder = {
    requires_phys_immune = false,
    matches = function(context, state)
       if state.pooling then return false end
-      return (not context.is_behind or context.energy < ENERGY_COST_SHRED or state.prefer_mangle_for_tick)
+      local not_behind = not context.is_behind
+      -- Setting gates the "not behind" fallback; energy/tick reasons still fire
+      if not_behind and not context.settings.use_mangle_builder then return false end
+      return (not_behind or context.energy < ENERGY_COST_SHRED or state.prefer_mangle_for_tick)
          and (context.energy >= ENERGY_COST_MANGLE or context.has_clearcasting)
          and context.cp < 5
    end,

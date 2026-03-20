@@ -573,7 +573,7 @@ local STANCE_PLAYSTYLE = {
 
 rotation_registry:register_class({
    name = "Druid",
-   version = "v1.8.3",
+   version = "v1.8.5",
    playstyles = {"caster", "cat", "bear", "balance", "resto"},
    idle_playstyle_name = "caster",
 
@@ -678,7 +678,7 @@ rotation_registry:register_class({
       ctx.energy = Player:Energy()
       ctx.cp = Player:ComboPoints()
       ctx.rage = Player:Rage()
-      ctx.is_behind = Player:IsBehind(1.5)
+      ctx.is_behind = Player:IsBehind(0.3)
       ctx.has_clearcasting = (Unit("player"):HasBuffs(Constants.BUFF_ID.CLEARCASTING) or 0) > 0
       ctx.enemy_count = A.MultiUnits:GetByRange(8)
      

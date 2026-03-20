@@ -15,6 +15,18 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.8.5 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-patch">Patch</span>
+
+      <h3>Druid</h3>
+      <ul class="features">
+        <li><strong>Behind Detection Fix</strong> &mdash; Reduced <code>IsBehind</code> error window from 1.5s to 0.3s (matching Rogue). The rotation now recovers almost immediately after repositioning behind the target instead of staying stuck on Mangle for 1.5s.</li>
+        <li><strong>Mangle as Builder Setting</strong> &mdash; New &ldquo;Mangle as Builder&rdquo; toggle in Cat &gt; Advanced. When disabled, the rotation pauses if you&rsquo;re not behind the target instead of falling back to Mangle &mdash; reposition and resume. On by default.</li>
+        <li><strong>Powershift Min Mana</strong> &mdash; Slider minimum lowered from 10% to 0%, allowing powershifts until completely OOM.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.8.4 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-patch">Patch</span>
 

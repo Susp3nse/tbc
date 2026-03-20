@@ -106,7 +106,7 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
         }},
         { header = "Energy Management", settings = {
             { type = "checkbox", key = "auto_powershift", default = true, label = "Auto Powershift", tooltip = "Shift out/in for energy. Wolfshead Helm auto-detected." },
-            { type = "slider", key = "powershift_min_mana", default = 25, min = 10, max = 90, label = "Min Mana for Powershift (%)", tooltip = "Minimum mana % to powershift.", format = "%d%%" },
+            { type = "slider", key = "powershift_min_mana", default = 25, min = 0, max = 90, label = "Min Mana for Powershift (%)", tooltip = "Minimum mana % to powershift.", format = "%d%%" },
             { type = "checkbox", key = "use_super_sapper", default = false, label = "Use Super Sapper Charge", tooltip = "Use Super Sapper when shifting vs 3+ enemies or bosses. Requires DMH addon installed." },
             { type = "checkbox", key = "use_goblin_sapper", default = false, label = "Use Goblin Sapper Charge", tooltip = "Use Goblin Sapper when shifting vs 3+ enemies or bosses. Requires DMH addon installed." },
             { type = "checkbox", key = "use_tigers_fury", default = false, label = "Use Tiger's Fury", tooltip = "Normally not worth using rotationally. Enable for casual play." },
@@ -123,6 +123,8 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "use_rake_trick", default = true, label = "Use Rake Trick", tooltip = "Low-energy Rake filler below Mangle cost to squeeze in damage before powershift." },
             { type = "checkbox", key = "cat_tick_optimization", default = false, label = "Mangle Over Shred (Tick Opt)",
               tooltip = "When enabled, uses Mangle instead of Shred at 60-61 energy if an energy tick is imminent. Two Mangles can fit where one Shred + dead GCD would. Off = always Shred when behind." },
+            { type = "checkbox", key = "use_mangle_builder", default = true, label = "Mangle as Builder",
+              tooltip = "Use Mangle as a fallback CP builder when not behind target. When disabled, the rotation pauses if you're not behind — reposition and resume." },
         }},
     }},
 
