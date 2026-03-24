@@ -18,7 +18,7 @@ export const config = {
   cloneUrl: `https://github.com/${GITHUB_REPO}.git`,
 
   /** Discord invite link */
-  discord: 'https://discord.gg/5s4XSSXZ',
+  discord: 'https://discord.gg/M2HJeYCxgg',
 };
 
 /** Prefix a path with the Astro base URL (for GitHub Pages sub-path deployment). */
