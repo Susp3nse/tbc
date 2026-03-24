@@ -133,15 +133,28 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "prot_use_righteous_defense", default = true, label = "Auto Taunt",
               tooltip = "Auto-taunt elite/boss enemies off friendly targets with Righteous Defense. Only fires on elites/bosses, skips CC'd and dying mobs." },
         }},
+        { header = "Threat Tab Targeting", settings = {
+            { type = "checkbox", key = "use_auto_tab", default = true, label = "Auto Tab Target",
+              tooltip = "Automatically switch targets to pick up loose mobs and spread threat. Scans nameplates by threat level: picks up loose mobs first, stabilizes insecure threat, then equalizes across secure mobs." },
+            { type = "slider", key = "prot_tab_max_mobs", default = 4, min = 1, max = 8, label = "Max Mobs to Manage",
+              tooltip = "Max simultaneous mobs to actively tank. Won't pick up new mobs beyond this count unless they are completely loose (threat 0-1).", format = "%d" },
+            { type = "dropdown", key = "prot_tab_min_priority", default = "all", label = "Tab Target Priority",
+              tooltip = "Which mob types to tab-target. 'All' tabs to any mob, 'Elites+' only tabs to elites and bosses, 'Bosses' only tabs to bosses.",
+              options = {
+                  { value = "all", text = "All Mobs" },
+                  { value = "elites", text = "Elites+" },
+                  { value = "bosses", text = "Bosses Only" },
+              }},
+        }},
     }},
 
     -- Tab 4: Holy
     [4] = { name = "Holy", sections = {
         { header = "Healing Thresholds", settings = {
-            { type = "slider", key = "holy_flash_of_light_hp", default = 90, min = 50, max = 100, label = "Flash of Light HP (%)",
-              tooltip = "Use Flash of Light when target below this HP%. Most mana-efficient heal.", format = "%d%%" },
-            { type = "slider", key = "holy_holy_light_hp", default = 60, min = 20, max = 80, label = "Holy Light HP (%)",
-              tooltip = "Use Holy Light when target below this HP%. Big heal for heavy damage.", format = "%d%%" },
+            { type = "slider", key = "holy_holy_light_hp", default = 90, min = 50, max = 100, label = "Holy Light HP (%)",
+              tooltip = "Use Holy Light when target below this HP%. Primary heal — spam this.", format = "%d%%" },
+            { type = "slider", key = "holy_flash_of_light_hp", default = 95, min = 70, max = 100, label = "Flash of Light HP (%)",
+              tooltip = "Use Flash of Light when target below this HP%. Light damage filler when HL would overheal.", format = "%d%%" },
             { type = "checkbox", key = "holy_use_holy_shock", default = true, label = "Holy Shock",
               tooltip = "Use Holy Shock as instant heal (21s CD, 41-pt Holy talent)." },
             { type = "slider", key = "holy_holy_shock_hp", default = 50, min = 20, max = 80, label = "Holy Shock HP (%)",
@@ -156,8 +169,15 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Use Divine Illumination when mana drops below this percent.", format = "%d%%" },
         }},
         { header = "Utility", settings = {
+            { type = "dropdown", key = "holy_seal_choice", default = "wisdom", label = "Seal Choice",
+              tooltip = "Which seal to maintain. None = don't cast any seal.",
+              options = {
+                  { value = "wisdom", text = "Seal of Wisdom" },
+                  { value = "light", text = "Seal of Light" },
+                  { value = "none", text = "None" },
+              }},
             { type = "dropdown", key = "holy_judge_debuff", default = "light", label = "Judge Debuff",
-              tooltip = "Which Judgement debuff to maintain on the boss when safe.",
+              tooltip = "Which Judgement debuff to maintain on the boss when safe. Requires a seal active.",
               options = {
                   { value = "light", text = "Light (Healing)" },
                   { value = "wisdom", text = "Wisdom (Mana)" },

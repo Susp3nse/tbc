@@ -262,9 +262,10 @@ local function is_spell_known(spell)
    if not spell_id then return false, "no ID" end
    local spell_name = _G.GetSpellInfo(spell_id)
    if not spell_name then return false, "ID:" .. tostring(spell_id) end
-   if _G.IsSpellKnown then
-      return _G.IsSpellKnown(spell_id), spell_name
+   if _G.IsSpellKnown and _G.IsSpellKnown(spell_id) then
+      return true, spell_name
    end
+   -- IsSpellKnown may miss talent-granted spells; fall through to framework check
    return spell:IsExists() == true, spell_name
 end
 

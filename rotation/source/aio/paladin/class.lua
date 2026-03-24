@@ -286,6 +286,17 @@ rotation_registry:register_class({
         end
         ctx.in_twist_window = ctx.time_to_swing > 0 and ctx.time_to_swing <= Constants.TWIST.WINDOW
 
+        -- Sync framework AutoTarget with our use_auto_tab setting:
+        -- When our smart Auto Tab is enabled, disable the native one (we manage targeting).
+        -- When ours is off, let the framework handle auto-targeting.
+        local our_auto_tab = ctx.settings.use_auto_tab
+        local native_auto_target = A.GetToggle(1, "AutoTarget")
+        if our_auto_tab and native_auto_target then
+            A.SetToggle({1, "AutoTarget"}, false)
+        elseif not our_auto_tab and not native_auto_target then
+            A.SetToggle({1, "AutoTarget"}, true)
+        end
+
         -- Cache invalidation flags for per-playstyle context_builders
         ctx._ret_valid = false
         ctx._prot_valid = false

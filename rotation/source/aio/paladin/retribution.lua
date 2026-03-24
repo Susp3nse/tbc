@@ -317,6 +317,7 @@ local Ret_Consecration = {
     requires_combat = true,
     requires_enemy = true,
     spell = A.Consecration,
+    spell_target = PLAYER_UNIT,
 
     matches = function(context, state)
         if not context.settings.ret_use_consecration then return false end
@@ -339,6 +340,7 @@ local Ret_HolyWrath = {
     requires_combat = true,
     requires_enemy = true,
     spell = A.HolyWrath,
+    spell_target = PLAYER_UNIT,
 
     matches = function(context, state)
         if not state.target_undead_or_demon then return false end

@@ -139,6 +139,9 @@ local TARGET_UNIT = NS.TARGET_UNIT
 -- Framework helpers
 local MultiUnits = A.MultiUnits
 
+-- Register off-hand weapon inventory query (required before HasWeaponOffHand works)
+Player:RegisterWeaponOffHand()
+
 -- ============================================================================
 -- CONSTANTS
 -- ============================================================================
@@ -155,6 +158,10 @@ local Constants = {
         fury       = 3,  -- Berserker
         protection = 2,  -- Defensive
     },
+
+    -- All-rank arrays for party buff detection (any source, any rank)
+    BATTLE_SHOUT_IDS  = { 6673, 5242, 6192, 11549, 11550, 11551, 2048 },
+    COMMANDING_SHOUT_IDS = { 469 },
 
     BUFF_ID = {
         BATTLE_SHOUT      = 2048,
@@ -216,6 +223,28 @@ NS.Constants = Constants
 -- ============================================================================
 local STANCE_NAMES = { "Battle", "Defensive", "Berserker" }
 
+-- Breakable CC spell names for PvE detection (matching druid bear.lua pattern)
+local BREAKABLE_CC_NAMES = {
+    "Polymorph", "Freezing Trap Effect", "Repentance", "Blind",
+    "Sap", "Gouge", "Hibernate", "Wyvern Sting", "Scatter Shot",
+    "Shackle Undead", "Seduction",
+}
+
+-- PvE CC scan: check nameplates within 10y for breakable CC debuffs
+local function has_pve_breakable_cc_nearby()
+    local plates = MultiUnits:GetActiveUnitPlates()
+    for unitID in pairs(plates) do
+        if Unit(unitID):GetRange() <= 10 then
+            for i = 1, #BREAKABLE_CC_NAMES do
+                if (Unit(unitID):HasDeBuffs(BREAKABLE_CC_NAMES[i]) or 0) > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 rotation_registry:register_class({
     name = "Warrior",
     version = "v1.8.1",
@@ -268,6 +297,14 @@ rotation_registry:register_class({
         ctx.rage = Player:Rage()
         ctx.enemy_count = MultiUnits:GetByRangeInCombat(8) or 0
 
+        -- Threat info for threat-lead gating (prot utility abilities)
+        ctx.threat_status = _G.UnitThreatSituation("player", "target") or 0
+        ctx.threat_percent = 0
+        if ctx.target_exists and ctx.target_enemy then
+            local _, pct = _G.UnitDetailedThreatSituation("player", "target")
+            ctx.threat_percent = pct or 0
+        end
+
         -- Sync framework AutoTarget with our use_auto_tab setting:
         -- When our smart Auto Tab is enabled, disable the native one (we manage targeting).
         -- When ours is off, let the framework handle auto-targeting.
@@ -285,18 +322,18 @@ rotation_registry:register_class({
         ctx.is_battleground = A.Zone == "pvp"
         ctx.target_is_player = ctx.target_exists and _G.UnitIsPlayer("target") or false
 
-        -- PvP: CC break prevention flag — true if any nearby enemy has breakable CC
+        -- CC break prevention flag — true if any nearby enemy has breakable CC
         -- Strategies check this before firing AoE (WW, Cleave, TC, Demo Shout)
         if ctx.is_pvp then
             local ok = A.EnemyTeam(nil):IsBreakAble(8)
             ctx.has_breakable_cc_nearby = ok or false
         else
-            ctx.has_breakable_cc_nearby = false
+            ctx.has_breakable_cc_nearby = has_pve_breakable_cc_nearby()
         end
 
         -- Buff tracking
-        ctx.has_battle_shout = (Unit("player"):HasBuffs(Constants.BUFF_ID.BATTLE_SHOUT) or 0) > 0
-        ctx.has_commanding_shout = (Unit("player"):HasBuffs(Constants.BUFF_ID.COMMANDING_SHOUT) or 0) > 0
+        ctx.has_battle_shout = (Unit("player"):HasBuffs(Constants.BATTLE_SHOUT_IDS) or 0) > 0
+        ctx.has_commanding_shout = (Unit("player"):HasBuffs(Constants.COMMANDING_SHOUT_IDS) or 0) > 0
         ctx.death_wish_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.DEATH_WISH) or 0) > 0
         ctx.recklessness_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.RECKLESSNESS) or 0) > 0
         ctx.sweeping_strikes_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.SWEEPING_STRIKES) or 0) > 0
@@ -307,6 +344,22 @@ rotation_registry:register_class({
         ctx.shield_block_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.SHIELD_BLOCK) or 0) > 0
         ctx.enrage_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.ENRAGE) or 0) > 0
         ctx.flurry_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.FLURRY) or 0) > 0
+
+        -- OH swing diagnostic (temporary — shows in CTX dump for HS trick debugging)
+        ctx.has_offhand = Player:HasWeaponOffHand(true) and true or false
+        if ctx.has_offhand then
+            local oh_s = Player:GetSwingStart(2) or 0
+            local oh_spd = Player:GetSwing(2) or 0
+            ctx.oh_start = oh_s
+            ctx.oh_speed = oh_spd
+            if oh_s > 0 and oh_spd > 0 then
+                local rem = (oh_s + oh_spd) - _G.GetTime()
+                ctx.oh_remain = rem > 0 and math.floor(rem * 100 + 0.5) / 100 or 0
+            else
+                ctx.oh_remain = -1  -- API returned zero
+            end
+            ctx.mh_remain = math.floor((NS.get_time_until_swing() or 0) * 100 + 0.5) / 100
+        end
 
         -- Cache invalidation flags for per-playstyle context_builders
         ctx._arms_valid = false

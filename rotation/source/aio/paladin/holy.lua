@@ -120,6 +120,7 @@ local Holy_DivineIllumination = {
 }
 
 -- [2] Divine Favor (off-GCD, next heal guaranteed crit)
+-- Use on cooldown for mana sustain: guaranteed crit = Illumination mana refund on next HL
 local Holy_DivineFavor = {
     is_gcd_gated = false,
     spell = A.DivineFavor,
@@ -127,13 +128,13 @@ local Holy_DivineFavor = {
     setting_key = "holy_use_divine_favor",
 
     matches = function(context, state)
-        -- Use when someone needs a big heal (emergency)
-        if state.emergency_count <= 0 then return false end
+        -- Use on CD whenever someone needs healing (crit refund = mana sustain)
+        if not state.lowest then return false end
         return true
     end,
 
     execute = function(icon, context, state)
-        return try_cast(A.DivineFavor, icon, PLAYER_UNIT, "[HOLY] Divine Favor (guaranteed crit)")
+        return try_cast(A.DivineFavor, icon, PLAYER_UNIT, "[HOLY] Divine Favor (crit + mana refund)")
     end,
 }
 
@@ -199,14 +200,15 @@ local Holy_LayOnHands = {
     end,
 }
 
--- [5] Holy Light (big heal, 2.5s cast / 2.0s with Light's Grace)
+-- [5] Holy Light (PRIMARY heal — spam on assigned target)
+-- TBC Holy Paladin's bread and butter. HL is the default heal, not FoL.
 local Holy_HolyLight = {
     spell = A.HolyLight,
     spell_target = PLAYER_UNIT,
 
     matches = function(context, state)
         if not state.lowest then return false end
-        local threshold = context.settings.holy_holy_light_hp or 60
+        local threshold = context.settings.holy_holy_light_hp or 90
         if state.lowest.hp > threshold then return false end
         if context.is_moving then return false end
         return true
@@ -219,7 +221,7 @@ local Holy_HolyLight = {
     end,
 }
 
--- [6] Flash of Light (efficient heal, 1.5s cast)
+-- [6] Flash of Light (light damage only — rare use when HL would overheal)
 local Holy_FlashOfLight = {
     spell = A.FlashOfLight,
     spell_target = PLAYER_UNIT,
@@ -228,6 +230,7 @@ local Holy_FlashOfLight = {
         if not state.lowest then return false end
         local threshold = context.settings.holy_flash_of_light_hp or 90
         if state.lowest.hp > threshold then return false end
+        -- FoL is the fallback when HL threshold isn't met or while moving
         if context.is_moving then return false end
         return true
     end,
@@ -281,16 +284,22 @@ local Holy_JudgementMaintain = {
     end,
 }
 
--- [8] Seal maintain (keep Seal of Wisdom active for mana)
+-- [8] Seal maintain (keep chosen seal active)
 local Holy_SealMaintain = {
     matches = function(context, state)
-        if context.seal_wisdom_active then return false end
+        local seal = context.settings.holy_seal_choice or "wisdom"
+        if seal == "none" then return false end
+        if seal == "wisdom" and context.seal_wisdom_active then return false end
+        if seal == "light" and context.seal_light_active then return false end
         return true
     end,
 
     execute = function(icon, context, state)
-        if A.SealOfWisdom:IsReady(PLAYER_UNIT) then
+        local seal = context.settings.holy_seal_choice or "wisdom"
+        if seal == "wisdom" and A.SealOfWisdom:IsReady(PLAYER_UNIT) then
             return A.SealOfWisdom:Show(icon), "[HOLY] Seal of Wisdom"
+        elseif seal == "light" and A.SealOfLight:IsReady(PLAYER_UNIT) then
+            return A.SealOfLight:Show(icon), "[HOLY] Seal of Light"
         end
         return nil
     end,

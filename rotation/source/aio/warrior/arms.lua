@@ -29,6 +29,7 @@ local try_cast = NS.try_cast
 local named = NS.named
 local is_spell_available = NS.is_spell_available
 local is_stance_swap_safe = NS.is_stance_swap_safe
+local debug_print = NS.debug_print
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
@@ -119,24 +120,70 @@ local Arms_MaintainRend = {
 }
 
 -- [2] Overpower (Battle Stance only, dodge proc) — stance dance inline
+-- Smart rage protection: prevents stance dancing when it would starve MS, WW, or Execute
+local function should_use_overpower(context, state)
+    local op_cost = 5  -- Overpower rage cost
+    local tm_cap = (A.TacticalMastery:GetTalentRank() or 0) * 5
+    local rage_after_swap = context.stance == Constants.STANCE.BATTLE
+        and context.rage
+        or math.min(context.rage, tm_cap)
+
+    -- Basic affordability: can't cast if we can't pay for it after swap
+    if rage_after_swap < op_cost then return false end
+
+    -- High rage: at very high rage, stay in current stance for MS/WW to avoid capping
+    if context.rage > 50 then return false end
+
+    -- MS starvation: if MS ready/nearly ready and in melee, reserve rage for it
+    if not A.MortalStrike:IsBlockedBySpellBook() then
+        local ms_cd = state.ms_cd or 0
+        if ms_cd <= 1.5 and context.in_melee_range then
+            local ms_cost = A.MortalStrike:GetSpellPowerCostCache() or RAGE_COST_MS
+            if rage_after_swap < (op_cost + ms_cost) then return false end
+        end
+    end
+
+    -- WW starvation: if WW ready/nearly ready, reserve rage for it
+    if context.settings.arms_use_whirlwind and not A.Whirlwind:IsBlockedBySpellBook() then
+        local ww_cd = state.ww_cd or 0
+        if ww_cd <= 1.5 and context.in_melee_range then
+            local ww_cost = A.Whirlwind:GetSpellPowerCostCache() or RAGE_COST_WW
+            if rage_after_swap < (op_cost + ww_cost) then return false end
+        end
+    end
+
+    -- Execute starvation: if target <20% and execute phase enabled, reserve for Execute
+    if state.target_below_20 and context.settings.arms_execute_phase then
+        local exec_cost = A.Execute:GetSpellPowerCostCache() or 15
+        if rage_after_swap < (op_cost + exec_cost) then return false end
+    end
+
+    return true
+end
+
 local Arms_Overpower = {
     requires_combat = true,
     requires_enemy = true,
     setting_key = "arms_use_overpower",
 
     matches = function(context, state)
-        local min_rage = context.settings.arms_overpower_rage or 25
-        if context.rage < min_rage then return false end
-        -- 5 rage cost — check explicitly since skipUsable bypasses resource checks
         -- skipUsable=true: bypass stance check so we can dance to Battle
-        return A.Overpower:IsReady(TARGET_UNIT, nil, nil, nil, true)
+        if not A.Overpower:IsReady(TARGET_UNIT, nil, nil, nil, true) then return false end
+
+        -- Urgent proc: if OP proc expires very soon, use it or lose it (bypass rage checks)
+        local op_remaining = A.Overpower:GetCooldown() or 0
+        if op_remaining > 0 and op_remaining <= 1.5 then
+            -- Proc expiring — still need basic affordability
+            return is_stance_swap_safe(context.rage, 5)
+        end
+
+        -- Smart rage protection: check MS/WW/Execute starvation
+        return should_use_overpower(context, state)
     end,
 
     execute = function(icon, context, state)
         -- Swap to Battle Stance if needed (inline stance dance)
         if context.stance ~= Constants.STANCE.BATTLE then
-            -- TM check: Overpower costs 5 rage, don't dance if we'd waste too much rage
-            if not is_stance_swap_safe(context.rage, 5) then return nil end
             if A.BattleStance:IsReady(PLAYER_UNIT) then
                 return A.BattleStance:Show(icon), "[ARMS] → Battle (for Overpower)"
             end
@@ -284,12 +331,12 @@ local Arms_ThunderClap = {
         -- PvP CC break prevention: TC is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
         if state.thunder_clap_duration > 2 then return false end
-        -- TC requires Battle or Defensive Stance (not Berserker)
-        return A.ThunderClap:IsReady(TARGET_UNIT)
+        -- TC is PBAoE — use PLAYER_UNIT for range check (self-cast)
+        return A.ThunderClap:IsReady(PLAYER_UNIT)
     end,
 
     execute = function(icon, context, state)
-        return try_cast(A.ThunderClap, icon, TARGET_UNIT,
+        return try_cast(A.ThunderClap, icon, PLAYER_UNIT,
             format("[ARMS] Thunder Clap - Duration: %.1fs", state.thunder_clap_duration))
     end,
 }
@@ -303,6 +350,7 @@ local Arms_DemoShout = {
     matches = function(context, state)
         -- PvP CC break prevention: Demo Shout is PBAoE
         if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+        if not context.in_melee_range then return false end
         if state.demo_shout_duration > 3 then return false end
         return A.DemoralizingShout:IsReady(PLAYER_UNIT)
     end,
@@ -342,9 +390,21 @@ local Arms_HeroicStrike = {
     is_gcd_gated = false,
 
     matches = function(context, state)
+        -- Already queued — yield the icon so GCD abilities can show
+        if A.HeroicStrike:IsSpellCurrent() or A.Cleave:IsSpellCurrent() then return false end
         -- During execute phase, check setting
         if state.target_below_20 and context.settings.arms_execute_phase then
             if not context.settings.arms_hs_during_execute then return false end
+        end
+        -- HS Trick: proactively queue when OH swing is imminent (before rage threshold)
+        if context.settings.hs_trick and context.has_offhand then
+            local oh_remaining = context.oh_remain or 0
+            local mh_remaining = context.mh_remain or 0
+            if oh_remaining > 0 and oh_remaining <= 0.4 then
+                if mh_remaining > oh_remaining + 0.3 then
+                    return true  -- queue HS now; dequeue middleware handles MH safety
+                end
+            end
         end
         local threshold = context.settings.arms_hs_rage_threshold or 55
         if context.rage < threshold then return false end

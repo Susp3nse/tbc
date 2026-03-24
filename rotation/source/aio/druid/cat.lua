@@ -197,10 +197,10 @@ local function safe_cat_form_shift(icon, context)
    -- Use Sapper Charges when shifting vs 3+ enemies or bosses (requires DMH addon)
    local use_sappers = (context.enemy_count >= 3) or context.is_boss
    if use_sappers then
-      if context.settings.use_super_sapper and A.SuperSapperCharge:IsExists() and A.CatSuperSapperChargeAndShift:IsReady("player") then
+      if context.settings.use_super_sapper and A.SuperSapperCharge:IsExists() and A.SuperSapperCharge:IsReady("player") and A.CatSuperSapperChargeAndShift:IsReady("player") then
          return A.CatSuperSapperChargeAndShift:Show(icon)
       end
-      if context.settings.use_goblin_sapper and A.GoblinSapperCharge:IsExists() and A.CatGoblinSapperChargeAndShift:IsReady("player") then
+      if context.settings.use_goblin_sapper and A.GoblinSapperCharge:IsExists() and A.GoblinSapperCharge:IsReady("player") and A.CatGoblinSapperChargeAndShift:IsReady("player") then
          return A.CatGoblinSapperChargeAndShift:Show(icon)
       end
    end
