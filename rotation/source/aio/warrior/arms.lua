@@ -138,7 +138,7 @@ local function should_use_overpower(context, state)
     if not A.MortalStrike:IsBlockedBySpellBook() then
         local ms_cd = state.ms_cd or 0
         if ms_cd <= 1.5 and context.in_melee_range then
-            local ms_cost = A.MortalStrike:GetSpellPowerCostCache() or RAGE_COST_MS
+            local ms_cost = A.MortalStrike:GetSpellPowerCost() or RAGE_COST_MS
             if rage_after_swap < (op_cost + ms_cost) then return false end
         end
     end
@@ -147,14 +147,14 @@ local function should_use_overpower(context, state)
     if context.settings.arms_use_whirlwind and not A.Whirlwind:IsBlockedBySpellBook() then
         local ww_cd = state.ww_cd or 0
         if ww_cd <= 1.5 and context.in_melee_range then
-            local ww_cost = A.Whirlwind:GetSpellPowerCostCache() or RAGE_COST_WW
+            local ww_cost = A.Whirlwind:GetSpellPowerCost() or RAGE_COST_WW
             if rage_after_swap < (op_cost + ww_cost) then return false end
         end
     end
 
     -- Execute starvation: if target <20% and execute phase enabled, reserve for Execute
     if state.target_below_20 and context.settings.arms_execute_phase then
-        local exec_cost = A.Execute:GetSpellPowerCostCache() or 15
+        local exec_cost = A.Execute:GetSpellPowerCost() or 15
         if rage_after_swap < (op_cost + exec_cost) then return false end
     end
 

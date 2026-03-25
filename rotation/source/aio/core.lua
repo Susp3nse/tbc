@@ -159,22 +159,22 @@ NS.Priority = Priority
 -- ============================================================================
 -- TBC power types: 0=Mana, 1=Rage, 2=Focus, 3=Energy
 local function get_spell_mana_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCostCache()
+   local cost, power_type = spell:GetSpellPowerCost()
    return (cost and cost > 0 and power_type == 0) and cost or 0
 end
 
 local function get_spell_rage_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCostCache()
+   local cost, power_type = spell:GetSpellPowerCost()
    return (cost and cost > 0 and power_type == 1) and cost or 0
 end
 
 local function get_spell_energy_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCostCache()
+   local cost, power_type = spell:GetSpellPowerCost()
    return (cost and cost > 0 and power_type == 3) and cost or 0
 end
 
 local function get_spell_focus_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCostCache()
+   local cost, power_type = spell:GetSpellPowerCost()
    return (cost and cost > 0 and power_type == 2) and cost or 0
 end
 
