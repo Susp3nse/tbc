@@ -515,9 +515,12 @@ local Cat_FerociousBite = {
    requires_stealth = false,
    spell = A.FerociousBite,
    requires_phys_immune = false,
-   min_cp = 5,
    matches = function(context, state)
-      return not state.pooling
+      if state.pooling then return false end
+      -- Dynamic min CP from settings (replaces hardcoded min_cp = 5)
+      local min_cp = context.settings.fb_min_cp or 5
+      if context.cp < min_cp then return false end
+      return true
    end,
 
    execute = function(icon, context, state)
@@ -527,20 +530,21 @@ local Cat_FerociousBite = {
       local target_hp = context.target_hp
       local bite_now = false
       local bite_reason = ""
+      local fb_max_energy = settings.fb_max_energy or 39
 
-      -- Not maintaining Rip on this target: Bite freely at 5 CP
+      -- Not maintaining Rip on this target: Bite freely
       local not_maintaining_rip = not settings.maintain_rip or not state.target_qualifies_for_rip
-      if not_maintaining_rip and energy >= ENERGY_COST_BITE then
+      if not_maintaining_rip and energy >= ENERGY_COST_BITE and energy <= fb_max_energy then
          bite_now = true
          bite_reason = "No Rip target"
       end
 
-      if state.rip_duration > settings.fb_min_rip_duration and energy >= settings.fb_min_energy then
+      if state.rip_duration > settings.fb_min_rip_duration and energy >= settings.fb_min_energy and energy <= fb_max_energy then
          bite_now = true
          bite_reason = "Excess energy"
       end
 
-      -- Execute/Short fight (configurable thresholds)
+      -- Execute/Short fight (configurable thresholds) — ignore max energy cap, bite freely
       local bite_execute_ttd = settings.bite_execute_ttd or Constants.TTD.BITE_EXECUTE
       local bite_execute_hp = settings.bite_execute_hp or Constants.HP.EXECUTE
       if ttd < bite_execute_ttd and energy >= ENERGY_COST_BITE then

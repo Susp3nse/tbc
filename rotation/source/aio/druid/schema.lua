@@ -26,6 +26,9 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
+        { header = "Targeting", settings = {
+            { type = "checkbox", key = "mouseover", default = false, label = "Use @mouseover", tooltip = "Use mouseover targeting.", hidden = true },
+        }},
         { header = "Shared Combat", settings = {
             { type = "dropdown", key = "maintain_faerie_fire", default = "all", label = "Faerie Fire Targets",
               tooltip = "Which targets to maintain Faerie Fire on. All = everything, Elites+ = elites and bosses, Bosses = bosses only, Off = disabled.",
@@ -88,11 +91,13 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "rip_only_elites", default = false, label = "Rip Only Elites/Bosses", tooltip = "Only Rip elite or boss targets." },
             { type = "slider", key = "rip_min_cp", default = 4, min = 4, max = 5, label = "Rip Min Combo Points", tooltip = "Minimum combo points for Rip.", format = "%d" },
             { type = "slider", key = "rip_refresh", default = 0, min = 0, max = 5, label = "Rip Refresh (sec)", tooltip = "Prepare refresh this many seconds before expiry.", format = "%d sec" },
-            { type = "slider", key = "rip_min_ttd", default = 12, min = 8, max = 20, label = "Rip Min TTD (sec)", tooltip = "Only Rip if target lives at least this long.", format = "%d sec" },
+            { type = "slider", key = "rip_min_ttd", default = 12, min = 8, max = 30, label = "Rip Min TTD (sec)", tooltip = "Only Rip if target lives at least this long.", format = "%d sec" },
             { type = "checkbox", key = "maintain_rake", default = true, label = "Maintain Rake", tooltip = "Keep Rake bleed active." },
             { type = "slider", key = "rake_refresh", default = 0, min = 0, max = 4, label = "Rake Refresh (sec)", tooltip = "Refresh Rake with this many seconds remaining.", format = "%d sec" },
         }},
         { header = "Finishers", settings = {
+            { type = "slider", key = "fb_min_cp", default = 5, min = 1, max = 5, label = "FB Min Combo Points", tooltip = "Minimum combo points to use Ferocious Bite.", format = "%d" },
+            { type = "slider", key = "fb_max_energy", default = 39, min = 35, max = 70, label = "FB Max Energy", tooltip = "Only Bite at or below this energy to save energy for Shred. Does not apply during execute.", format = "%d" },
             { type = "slider", key = "fb_min_energy", default = 35, min = 35, max = 70, label = "FB Min Energy", tooltip = "Only Bite above this energy. 35 is optimal.", format = "%d" },
             { type = "slider", key = "fb_min_rip_duration", default = 6, min = 0, max = 12, label = "FB Min Rip Duration (sec)", tooltip = "Only Bite when Rip has more than this remaining.", format = "%d sec" },
             { type = "slider", key = "bite_execute_hp", default = 25, min = 10, max = 35, label = "Bite Execute HP (%)", tooltip = "Bite aggressively when target HP below this.", format = "%d%%" },
