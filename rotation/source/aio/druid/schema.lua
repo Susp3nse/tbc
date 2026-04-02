@@ -100,6 +100,7 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "slider", key = "fb_max_energy", default = 39, min = 35, max = 70, label = "FB Max Energy", tooltip = "Only Bite at or below this energy to save energy for Shred. Does not apply during execute.", format = "%d" },
             { type = "slider", key = "fb_min_energy", default = 35, min = 35, max = 70, label = "FB Min Energy", tooltip = "Only Bite above this energy. 35 is optimal.", format = "%d" },
             { type = "slider", key = "fb_min_rip_duration", default = 6, min = 0, max = 12, label = "FB Min Rip Duration (sec)", tooltip = "Only Bite when Rip has more than this remaining.", format = "%d sec" },
+            { type = "checkbox", key = "use_bite_execute", default = true, label = "Bite as Execute", tooltip = "Use Ferocious Bite as an execute finisher when target is low HP or dying soon. Disable to always Rip instead." },
             { type = "slider", key = "bite_execute_hp", default = 25, min = 10, max = 35, label = "Bite Execute HP (%)", tooltip = "Bite aggressively when target HP below this.", format = "%d%%" },
             { type = "slider", key = "bite_execute_ttd", default = 6, min = 4, max = 12, label = "Bite Execute TTD (sec)", tooltip = "Use Bite instead of Rip when target dies within this.", format = "%d sec" },
         }},

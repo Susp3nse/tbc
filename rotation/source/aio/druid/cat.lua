@@ -495,6 +495,7 @@ local Cat_ExecuteBite = {
    min_cp = 1,
    matches = function(context, state)
       if state.pooling then return false end
+      if not context.settings.use_bite_execute then return false end
       -- Bite scales with CP: 1 CP bite only if mob dies in 1 GCD, 5 CP bite with 7.5s left
       return context.ttd <= context.cp * 1.5
    end,
@@ -545,14 +546,16 @@ local Cat_FerociousBite = {
       end
 
       -- Execute/Short fight (configurable thresholds) — ignore max energy cap, bite freely
-      local bite_execute_ttd = settings.bite_execute_ttd or Constants.TTD.BITE_EXECUTE
-      local bite_execute_hp = settings.bite_execute_hp or Constants.HP.EXECUTE
-      if ttd < bite_execute_ttd and energy >= ENERGY_COST_BITE then
-         bite_now = true
-         bite_reason = "Target dying soon"
-      elseif (target_hp <= bite_execute_hp or ttd < Constants.TTD.SHORT_FIGHT) and state.rip_duration > Constants.DURATION.BITE_MIN_RIP and energy >= ENERGY_COST_BITE then
-         bite_now = true
-         bite_reason = "Execute/Short fight"
+      if settings.use_bite_execute then
+         local bite_execute_ttd = settings.bite_execute_ttd or Constants.TTD.BITE_EXECUTE
+         local bite_execute_hp = settings.bite_execute_hp or Constants.HP.EXECUTE
+         if ttd < bite_execute_ttd and energy >= ENERGY_COST_BITE then
+            bite_now = true
+            bite_reason = "Target dying soon"
+         elseif (target_hp <= bite_execute_hp or ttd < Constants.TTD.SHORT_FIGHT) and state.rip_duration > Constants.DURATION.BITE_MIN_RIP and energy >= ENERGY_COST_BITE then
+            bite_now = true
+            bite_reason = "Execute/Short fight"
+         end
       end
 
       if bite_now then
