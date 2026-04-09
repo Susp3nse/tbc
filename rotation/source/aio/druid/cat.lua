@@ -747,7 +747,7 @@ local Cat_MangleBuilder = {
       if not state.prefer_mangle_for_tick and not context.settings.use_mangle_builder then return false end
       return (not_behind or context.energy < ENERGY_COST_SHRED or state.prefer_mangle_for_tick)
          and (context.energy >= ENERGY_COST_MANGLE or context.has_clearcasting)
-         and context.cp < 5
+       --  and context.cp < 5
    end,
    execute = function(icon, context, state)
       if is_swing_landing_soon(0.15) then return nil end
