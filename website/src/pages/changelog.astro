@@ -15,6 +15,24 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.8.13 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-feature">Feature</span>
+
+      <h3>Druid</h3>
+      <ul class="features">
+        <li><strong>Cat Rotation Sim Alignment</strong> &mdash; Major refactor to align cat rotation priorities and energy logic with the wowsims TBC feral simulator.</li>
+        <li><strong>Priority Reorder</strong> &mdash; Bite Trick and Rake Trick now check before Mangle debuff maintenance, matching sim behavior.</li>
+        <li><strong>Smart Shift Delay</strong> &mdash; New context-aware setting that delays powershifts up to 1 second for an energy tick, but only when the tick will actually reach a useful threshold.</li>
+        <li><strong>Energy Pooling Toggle</strong> &mdash; New setting to enable/disable energy pooling for Rip. Mangle debuff no longer pools energy.</li>
+        <li><strong>Swing Timer Delay Toggle</strong> &mdash; New setting to enable/disable swing timer delay on ability casts.</li>
+        <li><strong>Bite Trick Improvements</strong> &mdash; Removed TTD gate (was preventing bite trick on dying targets). Now uses sim-matched 0.1s tick threshold.</li>
+        <li><strong>Rake Trick Improvements</strong> &mdash; Now uses sim-matched 1.0s tick threshold.</li>
+        <li><strong>Sim-Optimal Defaults</strong> &mdash; Default settings updated to match wowsims optimal feral config: 5 CP rip, elites only, no rake maintenance, no bite execute, no rake trick, no swing delay.</li>
+        <li><strong>Cleanup</strong> &mdash; Removed Cat_ExecuteBite (consolidated into FerociousBite), removed dead "avoid idle" fallback, removed redundant fb_max_energy check from Shred.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.8.12 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-fix">Fix</span>
 

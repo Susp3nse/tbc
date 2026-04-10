@@ -113,7 +113,13 @@ end
 -- ============================================================================
 local ENERGY_TICK_INTERVAL = 2.0
 local SHIFT_ENERGY_IGNORE_WINDOW = 0.6  -- Ignore energy increases within 0.6s of a shift
-local TICK_WAIT_THRESHOLD = 0.4         -- Wait for tick if arriving within this window
+local SHIFT_DELAY_TICK_THRESHOLD = 1.0         -- Wait up to 1s for tick before shifting (sim: MaxWaitTime = 1.0s)
+
+-- Tick proximity thresholds for trick abilities (sim-matched)
+-- Bite trick: fire unless tick is nearly instant (sim: > latency, ~0.1s)
+-- Rake trick: only fire when tick is far away (sim: > 1s + latency)
+local BITE_TRICK_TICK_THRESHOLD = 0.1
+local RAKE_TRICK_TICK_THRESHOLD = 1.0
 
 local energy_tick_last_shift = 0
 
@@ -161,28 +167,32 @@ function energy_tick:time_until_next_tick()
 end
 
 --- Check if powershifting should be delayed for an imminent energy tick
---- @return boolean True if a tick is arriving soon and we should wait
-function energy_tick:should_delay_shift()
+--- @param current_energy number Current energy level
+--- @param min_useful_energy number Minimum energy needed to cast something useful
+--- @return boolean True if a tick is arriving soon and would reach a useful threshold
+function energy_tick:should_delay_shift(current_energy, min_useful_energy)
    if not self.confident then return false end
-   return self:time_until_next_tick() <= TICK_WAIT_THRESHOLD
+   if current_energy + 20 < min_useful_energy then return false end
+   return self:time_until_next_tick() <= SHIFT_DELAY_TICK_THRESHOLD
+end
+
+--- Check if bite trick should be skipped for an imminent energy tick
+--- @return boolean True if a tick is arriving too soon for bite trick
+function energy_tick:should_skip_bite_trick()
+   if not self.confident then return false end
+   return self:time_until_next_tick() < BITE_TRICK_TICK_THRESHOLD
+end
+
+--- Check if rake trick should be skipped because an energy tick is coming
+--- @return boolean True if a tick is arriving too soon for rake trick
+function energy_tick:should_skip_rake_trick()
+   if not self.confident then return false end
+   return self:time_until_next_tick() < RAKE_TRICK_TICK_THRESHOLD
 end
 
 -- ============================================================================
 -- CAT FORM UTILITIES
 -- ============================================================================
-
---- Check if energy will reach target amount within threshold time
---- @param target_energy number Energy threshold to reach
---- @param threshold number|nil Time threshold in seconds (default 0.5)
---- @param context table|nil Optional context for current energy
---- @return boolean True if energy will reach target soon
-local function will_reach_energy_soon(target_energy, threshold, context)
-   threshold = threshold or 0.5
-   local current_energy = context and context.energy or Player:Energy()
-   if current_energy >= target_energy then return true end
-   local time_to_target = Player:EnergyTimeToX(target_energy, 0)
-   return time_to_target > 0 and time_to_target <= threshold
-end
 
 --- Safe Cat Form shift with ready check
 --- CatForm has /cancelform macro built-in for powershift support
@@ -230,7 +240,7 @@ local cat_state = {
    -- Cat-specific context
    has_wolfshead = false,
    can_powershift = false,
-   energy_tick_soon = false,
+   should_delay_shift = false,
    cat_form_cost = 0,
    shifts_remaining = 0,
    -- DPS state
@@ -279,7 +289,6 @@ local function get_cat_state(context)
 
    -- Energy tick tracking
    energy_tick:update(energy, context.stance)
-   cat_state.energy_tick_soon = energy_tick:should_delay_shift()
 
    local has_cc = context.has_clearcasting
 
@@ -315,6 +324,15 @@ local function get_cat_state(context)
       rip_now = false
    end
    cat_state.rip_now = rip_now
+
+   -- Smart shift delay: compute minimum useful energy threshold for tick-waiting
+   local min_useful_energy = ENERGY_COST_SHRED
+   if rip_now then
+      min_useful_energy = ENERGY_COST_RIP
+   elseif settings.use_bite_trick or settings.use_rake_trick then
+      min_useful_energy = ENERGY_COST_BITE
+   end
+   cat_state.should_delay_shift = energy_tick:should_delay_shift(energy, min_useful_energy)
 
    -- Guard: don't spend CPs on Bite if Rip needs renewal soon
    -- Conservative estimate: 1 CP per GCD (~1.5s), no crits assumed
@@ -455,7 +473,9 @@ local Cat_Rip = {
          end
       end
 
-      state.pooling = true
+      if context.settings.cat_energy_pooling then
+         state.pooling = true
+      end
       return nil
    end,
 }
@@ -473,8 +493,7 @@ local Cat_RipShift = {
          and context.energy < ENERGY_COST_RIP and not context.has_clearcasting
    end,
    execute = function(icon, context, state)
-      if will_reach_energy_soon(ENERGY_COST_RIP, 0.5, context) then return nil end
-      if state.energy_tick_soon then return nil end
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
       local result = safe_cat_form_shift(icon, context)
       if result then
          return result, format("[P2] Shift for Rip - Energy: %d -> ~%d (%d shifts left)", context.energy, state.energy_after_shift, state.shifts_remaining)
@@ -483,30 +502,6 @@ local Cat_RipShift = {
    end,
 }
 
--- Execute Bite - FB when target will die before we can build more CPs
-local Cat_ExecuteBite = {
-   requires_combat = true,
-   requires_enemy = true,
-   requires_in_range = true,
-   requires_stealth = false,
-   spell = A.FerociousBite,
-   requires_phys_immune = false,
-   min_energy = ENERGY_COST_BITE,
-   min_cp = 1,
-   matches = function(context, state)
-      if state.pooling then return false end
-      if not context.settings.use_bite_execute then return false end
-      -- Bite scales with CP: 1 CP bite only if mob dies in 1 GCD, 5 CP bite with 7.5s left
-      return context.ttd <= context.cp * 1.5
-   end,
-   execute = function(icon, context, state)
-      local result = safe_ability_cast(A.FerociousBite, icon, TARGET_UNIT)
-      if result then
-         return result, format("[P2.5] Ferocious Bite - Execute, CP: %d, TTD: %.1fs, HP: %.1f%%", context.cp, context.ttd, context.target_hp)
-      end
-      return nil
-   end,
-}
 
 -- Ferocious Bite - Standard finisher at 5 CP (excess energy, execute, short fight)
 local Cat_FerociousBite = {
@@ -593,7 +588,6 @@ local Cat_MangleDebuff = {
          end
       end
 
-      state.pooling = true
       return nil
    end,
 }
@@ -612,8 +606,7 @@ local Cat_MangleShift = {
    end,
 
    execute = function(icon, context, state)
-      if will_reach_energy_soon(ENERGY_COST_MANGLE, 0.5, context) then return nil end
-      if state.energy_tick_soon then return nil end
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
       local result = safe_cat_form_shift(icon, context)
       if result then
          return result, format("[P4] Shift for Mangle - Energy: %d -> ~%d (%d shifts left)", context.energy, state.energy_after_shift, state.shifts_remaining)
@@ -645,7 +638,7 @@ local Cat_Rake = {
       -- Single-target Rake maintenance
       if not is_aoe_situation and context.cp <= 4 then
          if ttd >= Constants.TTD.RAKE_MIN and (rake_duration == 0 or rake_duration < rake_refresh_threshold) and A.Rake:IsReady(TARGET_UNIT) then
-            if is_swing_landing_soon(0.15) then return nil end
+            if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
             local result = safe_ability_cast(A.Rake, icon, TARGET_UNIT)
             if result then
                return result, format("[P4.5] Rake - DoT maintenance, Duration: %.1fs, CP: %d, Energy: %d", rake_duration, context.cp, context.energy)
@@ -658,7 +651,7 @@ local Cat_Rake = {
       if is_aoe_situation and settings.spread_rake then
          -- Primary target first
          if ttd >= Constants.TTD.RAKE_MIN and (rake_duration == 0 or rake_duration < rake_refresh_threshold) and A.Rake:IsReady(TARGET_UNIT) then
-            if is_swing_landing_soon(0.15) then return nil end
+            if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
             local result = safe_ability_cast(A.Rake, icon, TARGET_UNIT)
             if result then
                return result, format("[AoE] Rake - Primary target, Duration: %.1fs, TTD: %.1fs", rake_duration, ttd)
@@ -667,7 +660,7 @@ local Cat_Rake = {
 
          -- Spread to nearby targets missing Rake
          if A.MultiUnits:GetByRangeMissedDoTs(Constants.AOE.RAKE_SPREAD_NEARBY, 10, A.Rake.ID) > 0 and A.Rake:IsReady(TARGET_UNIT) then
-            if is_swing_landing_soon(0.15) then return nil end
+            if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
             local result = safe_ability_cast(A.Rake, icon, TARGET_UNIT)
             if result then
                return result, "[AoE] Rake - Spread to other targets"
@@ -695,7 +688,7 @@ local Cat_ClearcastingShred = {
    end,
 
    execute = function(icon, context, state)
-      if is_swing_landing_soon(0.15) then return nil end
+      if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
       local result = safe_ability_cast(A.Shred, icon, TARGET_UNIT)
       if result then
          return result, format("[P5] Shred - Clearcasting, Energy: %d, CP: %d", context.energy, context.cp)
@@ -717,16 +710,13 @@ local Cat_Shred = {
    matches = function(context, state)
       if state.pooling then return false end
       if state.prefer_mangle_for_tick then return false end
-      if context.cp < 5 then return true end
-      -- At 5 CP with energy above bite cap: Shred to dump energy, bank CPs for next Rip
-      local fb_max_energy = context.settings.fb_max_energy or 39
-      return context.energy > fb_max_energy
+      return true
    end,
    execute = function(icon, context, state)
-      if is_swing_landing_soon(0.15) then return nil end
+      if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
       local result = safe_ability_cast(A.Shred, icon, TARGET_UNIT)
       if result then
-         return result, format("[P8] Shred - Builder, Energy: %d, CP: %d", context.energy, context.cp)
+         return result, format("[P6] Shred - Builder, Energy: %d, CP: %d", context.energy, context.cp)
       end
       return nil
    end,
@@ -747,10 +737,9 @@ local Cat_MangleBuilder = {
       if not state.prefer_mangle_for_tick and not context.settings.use_mangle_builder then return false end
       return (not_behind or context.energy < ENERGY_COST_SHRED or state.prefer_mangle_for_tick)
          and (context.energy >= ENERGY_COST_MANGLE or context.has_clearcasting)
-       --  and context.cp < 5
    end,
    execute = function(icon, context, state)
-      if is_swing_landing_soon(0.15) then return nil end
+      if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
       local result = safe_ability_cast(A.MangleCat, icon, TARGET_UNIT)
       if result then
          local cc_str = context.has_clearcasting and " [CC]" or ""
@@ -778,8 +767,8 @@ local Cat_BiteTrick = {
    matches = function(context, state)
       if state.pooling then return false end
       if state.rip_needs_refresh_soon then return false end
+      if energy_tick:should_skip_bite_trick() then return false end
       return context.energy <= Constants.ENERGY.BITE_TRICK_MAX
-         and context.ttd >= Constants.TTD.BITE_EXECUTE
    end,
    execute = function(icon, context, state)
       local result = safe_ability_cast(A.FerociousBite, icon, TARGET_UNIT)
@@ -803,12 +792,13 @@ local Cat_RakeTrick = {
    spell = A.Rake,
    matches = function(context, state)
       if state.pooling then return false end
+      if energy_tick:should_skip_rake_trick() then return false end
       return context.energy < ENERGY_COST_MANGLE
          and state.mangle_duration > 0 and state.rake_duration == 0
          and context.ttd >= Constants.TTD.RAKE_MIN
    end,
    execute = function(icon, context, state)
-      if is_swing_landing_soon(0.15) then return nil end
+      if context.settings.cat_swing_delay and is_swing_landing_soon(0.15) then return nil end
       local result = safe_ability_cast(A.Rake, icon, TARGET_UNIT)
       if result then
          return result, format("[P7] Rake - Rake Trick, Energy: %d", context.energy)
@@ -865,9 +855,7 @@ local Cat_CriticalEnergyShift = {
       return context.energy < Constants.ENERGY.CRITICAL and state.can_powershift
    end,
    execute = function(icon, context, state)
-      if will_reach_energy_soon(Constants.ENERGY.CRITICAL + 10, 0.5, context) then
-         return nil
-      end
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
       local result = safe_cat_form_shift(icon, context)
       if result then
          return result, format("[P0] Critical Energy Shift - Energy: %d -> %d, Mana: %.0f%% (%d shifts left)", context.energy, state.energy_after_shift, context.mana_pct, state.shifts_remaining)
@@ -890,14 +878,12 @@ local Cat_WolfsheadShred = {
       if state.pooling or state.rip_now or state.mangle_now then return false end
       return state.has_wolfshead and state.can_powershift
          and (state.energy_after_shift - context.energy) >= Constants.POWERSHIFT.MIN_SHIFT_ENERGY_GAIN
-         and context.cp < 5
          and state.energy_after_shift >= ENERGY_COST_SHRED
          and context.energy < ENERGY_COST_SHRED
    end,
 
    execute = function(icon, context, state)
-      if will_reach_energy_soon(ENERGY_COST_SHRED, 0.5, context) then return nil end
-      if state.energy_tick_soon then return nil end
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
       local result = safe_cat_form_shift(icon, context)
       if result then
          return result, format("[WOLFSHEAD] Shift -> Shred, Energy: %d -> %d (%d shifts left)", context.energy, state.energy_after_shift, state.shifts_remaining)
@@ -923,13 +909,7 @@ local Cat_EarlyShift = {
    end,
 
    execute = function(icon, context, state)
-      -- Don't shift if tricks are available in this energy range
-      if context.settings.use_rake_trick and context.energy >= Constants.ENERGY.RAKE_TRICK_MIN then
-         return nil
-      end
-      local shift_threshold = state.has_wolfshead and Constants.ENERGY.EARLY_SHIFT_WOLFSHEAD or Constants.ENERGY.EARLY_SHIFT
-      if will_reach_energy_soon(shift_threshold + 10, 0.5, context) then return nil end
-      if state.energy_tick_soon then return nil end
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
       local result = safe_cat_form_shift(icon, context)
       if result then
          local info = state.has_wolfshead and format(" -> %d", state.energy_after_shift) or ""
@@ -951,16 +931,15 @@ rotation_registry:register("cat", {
    named("FaerieFire",          Cat_FaerieFire),             -- Debuff: Faerie Fire
    named("Rip",                 Cat_Rip),                    -- P2: Finisher DoT
    named("RipShift",            Cat_RipShift),               -- P2: Powershift for Rip
-   named("ExecuteBite",         Cat_ExecuteBite),            -- P2.5: Execute finisher
    named("FerociousBite",       Cat_FerociousBite),          -- P3: Standard finisher
+   named("BiteTrick",           Cat_BiteTrick),              -- P3.5: Low-energy Bite trick
+   named("RakeTrick",           Cat_RakeTrick),              -- P3.7: Low-energy Rake trick
    named("MangleDebuff",        Cat_MangleDebuff),           -- P4: Bleed debuff maintenance
    named("MangleShift",         Cat_MangleShift),            -- P4: Powershift for Mangle
    named("Rake",                Cat_Rake),                   -- P4.5: Rake DoT maintenance
    named("ClearcastingShred",   Cat_ClearcastingShred),      -- P5: Free Shred (OoC proc)
-   named("BiteTrick",           Cat_BiteTrick),              -- P6: Low-energy Bite trick
-   named("RakeTrick",           Cat_RakeTrick),              -- P7: Low-energy Rake trick
-   named("Shred",               Cat_Shred),                  -- P8: Primary builder
-   named("MangleBuilder",       Cat_MangleBuilder),          -- P9: Fallback builder
+   named("Shred",               Cat_Shred),                  -- P6: Primary builder
+   named("MangleBuilder",       Cat_MangleBuilder),          -- P7: Fallback builder
    named("TigersFury",          Cat_TigersFury),             -- CD: Energy boost
    named("WolfsheadShred",      Cat_WolfsheadShred),         -- Shift: Wolfshead optimization
    named("EarlyShift",          Cat_EarlyShift),             -- Shift: Low-energy powershift
@@ -978,4 +957,4 @@ rotation_registry:register("cat", {
 
 end  -- End Cat strategies scope block
 
-print("|cFF00FF00[Flux AIO Cat]|r 21 Cat strategies registered.")
+print("|cFF00FF00[Flux AIO Cat]|r 20 Cat strategies registered.")
