@@ -113,7 +113,7 @@ end
 -- ============================================================================
 local ENERGY_TICK_INTERVAL = 2.0
 local SHIFT_ENERGY_IGNORE_WINDOW = 0.6  -- Ignore energy increases within 0.6s of a shift
-local SHIFT_DELAY_TICK_THRESHOLD = 1.0         -- Wait up to 1s for tick before shifting (sim: MaxWaitTime = 1.0s)
+local SHIFT_DELAY_TICK_THRESHOLD = 0.725       -- Wait up to 0.725s for tick before shifting
 
 -- Tick proximity thresholds for trick abilities (sim-matched)
 -- Bite trick: fire unless tick is nearly instant (sim: > latency, ~0.1s)
@@ -328,11 +328,15 @@ local function get_cat_state(context)
    cat_state.rip_now = rip_now
 
    -- Smart shift delay: compute minimum useful energy threshold for tick-waiting
+   -- Bite trick needs CP check; rake trick doesn't use combo points
    local min_useful_energy = ENERGY_COST_SHRED
+   local min_cp = settings.fb_min_cp or 5
    if rip_now then
       min_useful_energy = ENERGY_COST_RIP
-   elseif settings.use_bite_trick or settings.use_rake_trick then
+   elseif settings.use_bite_trick and context.cp >= min_cp then
       min_useful_energy = ENERGY_COST_BITE
+   elseif settings.use_rake_trick then
+      min_useful_energy = ENERGY_COST_RAKE
    end
    cat_state.should_delay_shift = energy_tick:should_delay_shift(energy, min_useful_energy)
 
@@ -763,10 +767,11 @@ local Cat_BiteTrick = {
    requires_phys_immune = false,
    requires_clearcasting = false,
    min_energy = ENERGY_COST_BITE,
-   min_cp = 3,
    spell = A.FerociousBite,
    setting_key = "use_bite_trick",
    matches = function(context, state)
+      local min_cp = context.settings.fb_min_cp or 5
+      if context.cp < min_cp then return false end
       if state.pooling then return false end
       if state.rip_needs_refresh_soon then return false end
       if energy_tick:should_skip_bite_trick() then return false end
