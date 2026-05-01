@@ -68,6 +68,7 @@ Action[A.PlayerClass] = {
    FaerieFireCaster = Create({ Type = "Spell", ID = 770, useMaxRank = true }),
    Moonfire = Create({ Type = "Spell", ID = 8921, useMaxRank = true }),
    Starfire = Create({ Type = "Spell", ID = 2912, useMaxRank = true }),
+   Starfire6 = Create({ Type = "Spell", ID = 9876, isRank = 6 }),  -- Rank 6: explicit downrank for mana-conservation tier (mirrors WoWsims)
    Wrath = Create({ Type = "Spell", ID = 5176, useMaxRank = true }),
    InsectSwarm = Create({ Type = "Spell", ID = 5570, useMaxRank = true }),
    Hurricane = Create({ Type = "Spell", ID = 16914, useMaxRank = true }),
@@ -340,6 +341,33 @@ local Constants = {
 }
 
 NS.Constants = Constants
+
+-- ============================================================================
+-- SET BONUS DETECTION (Nordrassil Regalia / 4p T5)
+-- 4p bonus: Insect Swarm extends Wrath cast time reduction.
+-- Used by Balance DPS to force-enable IS when mana-conserving (mirrors WoWsims).
+-- ============================================================================
+local NORDRASSIL_T5_ITEMS = {
+   [30216] = true,  -- Cyclone Faceguard (Head)
+   [30217] = true,  -- Cyclone Hauberk (Chest)
+   [30219] = true,  -- Cyclone Legguards (Legs)
+   [30220] = true,  -- Cyclone Shoulderpads (Shoulder)
+   [30221] = true,  -- Cyclone Handguards (Hands)
+}
+
+local function has_nordrassil_4p()
+   local count = 0
+   for slot = 1, 19 do
+      local id = _G.GetInventoryItemID("player", slot)
+      if id and NORDRASSIL_T5_ITEMS[id] then
+         count = count + 1
+         if count >= 4 then return true end
+      end
+   end
+   return false
+end
+
+NS.has_nordrassil_4p = has_nordrassil_4p
 
 -- ============================================================================
 -- HEALING DATA TABLES

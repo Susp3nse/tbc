@@ -146,14 +146,6 @@ local GetNumGroupMembers = _G.GetNumGroupMembers
 -- ============================================================================
 local Constants = {}
 
--- Arcane-immune NPCs (by npcID)
-Constants.ARCANE_IMMUNE = {
-    [18864] = true,
-    [18865] = true,
-    [15691] = true,
-    [20478] = true,
-}
-
 -- Immunity check tables (for AbsentImun calls)
 Constants.Temp = {
     TotalAndPhys                = {"TotalImun", "DamagePhysImun"},

@@ -67,6 +67,7 @@ do
 	local Caster_EmergencyHeal = {
 		suggestion_spell = A.Regrowth5,
 		matches = function(context)
+			if context.stance ~= Constants.STANCE.CASTER then return false end
 			local settings = context.settings
 			local emergency_hp, critical_hp = settings.emergency_heal_hp, settings.critical_heal_hp
 			local is_critical = critical_hp and context.hp <= critical_hp
@@ -156,6 +157,7 @@ do
 	local Caster_ProactiveHeal = {
 		suggestion_spell = A.Rejuvenation7,
 		matches = function(context)
+			if context.stance ~= Constants.STANCE.CASTER then return false end
 			local settings = context.settings
 			local rejuv_hp, regrowth_hp = settings.rejuvenation_hp, settings.regrowth_hp
 			if not rejuv_hp and not regrowth_hp then
@@ -228,6 +230,7 @@ do
 	local Caster_RemoveCurse = {
 		suggestion_spell = A.SelfRemoveCurse,
 		matches = function(context)
+			if context.stance ~= Constants.STANCE.CASTER then return false end
 			if not context.settings.auto_remove_curse then
 				return false
 			end
@@ -252,6 +255,7 @@ do
 	local Caster_AbolishPoison = {
 		suggestion_spell = A.SelfAbolishPoison,
 		matches = function(context)
+			if context.stance ~= Constants.STANCE.CASTER then return false end
 			if not context.settings.auto_remove_poison then
 				return false
 			end
