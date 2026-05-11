@@ -106,14 +106,21 @@ end
 -- ============================================================================
 -- ENERGY TICK TRACKER (for powershift optimization)
 -- ============================================================================
--- Energy ticks every 2s in TBC (20 energy per tick).
--- Detects ticks by watching for energy increases in cat form, filtering out
--- Furor energy (40+20 on form shift). Strategies can check time_until_next_tick()
--- to delay powershifts and capture an imminent tick before shifting.
+-- Energy ticks every 2s in TBC (20 energy per tick), driven by a server-side
+-- timer that is INDEPENDENT of player actions (does not reset on shift).
+--
+-- Detection is event-driven via UNIT_POWER_FREQUENT (Replus-style), with a
+-- tick-alignment rule: a power gain only registers as a tick if it lands at
+-- least (TICK_INTERVAL - 0.25)s after the previously detected tick. This
+-- single rule naturally filters Furor (fires within ~0s of shift, well inside
+-- the alignment window), Tiger's Fury, and any other off-tick energy events.
+-- The 0.3s post-shift skip below is belt-and-suspenders for the cold-start
+-- case where last_tick_time is stale (first cat-form entry of the fight).
 -- ============================================================================
 local ENERGY_TICK_INTERVAL = 2.0
-local SHIFT_ENERGY_IGNORE_WINDOW = 0.6  -- Ignore energy increases within 0.6s of a shift
-local SHIFT_DELAY_TICK_THRESHOLD = 0.725       -- Wait up to 0.725s for tick before shifting
+local TICK_ALIGNMENT_WINDOW = 0.25      -- Replus rule: gain > (interval - this) since last tick
+local POST_SHIFT_SKIP_WINDOW = 0.3      -- Drop the first energy event right after a shift (Furor surge)
+local SHIFT_DELAY_TICK_THRESHOLD = 1.0  -- Wait up to 1.0s for tick before shifting (sim: MaxWaitTime = 1.0s)
 
 -- Tick proximity thresholds for trick abilities (sim-matched)
 -- Bite trick: fire unless tick is nearly instant (sim: > latency, ~0.1s)
@@ -126,35 +133,95 @@ local energy_tick = {
    last_tick_time = 0,
    last_shift_time = 0,
    confident = false,  -- True once we've detected at least one tick
+   debug = true,              -- on by default; toggle off with /fticks (prints "TICK NOW!" on each detection)
 }
 
 -- Expose to NS so the dashboard can prefer this frame-level tracker over its own 10Hz one
 NS.energy_tick_tracker = energy_tick
 
---- Update tick tracker each frame
---- @param current_energy number Current player energy
---- @param stance number Current stance ID
-function energy_tick:update(current_energy, stance)
-   -- Only track in Cat form
-   if stance ~= Constants.STANCE.CAT then
-      self.last_energy = 0
-      self.confident = false
+-- Event-driven tick detection: fires the instant the game updates player energy,
+-- with no frame-rate jitter and no risk of missing ticks between rotation frames.
+local tick_listener = CreateFrame("Frame")
+tick_listener:RegisterEvent("UNIT_POWER_FREQUENT")
+tick_listener:SetScript("OnEvent", function(self, event, unit, ptype)
+   if unit ~= "player" then return end
+   if ptype ~= "ENERGY" then return end
+
+   -- Out of Cat Form: druids don't generate energy ticks in caster/bear/etc.,
+   -- so don't track anything. We deliberately do NOT clear last_tick_time —
+   -- server ticks continue across forms, so the prior anchor is still useful
+   -- when we shift back in.
+   if Player:GetStance() ~= Constants.STANCE.CAT then
+      energy_tick.last_energy = 0
+      energy_tick.confident = false
       return
    end
 
    local now = GetTime()
-   local delta = current_energy - self.last_energy
+   local cur = UnitPower("player", 3) or 0   -- 3 = SPELL_POWER_ENERGY
 
-   -- Detect energy tick: positive increase, not from a recent form shift
-   -- Ticks are 20 energy; filter out Furor (40) + Wolfshead (20) by checking shift window
-   if delta > 0 and delta <= 25 and
-      (now - energy_tick.last_shift_time) > SHIFT_ENERGY_IGNORE_WINDOW then
-      self.last_tick_time = now
-      self.confident = true
+   -- Skip the Furor surge that fires immediately after a shift. After
+   -- POST_SHIFT_SKIP_WINDOW the alignment rule below takes over.
+   if now - energy_tick.last_shift_time < POST_SHIFT_SKIP_WINDOW then
+      energy_tick.last_energy = cur
+      return
    end
 
-   self.last_energy = current_energy
-end
+   -- Capped: can't infer a tick because the gain would be clamped. Sync the
+   -- energy reading but don't update tick time.
+   local maxp = UnitPowerMax("player", 3) or 100
+   if cur >= maxp then
+      energy_tick.last_energy = cur
+      return
+   end
+
+   local has_gained = cur > energy_tick.last_energy
+   local is_aligned = (now - energy_tick.last_tick_time) > (ENERGY_TICK_INTERVAL - TICK_ALIGNMENT_WINDOW)
+   if has_gained and is_aligned then
+      energy_tick.last_tick_time = now
+      energy_tick.confident = true
+      if energy_tick.debug then
+         print("|cFF55FF55[TICK]|r TICK NOW!")
+      end
+   end
+   energy_tick.last_energy = cur
+end)
+
+-- Cat-form-entry detector: ensures the 0.3s POST_SHIFT_SKIP_WINDOW fires for
+-- ALL shifts (manual keybind, addon-driven, /cancelform+CatForm macro), not
+-- just our rotation's safe_cat_form_shift. Without this, the Furor energy
+-- surge that follows a manual shift is misread as a server tick.
+local form_listener = CreateFrame("Frame")
+form_listener:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
+form_listener:SetScript("OnEvent", function()
+   if Player:GetStance() == Constants.STANCE.CAT then
+      energy_tick.last_shift_time = GetTime()
+   end
+end)
+
+-- At-cap tick predictor: while energy is at max, the event handler can't see
+-- ticks (the +20 gets clamped to 0). To keep the [TICK] log running for
+-- verification — and to avoid stale predictions while parked at cap — we
+-- extrapolate from the last detected tick at the expected 2.0s cadence.
+-- Re-anchors itself as time passes so smart-shift-delay stays accurate when
+-- energy drops back below cap.
+local tick_predictor_frame = CreateFrame("Frame")
+tick_predictor_frame:SetScript("OnUpdate", function()
+   if not energy_tick.confident then return end
+   if Player:GetStance() ~= Constants.STANCE.CAT then return end
+   local cur = UnitPower("player", 3) or 0
+   local maxp = UnitPowerMax("player", 3) or 100
+   if cur < maxp then return end
+
+   local now = GetTime()
+   local predicted_next = energy_tick.last_tick_time + ENERGY_TICK_INTERVAL
+   if now >= predicted_next then
+      energy_tick.last_tick_time = predicted_next
+      if energy_tick.debug then
+         print("|cFF55FF55[TICK]|r TICK NOW! (predicted @ cap)")
+      end
+   end
+end)
 
 --- Get time until next energy tick (seconds)
 --- @return number Estimated seconds until next tick (1.0 if unknown)
@@ -199,11 +266,12 @@ end
 --- @param icon table The icon to show
 --- @return any|nil The cast result or nil
 local function safe_cat_form_shift(icon, context)
-   -- Record shift time so energy tick tracker can ignore Furor energy
+   -- Record shift time so energy tick tracker can ignore Furor energy in the
+   -- 0.6s post-shift window. Do NOT touch last_tick_time or confident:
+   -- TBC energy ticks are server-side and continue across form shifts, so the
+   -- prior detection is still the best estimate. The regular tick detector
+   -- self-corrects on the first real post-shift tick (outside the Furor window).
    energy_tick.last_shift_time = GetTime()
-   -- Powershift resets the 2s tick cycle — anchor tracker to shift time
-   energy_tick.last_tick_time = energy_tick.last_shift_time
-   energy_tick.confident = true
 
    -- Use Sapper Charges when shifting vs 3+ enemies or bosses (requires DMH addon)
    local use_sappers = (context.enemy_count >= 3) or context.is_boss
@@ -250,6 +318,7 @@ local cat_state = {
    rip_duration = 0,
    rake_duration = 0,
    rip_now = false,
+   rip_next = false,   -- Rip is queued for the imminent tick (sim: ripNext)
    mangle_now = false,
    rip_needs_refresh_soon = false,
    target_qualifies_for_rip = true,
@@ -289,15 +358,21 @@ local function get_cat_state(context)
       and (form_cost == 0 or context.mana >= form_cost)
    cat_state.shifts_remaining = (form_cost > 0) and floor(context.mana / form_cost) or 0
 
-   -- Energy tick tracking
-   energy_tick:update(energy, context.stance)
+   -- Energy tick tracking is now event-driven via UNIT_POWER_FREQUENT
+   -- (see tick_listener above); no frame-level update needed here.
 
    local has_cc = context.has_clearcasting
 
-   -- Debuff durations (3 API calls, done once per frame)
+   -- Debuff durations (3 API calls, done once per frame).
+   -- Rip and Rake are per-caster DoTs: with multiple ferals in the raid, the
+   -- default "any caster" filter would return another feral's longer-remaining
+   -- Rip/Rake and prevent us from refreshing our own. Pass "player" so the
+   -- framework filters to PLAYER-applied auras only (HARMFUL PLAYER filter).
+   -- Mangle (Cat/Bear) shares a single non-stacking bleed-amp slot across all
+   -- druids, so reading any caster's Mangle is correct.
    cat_state.mangle_duration = Unit(TARGET_UNIT):HasDeBuffs(MANGLE_CAT_DEBUFF_IDS) or 0
-   cat_state.rip_duration = Unit(TARGET_UNIT):HasDeBuffs(RIP_DEBUFF_IDS, nil, true) or 0
-   cat_state.rake_duration = Unit(TARGET_UNIT):HasDeBuffs(RAKE_DEBUFF_IDS, nil, true) or 0
+   cat_state.rip_duration = Unit(TARGET_UNIT):HasDeBuffs(RIP_DEBUFF_IDS, "player", true) or 0
+   cat_state.rake_duration = Unit(TARGET_UNIT):HasDeBuffs(RAKE_DEBUFF_IDS, "player", true) or 0
 
    -- Powershift helpers
    cat_state.wolfshead_bonus = wh and Constants.POWERSHIFT.WOLFSHEAD_BONUS or 0
@@ -313,9 +388,14 @@ local function get_cat_state(context)
    -- Rip refresh threshold
    cat_state.rip_refresh_threshold = get_dot_refresh_threshold(settings.rip_refresh)
 
+   -- rip_min_ttd: user-configured floor below which Bite > Rip in expected damage.
+   -- Default 14s (≈ Bite vs Rip damage breakeven). Slider min=0 means "always Rip".
+   -- Lua's `or` is safe here because 0 is truthy — only nil falls through to the constant.
+   local rip_min_ttd = settings.rip_min_ttd or Constants.TTD.RIP_MIN
+
    -- rip_now: should we cast Rip this frame?
    local rip_now = settings.maintain_rip and cat_state.target_qualifies_for_rip
-                   and cp >= settings.rip_min_cp and ttd >= Constants.TTD.RIP_MIN
+                   and cp >= settings.rip_min_cp and ttd >= rip_min_ttd
                    and not context.target_phys_immune
                    and (cat_state.rip_duration == 0 or cat_state.rip_duration < cat_state.rip_refresh_threshold)
 
@@ -327,12 +407,37 @@ local function get_cat_state(context)
    end
    cat_state.rip_now = rip_now
 
-   -- Smart shift delay: compute minimum useful energy threshold for tick-waiting
-   -- Bite trick needs CP check; rake trick doesn't use combo points
+   -- mangle_now: should we refresh Mangle debuff?
+   -- Computed BEFORE smart-shift-delay so the delay logic can use it to pick
+   -- the right min_useful_energy threshold (sim-aligned).
+   cat_state.mangle_now = not rip_now and cat_state.mangle_duration == 0 and not context.target_phys_immune
+
+   -- rip_next: approximation of sim's `ripNext`. True when the current Rip will
+   -- expire within the next tick window AND we have CP to refresh it. Used by
+   -- MangleShift to suppress a force-shift at very low energy (sim's !ripNext
+   -- gate): waiting one tick instead lands us at Rip-castable energy directly.
+   -- (Strict sim: rip_duration <= time_until_next_tick. We use 2.0s as a fixed
+   -- upper bound on tick interval — simpler and only ~0.5s off on average.)
+   cat_state.rip_next = settings.maintain_rip
+      and cat_state.target_qualifies_for_rip
+      and not context.target_phys_immune
+      and ttd >= rip_min_ttd
+      and cp >= settings.rip_min_cp
+      and cat_state.rip_duration > 0
+      and cat_state.rip_duration <= 2.0
+
+   -- Smart shift delay: compute minimum useful energy threshold for tick-waiting.
+   -- Sim-aligned (wowsims rotation.go mangleNow branch): when Mangle debuff is
+   -- missing, MangleCost (40) is the relevant threshold — a tick that lands us
+   -- at >=40 lets us cast Mangle, no shift needed. Without this, the default
+   -- ShredCost (42) caused us to shift at energy 20-21 even though one tick
+   -- would have unlocked a Mangle.
    local min_useful_energy = ENERGY_COST_SHRED
    local min_cp = settings.fb_min_cp or 5
    if rip_now then
       min_useful_energy = ENERGY_COST_RIP
+   elseif cat_state.mangle_now then
+      min_useful_energy = ENERGY_COST_MANGLE
    elseif settings.use_bite_trick and context.cp >= min_cp then
       min_useful_energy = ENERGY_COST_BITE
    elseif settings.use_rake_trick then
@@ -344,7 +449,7 @@ local function get_cat_state(context)
    -- Conservative estimate: 1 CP per GCD (~1.5s), no crits assumed
    cat_state.rip_needs_refresh_soon = not rip_now and settings.maintain_rip
       and cat_state.target_qualifies_for_rip
-      and not context.target_phys_immune and ttd >= Constants.TTD.RIP_MIN
+      and not context.target_phys_immune and ttd >= rip_min_ttd
       and cat_state.rip_duration > 0 and cat_state.rip_duration < settings.rip_min_cp * 1.5
 
    -- Tick optimization: prefer Mangle over Shred when energy is in the dead zone
@@ -353,9 +458,6 @@ local function get_cat_state(context)
    cat_state.prefer_mangle_for_tick = settings.cat_tick_optimization
       and energy >= TICK_OPT_MANGLE_LOW and energy <= TICK_OPT_MANGLE_HIGH
       and energy_tick.confident and energy_tick:time_until_next_tick() < TICK_OPT_THRESHOLD
-
-   -- mangle_now: should we refresh Mangle debuff?
-   cat_state.mangle_now = not rip_now and cat_state.mangle_duration == 0 and not context.target_phys_immune
 
    if cat_state.tf_queued then
       if (Unit(PLAYER_UNIT):HasBuffs(TIGERS_FURY_BUFF_IDS, nil, true) or 0) > 0 then
@@ -607,8 +709,15 @@ local Cat_MangleShift = {
    spell = A.CatForm,
    spell_target = PLAYER_UNIT,
    matches = function(context, state)
-      return state.mangle_now and state.can_powershift
-         and context.energy < ENERGY_COST_MANGLE and not context.has_clearcasting
+      if not state.mangle_now then return false end
+      if not state.can_powershift then return false end
+      if context.has_clearcasting then return false end
+      if context.energy >= ENERGY_COST_MANGLE then return false end
+      -- Sim's !ripNext gate: at very low energy, suppress force-shift if Rip is
+      -- queued for the next tick. Waiting one tick gets us to Rip-castable
+      -- energy (~30+) without spending a shift.
+      if context.energy < ENERGY_COST_MANGLE - 20 and state.rip_next then return false end
+      return true
    end,
 
    execute = function(icon, context, state)
@@ -871,33 +980,11 @@ local Cat_CriticalEnergyShift = {
    end,
 }
 
--- Wolfshead Shred Shift - Smart shift when Shred is needed but energy is low
-local Cat_WolfsheadShred = {
-   requires_combat = true,
-   requires_enemy = true,
-   requires_in_range = true,
-   requires_behind = true,
-   requires_stealth = false,
-   spell = A.CatForm,
-   spell_target = PLAYER_UNIT,
-   matches = function(context, state)
-      if context.has_clearcasting then return false end
-      if state.pooling or state.rip_now or state.mangle_now then return false end
-      return state.has_wolfshead and state.can_powershift
-         and (state.energy_after_shift - context.energy) >= Constants.POWERSHIFT.MIN_SHIFT_ENERGY_GAIN
-         and state.energy_after_shift >= ENERGY_COST_SHRED
-         and context.energy < ENERGY_COST_SHRED
-   end,
-
-   execute = function(icon, context, state)
-      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
-      local result = safe_cat_form_shift(icon, context)
-      if result then
-         return result, format("[WOLFSHEAD] Shift -> Shred, Energy: %d -> %d (%d shifts left)", context.energy, state.energy_after_shift, state.shifts_remaining)
-      end
-      return nil
-   end,
-}
+-- NOTE: Cat_WolfsheadShred removed (2026-05-11) — it fired at energy 25-41 with
+-- Wolfshead equipped, which is exactly the band where smart-shift-delay should
+-- be choosing "wait for tick" vs "shift". With Bug 2 (tick anchor reset) fixed,
+-- EarlyShift (< 25 energy with WH) + smart-shift-delay covers the same cases
+-- without the over-eager re-shifts. The sim has no equivalent strategy.
 
 -- Early Shift - Powershift when energy is low and not pooling for anything
 local Cat_EarlyShift = {
@@ -911,6 +998,9 @@ local Cat_EarlyShift = {
       if context.has_clearcasting then return false end
       if state.pooling or state.rip_now or state.mangle_now then return false end
       if not state.can_powershift then return false end
+      -- Sim's !ripNext gate (rotation.go low-energy fallback): don't burn a
+      -- shift if a tick is about to drop us into Rip range. Wait one tick.
+      if state.rip_next then return false end
       local shift_threshold = state.has_wolfshead and Constants.ENERGY.EARLY_SHIFT_WOLFSHEAD or Constants.ENERGY.EARLY_SHIFT
       return context.energy < shift_threshold
    end,
@@ -948,7 +1038,6 @@ rotation_registry:register("cat", {
    named("Shred",               Cat_Shred),                  -- P6: Primary builder
    named("MangleBuilder",       Cat_MangleBuilder),          -- P7: Fallback builder
    named("TigersFury",          Cat_TigersFury),             -- CD: Energy boost
-   named("WolfsheadShred",      Cat_WolfsheadShred),         -- Shift: Wolfshead optimization
    named("EarlyShift",          Cat_EarlyShift),             -- Shift: Low-energy powershift
 }, {
    context_builder = get_cat_state,
@@ -964,4 +1053,5 @@ rotation_registry:register("cat", {
 
 end  -- End Cat strategies scope block
 
-print("|cFF00FF00[Flux AIO Cat]|r 20 Cat strategies registered.")
+print("|cFF00FF00[Flux AIO Cat]|r 19 Cat strategies registered.")
+print("|cFFFF55FF[Flux AIO Cat]|r LATEST VERSION!! tick_debug=" .. tostring(energy_tick.debug) .. " (build 2026-05-11)")

@@ -802,12 +802,27 @@ SlashCmdList["FLUXAIO"] = function(msg)
         print("  /flux def       - Force defensive cooldowns")
         print("  /flux gap       - Use gap closer")
         print("  /flux status    - Toggle combat dashboard")
+        print("  /fticks         - Toggle cat energy-tick debug print")
         print("  /flux help      - Show this help")
         return
     end
 
     -- Unknown subcommand: fallback to settings toggle
     toggle_settings()
+end
+
+-- Dedicated tick-debug toggle (kept as its own slash so it can't be intercepted
+-- by /flux's default-to-open-UI behaviour).
+SLASH_FLUXTICKS1 = "/fticks"
+SlashCmdList["FLUXTICKS"] = function()
+    local ett = NS.energy_tick_tracker
+    if not ett then
+        print(format("|cff%s[Flux AIO]|r Energy tick tracker not loaded (cat only).", class_hex))
+        return
+    end
+    ett.debug = not ett.debug
+    print(format("|cff%s[Flux AIO]|r Tick debug print %s.", class_hex,
+        ett.debug and "|cFF55FF55ON|r" or "|cFFFF5555OFF|r"))
 end
 
 -- ============================================================================

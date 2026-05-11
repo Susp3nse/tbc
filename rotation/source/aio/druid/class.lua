@@ -342,6 +342,27 @@ local Constants = {
 NS.Constants = Constants
 
 -- ============================================================================
+-- IS_BEHIND DEBOUNCE
+-- ============================================================================
+-- Player:IsBehind() updates from WoW's facing API which has client/server lag
+-- (~50-200ms) and updates ~10 Hz. On bosses with knockbacks/rotations (Mag,
+-- Gruul) it flickers false even when the player is actually behind. A single
+-- false frame is enough to filter out Cat_Shred (requires_behind = true) and
+-- fire Cat_MangleBuilder, costing 40 energy + a GCD that should have been a
+-- Shred.
+--
+-- Failed Shred attempts (when actually not behind) are essentially free in
+-- WoW: the spell errors with "must be behind target", no GCD triggers, no
+-- energy is consumed. So biasing toward "behind = true" is strictly better:
+-- when uncertain, attempt Shred (free retry on failure) instead of falling
+-- back to a Mangle (paid commitment).
+--
+-- Pre-allocated buffer (no combat-time table allocation per CLAUDE.md rule).
+local BEHIND_HISTORY_SIZE = 5
+local BEHIND_FALSE_THRESHOLD = 4   -- need 4-of-5 false reads to flip to "not behind"
+local behind_history = { true, true, true, true, true }
+
+-- ============================================================================
 -- HEALING DATA TABLES
 -- ============================================================================
 local HEALING_TOUCH_RANKS = {
@@ -678,7 +699,19 @@ rotation_registry:register_class({
       ctx.energy = Player:Energy()
       ctx.cp = Player:ComboPoints()
       ctx.rage = Player:Rage()
-      ctx.is_behind = Player:IsBehind(0.3)
+
+      -- Debounced is_behind (bias toward "behind" to avoid flicker-Mangles).
+      -- See comment block at top of file for rationale.
+      for i = 1, BEHIND_HISTORY_SIZE - 1 do
+         behind_history[i] = behind_history[i + 1]
+      end
+      behind_history[BEHIND_HISTORY_SIZE] = (Player:IsBehind(0.3) == true)
+      local false_count = 0
+      for i = 1, BEHIND_HISTORY_SIZE do
+         if not behind_history[i] then false_count = false_count + 1 end
+      end
+      ctx.is_behind = (false_count < BEHIND_FALSE_THRESHOLD)
+
       ctx.has_clearcasting = (Unit("player"):HasBuffs(Constants.BUFF_ID.CLEARCASTING) or 0) > 0
       ctx.enemy_count = A.MultiUnits:GetByRange(8)
      
