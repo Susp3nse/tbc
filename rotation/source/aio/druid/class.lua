@@ -700,17 +700,23 @@ rotation_registry:register_class({
       ctx.cp = Player:ComboPoints()
       ctx.rage = Player:Rage()
 
-      -- Debounced is_behind (bias toward "behind" to avoid flicker-Mangles).
-      -- See comment block at top of file for rationale.
-      for i = 1, BEHIND_HISTORY_SIZE - 1 do
-         behind_history[i] = behind_history[i + 1]
+      -- Target-focus mode: "behind" = target isn't aimed at me. Cheap proxy
+      -- that ignores geometry entirely; useful when threat (not position) is
+      -- what gates Shred for you. Otherwise fall through to the debounced
+      -- positional check (see comment block at top of file for rationale).
+      if ctx.settings.use_target_focus_behind then
+         ctx.is_behind = not UnitIsUnit("targettarget", "player")
+      else
+         for i = 1, BEHIND_HISTORY_SIZE - 1 do
+            behind_history[i] = behind_history[i + 1]
+         end
+         behind_history[BEHIND_HISTORY_SIZE] = (Player:IsBehind(0.3) == true)
+         local false_count = 0
+         for i = 1, BEHIND_HISTORY_SIZE do
+            if not behind_history[i] then false_count = false_count + 1 end
+         end
+         ctx.is_behind = (false_count < BEHIND_FALSE_THRESHOLD)
       end
-      behind_history[BEHIND_HISTORY_SIZE] = (Player:IsBehind(0.3) == true)
-      local false_count = 0
-      for i = 1, BEHIND_HISTORY_SIZE do
-         if not behind_history[i] then false_count = false_count + 1 end
-      end
-      ctx.is_behind = (false_count < BEHIND_FALSE_THRESHOLD)
 
       ctx.has_clearcasting = (Unit("player"):HasBuffs(Constants.BUFF_ID.CLEARCASTING) or 0) > 0
       ctx.enemy_count = A.MultiUnits:GetByRange(8)

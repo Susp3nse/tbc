@@ -28,6 +28,7 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     [1] = { name = "General", sections = {
         { header = "Shared Combat", settings = {
             { type = "checkbox", key = "mouseover", default = false, label = "Use @mouseover", tooltip = "Use mouseover targeting.", hidden = true },
+            { type = "checkbox", key = "use_target_focus_behind", default = false, label = "Target Focus Behind Check", tooltip = "Treat 'behind' as 'target isn't targeting me' instead of geometric position. Bypasses the positional debounce." },
             { type = "dropdown", key = "maintain_faerie_fire", default = "all", label = "Faerie Fire Targets",
               tooltip = "Which targets to maintain Faerie Fire on. All = everything, Elites+ = elites and bosses, Bosses = bosses only, Off = disabled.",
               options = {

@@ -133,7 +133,7 @@ local energy_tick = {
    last_tick_time = 0,
    last_shift_time = 0,
    confident = false,  -- True once we've detected at least one tick
-   debug = true,              -- on by default; toggle off with /fticks (prints "TICK NOW!" on each detection)
+   debug = false,             -- off by default; toggle on with /fticks (prints "TICK NOW!" on each detection)
 }
 
 -- Expose to NS so the dashboard can prefer this frame-level tracker over its own 10Hz one
