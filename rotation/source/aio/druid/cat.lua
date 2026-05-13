@@ -980,11 +980,33 @@ local Cat_CriticalEnergyShift = {
    end,
 }
 
--- NOTE: Cat_WolfsheadShred removed (2026-05-11) — it fired at energy 25-41 with
--- Wolfshead equipped, which is exactly the band where smart-shift-delay should
--- be choosing "wait for tick" vs "shift". With Bug 2 (tick anchor reset) fixed,
--- EarlyShift (< 25 energy with WH) + smart-shift-delay covers the same cases
--- without the over-eager re-shifts. The sim has no equivalent strategy.
+-- Wolfshead Shred Shift - Smart shift when Shred is needed but energy is low
+local Cat_WolfsheadShred = {
+   requires_combat = true,
+   requires_enemy = true,
+   requires_in_range = true,
+   requires_behind = true,
+   requires_stealth = false,
+   spell = A.CatForm,
+   spell_target = PLAYER_UNIT,
+   matches = function(context, state)
+      if context.has_clearcasting then return false end
+      if state.pooling or state.rip_now or state.mangle_now then return false end
+      return state.has_wolfshead and state.can_powershift
+         and (state.energy_after_shift - context.energy) >= Constants.POWERSHIFT.MIN_SHIFT_ENERGY_GAIN
+         and state.energy_after_shift >= ENERGY_COST_SHRED
+         and context.energy < ENERGY_COST_SHRED
+   end,
+
+   execute = function(icon, context, state)
+      if context.settings.cat_smart_shift_delay and state.should_delay_shift then return nil end
+      local result = safe_cat_form_shift(icon, context)
+      if result then
+         return result, format("[WOLFSHEAD] Shift -> Shred, Energy: %d -> %d (%d shifts left)", context.energy, state.energy_after_shift, state.shifts_remaining)
+      end
+      return nil
+   end,
+}
 
 -- Early Shift - Powershift when energy is low and not pooling for anything
 local Cat_EarlyShift = {
@@ -1038,6 +1060,7 @@ rotation_registry:register("cat", {
    named("Shred",               Cat_Shred),                  -- P6: Primary builder
    named("MangleBuilder",       Cat_MangleBuilder),          -- P7: Fallback builder
    named("TigersFury",          Cat_TigersFury),             -- CD: Energy boost
+   named("WolfsheadShred",      Cat_WolfsheadShred),         -- Shift: Wolfshead optimization
    named("EarlyShift",          Cat_EarlyShift),             -- Shift: Low-energy powershift
 }, {
    context_builder = get_cat_state,
@@ -1053,5 +1076,5 @@ rotation_registry:register("cat", {
 
 end  -- End Cat strategies scope block
 
-print("|cFF00FF00[Flux AIO Cat]|r 19 Cat strategies registered.")
+print("|cFF00FF00[Flux AIO Cat]|r 20 Cat strategies registered.")
 print("|cFFFF55FF[Flux AIO Cat]|r LATEST VERSION!! tick_debug=" .. tostring(energy_tick.debug) .. " (build 2026-05-11)")
