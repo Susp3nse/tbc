@@ -235,8 +235,9 @@ local function create_slider(parent, x, y, w, def, scroll)
     slider:SetValue(cur)
     val_text:SetText(format(fmt, cur))
 
+    local step = def.step or 1
     slider:SetScript("OnValueChanged", function(_, v)
-        v = floor(v + 0.5)
+        v = floor(v / step + 0.5) * step
         if v < def.min then v = def.min end
         if v > def.max then v = def.max end
         val_text:SetText(format(fmt, v))
