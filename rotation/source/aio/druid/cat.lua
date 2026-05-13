@@ -980,18 +980,22 @@ local Cat_CriticalEnergyShift = {
    end,
 }
 
--- Wolfshead Shred Shift - Smart shift when Shred is needed but energy is low
+-- Wolfshead Shred Shift - Aggressive WH-only shift when a Shred-cost builder
+-- is reachable post-shift. Position-agnostic: MangleBuilder consumes the
+-- post-shift energy if we end up in front.
 local Cat_WolfsheadShred = {
    requires_combat = true,
    requires_enemy = true,
    requires_in_range = true,
-   requires_behind = true,
    requires_stealth = false,
    spell = A.CatForm,
    spell_target = PLAYER_UNIT,
    matches = function(context, state)
       if context.has_clearcasting then return false end
       if state.pooling or state.rip_now or state.mangle_now then return false end
+      -- Sim's !ripNext gate: don't burn a shift if a tick is about to drop us
+      -- into Rip range. Mirrors EarlyShift behavior.
+      if state.rip_next then return false end
       return state.has_wolfshead and state.can_powershift
          and (state.energy_after_shift - context.energy) >= Constants.POWERSHIFT.MIN_SHIFT_ENERGY_GAIN
          and state.energy_after_shift >= ENERGY_COST_SHRED
