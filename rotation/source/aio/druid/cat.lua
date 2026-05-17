@@ -462,7 +462,12 @@ local function get_cat_state(context)
    -- Last clause: when Rake Trick is on and Mangle isn't fully discounted by 2pT6
    -- (so Mangle > 35 energy), the cheap-filler slot belongs to Rake — skip the
    -- Mangle Trick to avoid stepping on it.
+   -- Also gated on A.MangleCat:IsReady so when Mangle is on its 6s CD we don't
+   -- block Shred for nothing (the sim's structure achieves the same fall-through
+   -- implicitly; we need the explicit check because the preference flag and the
+   -- execute call are separated here).
    cat_state.prefer_mangle_for_tick = settings.use_mangle_trick
+      and A.MangleCat:IsReady(TARGET_UNIT)
       and energy >= TICK_OPT_MANGLE_LOW and energy <= TICK_OPT_MANGLE_HIGH
       and energy_tick.confident and energy_tick:time_until_next_tick() < TICK_OPT_THRESHOLD
       and (not settings.use_rake_trick or ENERGY_COST_MANGLE == 35)
