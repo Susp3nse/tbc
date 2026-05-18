@@ -231,6 +231,19 @@ NS.has_kick_immunity = has_kick_immunity
 NS.has_total_immunity = has_total_immunity
 
 -- ============================================================================
+-- SCHOOL-IMMUNE NPC TABLES (npcID → true)
+-- Used by callers to skip school-locked spells against immune mobs.
+-- Query npcID via: select(6, Unit(unit):InfoGUID())
+-- ============================================================================
+NS.ARCANE_IMMUNE = {
+   [15691] = true,  -- The Curator (Karazhan)
+   [17096] = true,  -- Astral Flare (Curator add)
+   [18864] = true,  -- Mana Wraith (Karazhan trash)
+   [18865] = true,  -- Warp Aberration (Karazhan trash)
+   [20478] = true,  -- Arcane Servant
+}
+
+-- ============================================================================
 -- SETTINGS SYSTEM
 -- ============================================================================
 local cached_settings = {}

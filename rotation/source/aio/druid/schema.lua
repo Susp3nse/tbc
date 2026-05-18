@@ -219,8 +219,15 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 5: Balance (Moonkin)
     [5] = { name = "Balance", sections = {
         { header = "DoT Maintenance", settings = {
-            { type = "checkbox", key = "maintain_moonfire", default = true, label = "Maintain Moonfire", tooltip = "Keep Moonfire DoT active." },
-            { type = "checkbox", key = "maintain_insect_swarm", default = true, label = "Maintain Insect Swarm", tooltip = "Keep Insect Swarm active." },
+            { type = "checkbox", key = "maintain_moonfire", default = true, label = "Maintain Moonfire", tooltip = "Keep Moonfire DoT active. Auto-dropped at lowest mana tier (mirrors WoWsims)." },
+            { type = "dropdown", key = "maintain_insect_swarm", default = "all", label = "Insect Swarm Targets",
+              tooltip = "Which targets to maintain Insect Swarm on. All = everything, Elites+ = elites and bosses, Bosses = bosses only, Off = disabled. Auto-forced on at lowest mana tier when wearing 4p T5 (Nordrassil Regalia).",
+              options = {
+                  { value = "all", text = "All" },
+                  { value = "elites", text = "Elites+" },
+                  { value = "bosses", text = "Bosses Only" },
+                  { value = "off", text = "Off" },
+              }},
             { type = "slider", key = "balance_dot_refresh", default = 0, min = 0, max = 5, label = "DoT Refresh (sec)", tooltip = "Refresh DoTs with this many seconds remaining. 0 = only reapply when fallen off (WoWsims default).", format = "%d sec" },
         }},
         { header = "Force of Nature", settings = {
@@ -239,8 +246,9 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "slider", key = "balance_innervate_mana", default = 20, min = 10, max = 50, label = "Innervate Mana (%)", tooltip = "Use Innervate below this mana %.", format = "%d%%" },
         }},
         { header = "Mana Tiers", settings = {
-            { type = "slider", key = "balance_tier1_mana", default = 20, min = 10, max = 60, label = "Full Rotation Mana (%)", tooltip = "Above this: full rotation (Starfire + Moonfire + IS).", format = "%d%%" },
-            { type = "slider", key = "balance_tier2_mana", default = 10, min = 5, max = 35, label = "Conserve Mana (%)", tooltip = "Below this: drop Moonfire, only IS + Starfire.", format = "%d%%" },
+            { type = "slider", key = "balance_tier1_mana", default = 20, min = 10, max = 60, label = "Full Rotation Mana (%)", tooltip = "Above this: SF rank 8 + MF + IS (highest DPS).", format = "%d%%" },
+            { type = "slider", key = "balance_tier2_mana", default = 10, min = 5, max = 35, label = "Conserve Mana (%)", tooltip = "Below this: SF rank 6 + IS, drop MF (mana-conservation tier).", format = "%d%%" },
+            { type = "checkbox", key = "balance_downrank_starfire", default = true, label = "Auto-downrank Starfire", tooltip = "Below the Full Rotation threshold, switch Starfire to rank 6 (more mana-efficient, mirrors WoWsims adaptive hierarchy). Disable to always cast max rank." },
         }},
     }},
 

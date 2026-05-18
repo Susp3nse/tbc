@@ -20,6 +20,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local named = NS.named
 local Constants = NS.Constants
+local ARCANE_IMMUNE = NS.ARCANE_IMMUNE
 local Pet = NS.Pet
 local AtRange = NS.AtRange
 local InMelee = NS.InMelee
@@ -255,7 +256,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
             if A.HuntersMark:IsReady(unit) and Unit(unit):HasDeBuffs(A.HuntersMark.ID) == 0
                and ((Player:GetDeBuffsUnitCount(A.HuntersMark.ID) == 0 and s.static_mark) or not s.static_mark)
                and Unit(unit):TimeToDie() > 2
-               and not Constants.ARCANE_IMMUNE[npcID]
+               and not ARCANE_IMMUNE[npcID]
                and ((Unit(unit):IsBoss() and s.boss_mark) or not s.boss_mark) then
                 return A.HuntersMark:Show(icon), "[RANGED] Hunter's Mark"
             end
@@ -292,7 +293,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                    and A.LastPlayerCastName ~= A.Intimidation:Info()
                    and (not A.Intimidation:IsReady(unit) or Unit("pet"):HasBuffs(A.Intimidation.ID) == 0 or not s.intimidation_pve)
                    and Unit(unit):HasDeBuffs(A.WingClip.ID) < GetGCD()
-                   and not Constants.ARCANE_IMMUNE[npcID] and not CheckCCImmune(unit) then
+                   and not ARCANE_IMMUNE[npcID] and not CheckCCImmune(unit) then
                     return A.ConcussiveShot:Show(icon), "[RANGED] Concussive Shot (PvE)"
                 end
 
@@ -362,7 +363,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                 local arcaneShotMana = s.arcane_shot_mana or 15
                 local manaSave = s.mana_save or 30
 
-                if context.is_moving and A.ArcaneShot:IsReady(unit) and not Constants.ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
+                if context.is_moving and A.ArcaneShot:IsReady(unit) and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
                     return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (moving)"
                 end
 
@@ -391,7 +392,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                             if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
                             return A.MultiShot:Show(icon), "[RANGED] Multi-Shot (warces)"
                         end
-                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not Constants.ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
+                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
                             if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
                             return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (warces)"
                         end
@@ -410,7 +411,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                             if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
                             return A.MultiShot:Show(icon), "[RANGED] Multi-Shot (warces slow)"
                         end
-                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not Constants.ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
+                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
                             if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
                             return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (warces slow)"
                         end
@@ -460,7 +461,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                         end
 
                         -- Arcane Shot (gated by its own mana threshold)
-                        if A.ArcaneShot:IsReady(unit) and useArcane and not Constants.ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
+                        if A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
                             if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
                             return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot"
                         end

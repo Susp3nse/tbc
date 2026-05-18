@@ -40,9 +40,51 @@ local named = NS.named
 
 -- Immunity check functions
 local has_magic_immunity = NS.has_magic_immunity
+local ARCANE_IMMUNE = NS.ARCANE_IMMUNE
+local has_nordrassil_4p = NS.has_nordrassil_4p
+local Player = NS.Player
+local get_spell_mana_cost = NS.get_spell_mana_cost
+local IsSpellKnown = _G.IsSpellKnown
 
 -- Lua optimizations
 local format = string.format
+local select = select
+
+local function target_is_arcane_immune(unit)
+   local npc_id = select(6, Unit(unit):InfoGUID())
+   return npc_id and ARCANE_IMMUNE[npc_id] or false
+end
+
+-- Rank-safe cast for downranked nukes (e.g. Starfire6).
+-- The framework's IsReady() check inside try_cast/safe_ability_cast returns
+-- false for actions tagged with isRank = N (max-rank-only path), so we mirror
+-- the holy paladin pattern: bypass IsReady and gate manually on
+-- trained + mana + range. Show() builds the rank-specific macro for TMW.
+local function ranked_dps_cast(spell, icon, target, prefix, name, info_fmt, ...)
+   if not IsSpellKnown(spell.ID) then return nil end
+   if get_spell_mana_cost(spell) > Player:Mana() then return nil end
+   if spell:IsInRange(target) ~= true then return nil end
+   local result = spell:Show(icon)
+   if not result then return nil end
+   if info_fmt then
+      return result, format("%s %s - " .. info_fmt, prefix, name, ...)
+   end
+   return result, format("%s %s", prefix, name)
+end
+
+-- Mirrors maintain_faerie_fire dropdown semantics for Insect Swarm.
+-- Returns true when the current target passes the user's IS target filter.
+local function is_swarm_target_eligible(mode)
+   if mode == "off" or mode == false or mode == nil then return false end
+   if mode == "bosses" or mode == "elites" then
+      local classification = _G.UnitClassification(TARGET_UNIT)
+      if mode == "bosses" then
+         return classification == "worldboss"
+      end
+      return classification == "worldboss" or classification == "elite" or classification == "rareelite"
+   end
+   return true  -- "all" or legacy boolean true
+end
 
 -- ============================================================================
 -- BALANCE (MOONKIN) STRATEGIES
@@ -114,20 +156,24 @@ do
          return true
       end,
       execute = function(icon, context)
+         local arcane_immune = target_is_arcane_immune(TARGET_UNIT)
          local is_moving = Unit(PLAYER_UNIT):IsMoving()
          if not is_moving then
-            -- Starfire: highest damage opener (requires standing still)
-            local result, msg = try_cast_fmt(A.Starfire, icon, TARGET_UNIT, "[P0]", "Starfire", "Opening pull")
-            if result then return result, msg end
-            -- Wrath: shorter cast fallback (requires standing still)
-            result, msg = try_cast_fmt(A.Wrath, icon, TARGET_UNIT, "[P0]", "Wrath", "Opening pull")
+            if not arcane_immune then
+               -- Starfire: highest damage opener (Arcane school — skip vs arcane-immune)
+               local result, msg = try_cast_fmt(A.Starfire, icon, TARGET_UNIT, "[P0]", "Starfire", "Opening pull")
+               if result then return result, msg end
+            end
+            -- Wrath: Nature school fallback (always safe vs arcane-immune)
+            local result, msg = try_cast_fmt(A.Wrath, icon, TARGET_UNIT, "[P0]", "Wrath", "Opening pull")
             if result then return result, msg end
          end
-         -- Moonfire: instant cast fallback (works while moving)
-         -- Skip if already applied (prevent spam before combat registers)
-         local mf_on_target = (Unit(TARGET_UNIT):HasDeBuffs(A.Moonfire.ID) or 0) > 0
-         if not mf_on_target then
-            return try_cast_fmt(A.Moonfire, icon, TARGET_UNIT, "[P0]", "Moonfire", "Opening pull (moving)")
+         -- Moonfire: instant cast fallback (Arcane school — skip vs arcane-immune)
+         if not arcane_immune then
+            local mf_on_target = (Unit(TARGET_UNIT):HasDeBuffs(A.Moonfire.ID) or 0) > 0
+            if not mf_on_target then
+               return try_cast_fmt(A.Moonfire, icon, TARGET_UNIT, "[P0]", "Moonfire", "Opening pull (moving)")
+            end
          end
          return nil
       end,
@@ -144,22 +190,37 @@ do
          local mana_pct = context.mana_pct
 
          -- Check magic immunity (Divine Shield, Ice Block, Cloak, Grounding Totem, etc.)
-         -- If immune, skip all magic damage abilities
-         local target_magic_immune = has_magic_immunity(TARGET_UNIT)
-         if target_magic_immune then return nil end
+         if has_magic_immunity(TARGET_UNIT) then return nil end
 
-         -- Mana tier system: Tier 1 (high mana) = full rotation, Tier 2/3 = conserve
+         -- Arcane immunity (Curator, Astral Flares, Mana Wraiths, etc.):
+         -- skip Starfire/Moonfire (Arcane school), keep Wrath/Insect Swarm/Hurricane (Nature).
+         local arcane_immune = target_is_arcane_immune(TARGET_UNIT)
+
+         -- Mana tier system mirrors WoWsims adaptive hierarchy:
+         --   Tier 1 (high mana)   -> sim T0: SF rank 8 + MF + IS
+         --   Tier 2 (medium mana) -> sim T1: SF rank 6 + MF + IS
+         --   Tier 3 (low mana)    -> sim T2: SF rank 6 + IS only (drop MF)
          local tier1_mana = settings.balance_tier1_mana or Constants.BALANCE.MANA_TIER1
          local tier2_mana = settings.balance_tier2_mana or Constants.BALANCE.MANA_TIER2
          local mana_tier = (mana_pct < tier2_mana) and 3 or (mana_pct < tier1_mana) and 2 or 1
+
+         -- Pick Starfire rank: rank 8 in tier 1, rank 6 in tier 2/3 (when downrank enabled).
+         -- Rank 6 must use ranked_dps_cast — the framework's IsReady() returns false for
+         -- isRank actions, so try_cast_fmt would silently no-op.
+         local downrank_enabled = settings.balance_downrank_starfire ~= false
+         local use_sf6 = downrank_enabled and mana_tier >= 2
+
+         -- 4p T5 (Nordrassil Regalia) override: force IS on at lowest mana tier
+         local t5_4p_override = (mana_tier == 3) and has_nordrassil_4p()
 
          -- Track Nature's Grace proc
          local has_ng = (Unit(PLAYER_UNIT):HasBuffs(Constants.BUFF_ID.NATURES_GRACE) or 0) > 0
          local ng_info = has_ng and " [NG]" or ""
 
          -- Clearcast optimization: Starfire is most expensive, cast it while free
-         -- Skips DoT refreshes to avoid wasting the proc on cheap spells
-         if context.has_clearcasting and settings.clearcast_starfire ~= false then
+         -- Always max rank when free (rank cost doesn't matter when cast is free).
+         -- Skip vs arcane-immune (Starfire is Arcane school) — let Wrath consume Clearcast instead.
+         if context.has_clearcasting and settings.clearcast_starfire ~= false and not arcane_immune then
             local result, msg = try_cast_fmt(A.Starfire, icon, TARGET_UNIT, "[P4]", "Starfire",
                                              "FREE CAST (Clearcast)%s", ng_info)
             if result then return result, msg end
@@ -169,9 +230,12 @@ do
          -- Default 0 = only reapply when absent (WoWsims behavior)
          local dot_refresh = settings.balance_dot_refresh or 0
 
-         -- Insect Swarm: Apply when missing (or expiring if refresh > 0) in Tier 1/2
-         local is_duration = Unit(TARGET_UNIT):HasDeBuffs(A.InsectSwarm.ID) or 0
-         if settings.maintain_insect_swarm ~= false and mana_tier <= 2 then
+         -- Insect Swarm (Nature school — safe vs arcane-immune).
+         -- Always-on per WoWsims; user dropdown narrows by target classification.
+         -- 4p T5 in tier 3 force-overrides the dropdown (mirrors sim mana-conservation rotation).
+         local is_eligible = is_swarm_target_eligible(settings.maintain_insect_swarm) or t5_4p_override
+         if is_eligible then
+            local is_duration = Unit(TARGET_UNIT):HasDeBuffs(A.InsectSwarm.ID) or 0
             if is_duration <= dot_refresh then
                local result, msg = try_cast_fmt(A.InsectSwarm, icon, TARGET_UNIT, "[P4]", "Insect Swarm",
                                                 is_duration > 0 and "REFRESH (%.1fs)" or "DoT missing, Mana: %.0f%%",
@@ -180,9 +244,10 @@ do
             end
          end
 
-         -- Moonfire: Apply when missing (or expiring if refresh > 0) in Tier 1
-         local mf_duration = Unit(TARGET_UNIT):HasDeBuffs(A.Moonfire.ID) or 0
-         if settings.maintain_moonfire ~= false and mana_tier == 1 then
+         -- Moonfire (Arcane school — skip vs arcane-immune).
+         -- Maintained in tiers 1-2 (sim T0/T1); dropped in tier 3 (sim T2 mana-conservation).
+         if settings.maintain_moonfire ~= false and mana_tier <= 2 and not arcane_immune then
+            local mf_duration = Unit(TARGET_UNIT):HasDeBuffs(A.Moonfire.ID) or 0
             if mf_duration <= dot_refresh then
                local result, msg = try_cast_fmt(A.Moonfire, icon, TARGET_UNIT, "[P5]", "Moonfire",
                                                 mf_duration > 0 and "REFRESH (%.1fs)" or "DoT missing, Mana: %.0f%%",
@@ -194,17 +259,27 @@ do
          -- Nukes
          local tier_info = mana_tier == 1 and "Tier1" or (mana_tier == 2 and "Tier2" or "Tier3")
 
-         -- Nature's Grace optimization: Wrath becomes near-instant (~1.0s) during NG proc
-         if has_ng and settings.ng_wrath_priority then
+         -- Nature's Grace optimization: Wrath becomes near-instant (~1.0s) during NG proc.
+         -- Also forced when arcane-immune (Wrath is the only viable nuke).
+         if (arcane_immune or (has_ng and settings.ng_wrath_priority)) then
             local result, msg = try_cast_fmt(A.Wrath, icon, TARGET_UNIT, "[P6]", "Wrath",
-                                             "%s Mana: %.0f%% [NG PROC]", tier_info, mana_pct)
+                                             arcane_immune and "%s Mana: %.0f%% [ARCANE IMMUNE]" or "%s Mana: %.0f%% [NG PROC]",
+                                             tier_info, mana_pct)
             if result then return result, msg end
          end
 
-         -- Starfire: Primary nuke
-         local result, msg = try_cast_fmt(A.Starfire, icon, TARGET_UNIT, "[P6]", "Starfire",
+         -- Starfire: Primary nuke (rank-aware; Arcane school — skip vs arcane-immune)
+         if not arcane_immune then
+            local result, msg
+            if use_sf6 then
+               result, msg = ranked_dps_cast(A.Starfire6, icon, TARGET_UNIT, "[P6]", "Starfire-R6",
+                                             "%s Mana: %.0f%%%s", tier_info, mana_pct, ng_info)
+            else
+               result, msg = try_cast_fmt(A.Starfire, icon, TARGET_UNIT, "[P6]", "Starfire",
                                           "%s Mana: %.0f%%%s", tier_info, mana_pct, ng_info)
-         if result then return result, msg end
+            end
+            if result then return result, msg end
+         end
 
          -- Wrath: Fallback (faster cast, lower damage per mana)
          return try_cast_fmt(A.Wrath, icon, TARGET_UNIT, "[P7]", "Wrath",
