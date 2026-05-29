@@ -15,6 +15,29 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.11.0 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-feature">Feature</span>
+
+      <h3>Shaman &mdash; Enhancement</h3>
+      <ul class="features">
+        <li><strong>Swing Sync Detection</strong> &mdash; CLEU-based MH/OH tracker that reports stagger state on the combat dashboard (<code>OH lead</code> / <code>OK</code> / <code>Drift</code>). Helps you stay inside Flurry's 0.5s shared-charge window.</li>
+        <li><strong>Auto Swing Resync (opt-in)</strong> &mdash; Optional auto-fire of the resync macro (<code>/cleartarget</code> + <code>/targetlasttarget</code> + <code>/startattack</code>) when stagger drifts outside the Flurry window. Hysteresis dead-zone and swing-midpoint gating to avoid no-op fires. Off by default; most players will prefer to watch the dashboard and press manually.</li>
+        <li><strong>WF / Grace Twist Rate Fix</strong> &mdash; Twist phases were both holding for <code>CYCLE_TIME = 10s</code>, producing a 20s full loop instead of ~10s &mdash; roughly half the rate intended. Replaced with phase-specific durations (WF 1.5s, Grace 7.5s) so WF re-drops just before the carried 10s buff expires.</li>
+        <li><strong>Post-FNT Fire Totem Dropdown</strong> &mdash; New <code>enh_fnt_post_totem</code> setting (default Magma) controls the totem dropped between Fire Nova explosions. Lets you keep Nova → Magma → Nova cadence without forcing Magma as the single-target default.</li>
+      </ul>
+
+      <h3>Shaman &mdash; Elemental / Enhancement</h3>
+      <ul class="features">
+        <li><strong>Hold Shocks (Interrupts Only)</strong> &mdash; New <code>ele_shock_interrupt_only</code> / <code>enh_shock_interrupt_only</code> toggles suppress rotation shocks so the interrupt middleware can reserve them for kicks. Useful in dungeons.</li>
+      </ul>
+
+      <h3>Shaman &mdash; All Specs</h3>
+      <ul class="features">
+        <li><strong>Grounding &amp; Tremor Totems</strong> &mdash; Now selectable as the default air / earth totem on every spec. Auto-Tremor middleware behavior unchanged.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.10.1 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-fix">Fix</span>
 

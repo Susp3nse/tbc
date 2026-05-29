@@ -269,7 +269,7 @@ NS.totem_allowed = totem_allowed
 -- ============================================================================
 rotation_registry:register_class({
     name = "Shaman",
-    version = "v1.7.8",
+    version = "v1.8.0",
     playstyles = { "elemental", "enhancement", "restoration" },
     idle_playstyle_name = nil,
 
