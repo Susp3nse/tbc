@@ -15,6 +15,16 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.11.1 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-fix">Fix</span>
+
+      <h3>Shaman &mdash; Enhancement</h3>
+      <ul class="features">
+        <li><strong>Twist Cycles Now Self-Correct</strong> &mdash; The Windfury / Grace of Air and Fire Nova / Magma twist state machines tracked recommended drops rather than actual ones. If a recommendation window was missed (rotation icon shown but macro not pressed in time), the cycle desynced &mdash; symptoms included back-to-back Windfury drops with no Grace between and ~30s gaps with nothing dropping. Both twists now read <code>GetTotemInfo</code> each frame and act on what's actually deployed, so a missed window is recovered on the next frame automatically.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.11.0 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-feature">Feature</span>
 
