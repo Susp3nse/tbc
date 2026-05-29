@@ -126,6 +126,8 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Maintain Flame Shock DoT on target." },
             { type = "checkbox", key = "ele_use_earth_shock", default = true, label = "Use Earth Shock",
               tooltip = "Earth Shock as filler shock when Flame Shock DoT is active." },
+            { type = "checkbox", key = "ele_shock_interrupt_only", default = false, label = "Hold Shocks (Interrupts Only)",
+              tooltip = "Suppress all rotation shocks so they're only fired by the interrupt middleware on enemy casts. Good for dungeons where you want shocks reserved for kicks. Overrides Flame/Earth Shock toggles." },
         }},
         { header = "Mana Conservation", settings = {
             { type = "slider", key = "ele_mana_stop_shocks", default = 30, min = 0, max = 100, label = "Stop Shocks Mana%",
@@ -152,10 +154,11 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "ele_earth_totem", default = "strength_of_earth", label = "Earth Totem",
-              tooltip = "Default earth totem.",
+              tooltip = "Default earth totem. Tremor cancels Fear/Sleep/Charm — useful in fear-heavy fights.",
               options = {
                   { value = "strength_of_earth", text = "Strength of Earth" },
                   { value = "stoneskin", text = "Stoneskin Totem" },
+                  { value = "tremor", text = "Tremor Totem" },
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "ele_water_totem", default = "mana_spring", label = "Water Totem",
@@ -166,11 +169,12 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "ele_air_totem", default = "wrath_of_air", label = "Air Totem",
-              tooltip = "Default air totem.",
+              tooltip = "Default air totem. Grounding absorbs the next hostile spell — useful in caster-heavy fights.",
               options = {
                   { value = "wrath_of_air", text = "Wrath of Air" },
                   { value = "windfury", text = "Windfury" },
                   { value = "tranquil_air", text = "Tranquil Air" },
+                  { value = "grounding", text = "Grounding Totem" },
                   { value = "none", text = "None" },
               }},
         }},
@@ -178,6 +182,10 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 
     -- Tab 3: Enhancement
     [3] = { name = "Enhancement", sections = {
+        { header = "Swing Sync", settings = {
+            { type = "checkbox", key = "enh_auto_resync", default = false, label = "Auto Swing Resync",
+              tooltip = "EXPERIMENTAL. Auto-fires the resync macro (/cleartarget + /targetlasttarget + /startattack) when MH/OH stagger drifts outside the Flurry 0.5s window. Convergence works but visual fire rate during drift can be noisy (3-8 fires per drift episode before settling). Sync state is shown on the combat dashboard regardless of this toggle — many players prefer to leave this OFF and press the macro manually when they see the dashboard go red. Logic source: enhanceshaman.com/pages/guide/sync_stagger" },
+        }},
         { header = "Rotation", settings = {
             { type = "checkbox", key = "enh_use_stormstrike", default = true, label = "Use Stormstrike",
               tooltip = "Stormstrike on cooldown (10s CD, applies +20%% nature dmg debuff)." },
@@ -196,6 +204,8 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Don't use shocks when mana drops below this. Bypassed when Shamanistic Rage is active or ready. 0 = disabled.", format = "%d%%" },
             { type = "slider", key = "enh_fs_min_ttd", default = 12, min = 0, max = 30, label = "Flame Shock Min TTD",
               tooltip = "Don't apply Flame Shock if target dies in fewer seconds than this. 0 = disabled.", format = "%d sec" },
+            { type = "checkbox", key = "enh_shock_interrupt_only", default = false, label = "Hold Shocks (Interrupts Only)",
+              tooltip = "Suppress all rotation shocks so they're only fired by the interrupt middleware on enemy casts. Good for dungeons where you want shocks reserved for kicks. Overrides Flame Shock weaving and primary shock choice." },
         }},
         { header = "Cooldowns", settings = {
             { type = "checkbox", key = "enh_use_shamanistic_rage", default = true, label = "Use Shamanistic Rage",
@@ -209,7 +219,15 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "enh_twist_windfury", default = false, label = "Twist Windfury",
               tooltip = "Cycle Windfury + Grace of Air totems to benefit from both buffs. Advanced technique." },
             { type = "checkbox", key = "enh_twist_fire_nova", default = false, label = "Twist Fire Nova",
-              tooltip = "Cycle Fire Nova Totem with default fire totem for extra AoE damage." },
+              tooltip = "Cycle Fire Nova Totem with the Post-FNT totem (default Magma) for sustained AoE damage. Pattern: Nova → wait ~5s for explosion → Post-FNT totem → wait ~10s for Nova CD → repeat." },
+            { type = "dropdown", key = "enh_fnt_post_totem", default = "magma", label = "Post-FNT Fire Totem",
+              tooltip = "Fire totem to drop after Fire Nova explodes while waiting for FNT's 15s cooldown. Magma ticks AoE damage in the gap; Searing/Flametongue/Totem of Wrath are options for single-target downtime.",
+              options = {
+                  { value = "magma", text = "Magma Totem" },
+                  { value = "searing", text = "Searing Totem" },
+                  { value = "flametongue", text = "Flametongue Totem" },
+                  { value = "totem_of_wrath", text = "Totem of Wrath" },
+              }},
             { type = "dropdown", key = "enh_fnt_single_target", default = "boss", label = "FNT Single-Target",
               tooltip = "When below AoE threshold, still twist FNT on these targets.",
               options = {
@@ -243,10 +261,11 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "enh_earth_totem", default = "strength_of_earth", label = "Earth Totem",
-              tooltip = "Default earth totem.",
+              tooltip = "Default earth totem. Tremor cancels Fear/Sleep/Charm — useful in fear-heavy fights.",
               options = {
                   { value = "strength_of_earth", text = "Strength of Earth" },
                   { value = "stoneskin", text = "Stoneskin Totem" },
+                  { value = "tremor", text = "Tremor Totem" },
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "enh_water_totem", default = "mana_spring", label = "Water Totem",
@@ -257,10 +276,11 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "enh_air_totem", default = "windfury", label = "Air Totem",
-              tooltip = "Default air totem (used when not twisting).",
+              tooltip = "Default air totem (used when not twisting). Grounding absorbs the next hostile spell — useful in caster-heavy fights.",
               options = {
                   { value = "windfury", text = "Windfury" },
                   { value = "grace_of_air", text = "Grace of Air" },
+                  { value = "grounding", text = "Grounding Totem" },
                   { value = "none", text = "None" },
               }},
         }},
@@ -304,10 +324,11 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "resto_earth_totem", default = "strength_of_earth", label = "Earth Totem",
-              tooltip = "Default earth totem.",
+              tooltip = "Default earth totem. Tremor cancels Fear/Sleep/Charm — useful in fear-heavy fights.",
               options = {
                   { value = "strength_of_earth", text = "Strength of Earth" },
                   { value = "stoneskin", text = "Stoneskin Totem" },
+                  { value = "tremor", text = "Tremor Totem" },
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "resto_water_totem", default = "mana_spring", label = "Water Totem",
@@ -318,11 +339,12 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
             { type = "dropdown", key = "resto_air_totem", default = "wrath_of_air", label = "Air Totem",
-              tooltip = "Default air totem.",
+              tooltip = "Default air totem. Grounding absorbs the next hostile spell — useful in caster-heavy fights.",
               options = {
                   { value = "wrath_of_air", text = "Wrath of Air" },
                   { value = "windfury", text = "Windfury" },
                   { value = "tranquil_air", text = "Tranquil Air" },
+                  { value = "grounding", text = "Grounding Totem" },
                   { value = "none", text = "None" },
               }},
         }},

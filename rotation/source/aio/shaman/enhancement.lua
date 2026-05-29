@@ -23,6 +23,7 @@ end
 
 local A = NS.A
 local Constants = NS.Constants
+local Player = NS.Player
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
@@ -33,6 +34,11 @@ local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
 local GetTime = _G.GetTime
 local GetTotemInfo = _G.GetTotemInfo
+local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
+local UnitGUID = _G.UnitGUID
+local IsCurrentSpell = _G.IsCurrentSpell
+local C_Timer = _G.C_Timer
+local AUTO_ATTACK_SPELL_ID = 6603
 
 -- ============================================================================
 -- TOTEM TWIST STATE (module-level, persists across frames)
@@ -69,6 +75,194 @@ local function check_combat_reset(in_combat)
 end
 
 -- ============================================================================
+-- SWING SYNC TRACKER (Enhancement)
+-- ============================================================================
+-- Tracks MH/OH swing timestamps to detect when the player has drifted out of
+-- "MH leads OH by < 0.5s" stagger. Logic ported from the published WeakAura
+-- at enhanceshaman.com/pages/guide/sync_stagger.
+--
+-- delta semantics:
+--   delta == 0          → no data / out of combat / double-hit (hidden in UI)
+--   delta < 0           → OH led MH (bad — OH steals WF priority from MH)
+--   0 < delta < 0.5     → proper stagger inside Flurry's shared-charge window
+--   delta >= 0.5        → MH lead too large, outside Flurry window (bad)
+--
+-- Exposed via NS.swing_sync so the dashboard custom_line in class.lua can read
+-- it without duplicating the CLEU plumbing.
+local swing_sync = {
+    timeMH = 0,                  -- CLEU server timestamp of last MH event
+    timeOH = 0,                  -- CLEU server timestamp of last OH event
+    -- Client-time (GetTime()) at each event. CLEU timestamps are server
+    -- epoch — different time-base from GetTime() — so we track both. Client
+    -- time is used to compute inter-event gaps and to compare against the
+    -- framework's GetSwingStart values for diagnostics.
+    last_mh_client = 0,
+    last_oh_client = 0,
+    delta = 0,
+    last_resync_at = 0,
+    grace_scheduled_until = 0,
+}
+NS.swing_sync = swing_sync
+
+-- Diagnostic helper: prints to debug log only when debug_mode is on.
+-- Keys are static strings ("sync-MH", "sync-OH", etc) so debug_print's
+-- 1.5s dedup throttles per-channel output to roughly one line per cycle.
+local function sync_dbg(key, msg)
+    if not NS.cached_settings or not NS.cached_settings.debug_mode then return end
+    NS.debug_print(key, msg)
+end
+
+-- Macro-side hook so we can confirm the resync macro actually ran in-game
+-- (icon being :Show()n only means we recommended it; the macro fires when
+-- the player presses their rotation keybind while the icon is current). The
+-- macro's macroafter has "/run if FluxAIO_ResyncFired then FluxAIO_ResyncFired() end"
+-- appended — that calls back into this function. Gated on debug_mode so
+-- normal play doesn't spam.
+_G.FluxAIO_ResyncFired = function()
+    if not NS.cached_settings or not NS.cached_settings.debug_mode then return end
+    NS.debug_print("sync-macro",
+        format("[SYNC] Macro fired @ %.2f (since-show=%.2fs)",
+            GetTime(),
+            swing_sync.last_resync_at > 0
+                and (GetTime() - swing_sync.last_resync_at) or -1))
+end
+
+local function offhand_stagger_grace()
+    -- Fires ~0.49s after an MH swing when OH state was uncertain. Replicates
+    -- the WA's grace classification: if OH landed in the window → good; if
+    -- not and we have prior OH data and we're still auto-attacking → bad.
+    --
+    -- Cold-start guard: when timeOH == 0 we've NEVER seen an OH swing yet
+    -- (first MH of the combat, or first MH since combat reset). The else
+    -- branch must not claim "bad sync" — we literally have no comparison
+    -- point. Without this guard, every combat's first MH would flag bad,
+    -- trigger a resync, which interrupts swings before OH can land, which
+    -- keeps timeOH at 0 forever — a self-sustaining bad-state loop.
+    local oh, mh = swing_sync.timeOH, swing_sync.timeMH
+    local verdict
+    if oh > mh then
+        swing_sync.delta = oh - mh
+        verdict = "OH-in-window"
+    elseif oh == mh then
+        -- Double-hit OR cold-start (both 0). delta stays 0.
+        verdict = "double/cold"
+    else
+        -- OH didn't land in the 0.49s window after MH. Previously we set
+        -- delta = 0.5 here as a "bad" placeholder, but that triggered fires
+        -- based on a fabricated value rather than a confirmed measurement.
+        -- Now: leave delta unchanged and let the next OH event provide the
+        -- real delta. Drift is still detected — just 1s later when the OH
+        -- event lands — but with accurate magnitude rather than a 0.5 guess.
+        -- Eliminates the d=500ms placeholder-driven oscillation around the
+        -- Flurry window boundary.
+        verdict = "no-OH-wait"
+    end
+    sync_dbg("sync-grace",
+        format("[SYNC] grace verdict=%s d=%dms",
+            verdict, math.floor(swing_sync.delta * 1000)))
+end
+
+local function schedule_grace()
+    -- Dedup overlapping grace timers when MH swings come in rapid succession.
+    local now = GetTime()
+    if now > swing_sync.grace_scheduled_until then
+        swing_sync.grace_scheduled_until = now + 0.49
+        C_Timer.After(0.49, offhand_stagger_grace)
+    end
+end
+
+local sync_player_guid = nil
+local sync_frame = CreateFrame("Frame")
+sync_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+sync_frame:RegisterEvent("PLAYER_REGEN_DISABLED")  -- combat start
+sync_frame:RegisterEvent("PLAYER_REGEN_ENABLED")   -- combat end
+sync_frame:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        -- Fresh slate at combat boundaries — stale swing data is worthless.
+        swing_sync.timeMH = 0
+        swing_sync.timeOH = 0
+        swing_sync.last_mh_client = 0
+        swing_sync.last_oh_client = 0
+        swing_sync.delta = 0
+        swing_sync.last_resync_at = 0
+        sync_dbg("sync-combat", format("[SYNC] %s — state reset", event))
+        return
+    end
+
+    if not sync_player_guid then
+        sync_player_guid = UnitGUID("player")
+        if not sync_player_guid then return end
+    end
+
+    local timestamp, subEvent, _, sourceGUID = CombatLogGetCurrentEventInfo()
+    if subEvent ~= "SWING_DAMAGE" and subEvent ~= "SWING_MISSED" then return end
+    if sourceGUID ~= sync_player_guid then return end
+
+    -- isOffHand position differs by subevent (CLEU suffix args layout):
+    --   SWING_DAMAGE: amount, overkill, school, resisted, blocked, absorbed,
+    --                 critical, glancing, crushing, isOffHand     -> arg 21
+    --   SWING_MISSED: missType, isOffHand                          -> arg 13
+    local isOH
+    if subEvent == "SWING_DAMAGE" then
+        isOH = select(21, CombatLogGetCurrentEventInfo())
+    else
+        isOH = select(13, CombatLogGetCurrentEventInfo())
+    end
+
+    local client_now = GetTime()
+
+    if isOH then
+        local prev_oh_client = swing_sync.last_oh_client
+        swing_sync.timeOH = timestamp
+        swing_sync.last_oh_client = client_now
+        local d = timestamp - swing_sync.timeMH
+        if d > 3 then
+            swing_sync.delta = 0  -- stale: previous MH was a different combat
+        else
+            swing_sync.delta = d  -- positive = OH followed MH
+        end
+        -- Diag: gap since last OH (≈ OH swing duration), framework's view,
+        -- and the delta this event produced. Lets us compare framework vs
+        -- CLEU-derived swing timing.
+        local fw_start = Player:GetSwingStart(2) or 0
+        local fw_dur   = Player:GetSwing(2) or 0
+        local gap = (prev_oh_client > 0) and (client_now - prev_oh_client) or -1
+        sync_dbg("sync-OH",
+            format("[SYNC] OH gap=%.2fs fwS=%.2f fwD=%.2f d=%dms",
+                gap, fw_start > 0 and (client_now - fw_start) or -1, fw_dur,
+                math.floor(swing_sync.delta * 1000)))
+    else
+        local prev_mh_client = swing_sync.last_mh_client
+        swing_sync.timeMH = timestamp
+        swing_sync.last_mh_client = client_now
+        if swing_sync.timeOH == 0 then
+            swing_sync.delta = 0
+            schedule_grace()
+        else
+            local d = timestamp - swing_sync.timeOH
+            if d == 0 then
+                swing_sync.delta = 0   -- double-hit
+            elseif d < 1 then
+                -- OH landed within 1s BEFORE this MH → OH leading (bad)
+                swing_sync.delta = -d
+            elseif d > 3 then
+                swing_sync.delta = 0   -- stale
+            else
+                -- 1-3s gap: can't classify yet, let the grace timer decide
+                schedule_grace()
+            end
+        end
+        local fw_start = Player:GetSwingStart(1) or 0
+        local fw_dur   = Player:GetSwing(1) or 0
+        local gap = (prev_mh_client > 0) and (client_now - prev_mh_client) or -1
+        sync_dbg("sync-MH",
+            format("[SYNC] MH gap=%.2fs fwS=%.2f fwD=%.2f d=%dms",
+                gap, fw_start > 0 and (client_now - fw_start) or -1, fw_dur,
+                math.floor(swing_sync.delta * 1000)))
+    end
+end)
+
+-- ============================================================================
 -- ENHANCEMENT STATE (context_builder)
 -- ============================================================================
 -- Pre-allocated state table — no inline {} in combat
@@ -98,9 +292,141 @@ local function get_enh_state(context)
 end
 
 -- ============================================================================
+-- SWING-TIMER MIDPOINT HELPERS (used by SwingResync gating)
+-- ============================================================================
+-- The /cleartarget+/targetlasttarget macro can only DELAY a swing — and only
+-- if that swing is past its midpoint. Pressing pre-midpoint is a no-op for
+-- swing timing (but still costs a frame of icon display). Per the guide:
+--   * Drift (OH too far after MH, delta >= 0.5) → press when OH past midpoint
+--   * OH-leading (delta < 0)                    → press when MH past midpoint
+-- These helpers let matches() skip no-op fires.
+--
+-- API caveat: Player:GetSwing(slot) returns REMAINING swing time (NOT total
+-- duration, despite some codebase usage to the contrary). GetSwingStart(slot)
+-- returns the time the current swing CYCLE started. We compute total cycle
+-- length as elapsed + remaining, so this works for any weapon speed without
+-- needing GetSwingMax.
+local function swing_state(slot)
+    local start_time = Player:GetSwingStart(slot)
+    local remaining = Player:GetSwing(slot)
+    if not start_time or start_time <= 0 then return nil end
+    local now = GetTime()
+    local elapsed = now - start_time
+    if elapsed <= 0 then return nil end
+    local max_dur = elapsed + (remaining or 0)
+    if max_dur <= 0 then return nil end
+    return elapsed, max_dur
+end
+
+local function swing_past_midpoint(slot)
+    local elapsed, max_dur = swing_state(slot)
+    if not elapsed then return false end
+    return elapsed >= (max_dur * 0.5)
+end
+
+-- "% of swing completed" — for diagnostic display only.
+local function swing_pct(slot)
+    local elapsed, max_dur = swing_state(slot)
+    if not elapsed then return -1 end
+    return math.floor((elapsed / max_dur) * 100)
+end
+
+-- ============================================================================
 -- STRATEGIES
 -- ============================================================================
 do
+
+-- [0] Swing Resync — fires the resync macro when MH/OH stagger is bad
+-- (OH leading, or OH outside the Flurry 0.5s shared-charge window). Per the
+-- enhanceshaman.com guide, overcorrecting can cost an entire OH swing, so we
+-- suppress for 0.5s after each fire (one OH-swing window) before re-evaluating.
+-- Top priority so a bad-sync frame preempts Stormstrike/Shock — the few-ms
+-- delay on an offensive ability is cheaper than ongoing sync drift.
+local Enh_SwingResync = {
+    requires_combat = true,
+    is_gcd_gated = false,    -- macro is /cleartarget+/targetlasttarget; no GCD
+    setting_key = "enh_auto_resync",
+
+    matches = function(context, state)
+        -- Only meaningful when actually auto-attacking.
+        if not IsCurrentSpell(AUTO_ATTACK_SPELL_ID) then return false end
+
+        -- Cold-start guard: need a real OH observation before classifying.
+        -- Without this, the grace timer's "no OH yet" verdict would fire
+        -- resync on every combat's first MH, starving OH of a chance to land.
+        if swing_sync.timeOH == 0 then return false end
+
+        -- Suppression after previous fire. Safety belt — the execute()
+        -- resets timeOH/delta anyway, but suppression keeps us from
+        -- thrashing if state updates faster than expected.
+        local now = GetTime()
+        if now - swing_sync.last_resync_at < 0.5 then return false end
+
+        -- Bad sync conditions, WITH HYSTERESIS to prevent boundary oscillation.
+        -- Pure ">= 0.5" / "< 0" thresholds cause this pattern in practice:
+        --   drift 1300ms → fire → overshoot to -800ms → fire → bounce to
+        --   500ms → fire (just over boundary) → bounce again → etc.
+        -- The hysteresis dead-zone (0 < d < 0.65 and -0.15 < d <= 0) stops
+        -- the bouncing — small mis-stagger is tolerated and naturally stable
+        -- with matched-speed weapons. Trade-off: if you settle at, say,
+        -- 600ms drift, you stay there (slightly outside Flurry's 0.5s window
+        -- = small DPS loss) rather than burn a fire trying to fix it.
+        --
+        --   delta == 0              → no data, don't fire
+        --   -0.15 <= delta < 0.65   → dead zone, don't fire
+        --   delta < -0.15           → clear OH-lead, fire
+        --   delta >= 0.65           → clear drift, fire
+        local d = swing_sync.delta
+        if d == 0 then return false end
+        if d > -0.15 and d < 0.65 then return false end
+
+        -- Scenario-specific timing gate (per the guide):
+        --   Drift: macro only delays OH if OH is past its midpoint. Pressing
+        --          pre-midpoint does nothing to swing timing. Gate so we
+        --          only fire when the press will actually move OH.
+        --   OH-leading: guide says press when MH past midpoint to "flip
+        --               priority." Same idea — gate to actionable moments.
+        -- Skipping no-op fires roughly halves visual fire rate while making
+        -- each fire effective.
+        if d < 0 then
+            if not swing_past_midpoint(1) then return false end  -- MH
+        else
+            if not swing_past_midpoint(2) then return false end  -- OH
+        end
+        return true
+    end,
+
+    execute = function(icon, context, state)
+        -- Snapshot diagnostic state BEFORE we reset it. MH%/OH% now show
+        -- true "% through swing cycle" (computed via elapsed+remaining),
+        -- so 50% really is midpoint. rawMH/rawOH show elapsed/total in
+        -- seconds, so 1.30/2.60 = midpoint of a 2.6s weapon.
+        local d_at_fire = swing_sync.delta
+        local now = GetTime()
+        local mh_elapsed, mh_total = swing_state(1)
+        local oh_elapsed, oh_total = swing_state(2)
+        local mh_pct = swing_pct(1)
+        local oh_pct = swing_pct(2)
+
+        swing_sync.last_resync_at = now
+        -- Invalidate sync state after firing. The macro disrupts swings;
+        -- whatever delta we just had is stale. Forcing timeOH back to 0
+        -- means the next fire can't happen until a fresh OH event lands
+        -- and gives us new data to judge against — natural "fire once,
+        -- observe, maybe fire again" without burning DPS on a stuck loop.
+        swing_sync.timeOH = 0
+        swing_sync.delta = 0
+
+        local oh_gap = (swing_sync.last_oh_client > 0)
+            and (now - swing_sync.last_oh_client) or -1
+        return A.SwingResync:Show(icon),
+            format("[ENH] Resync d=%dms MH=%d%% OH=%d%% rawMH=%.2f/%.2f rawOH=%.2f/%.2f ohGap=%.2f",
+                math.floor(d_at_fire * 1000), mh_pct, oh_pct,
+                mh_elapsed or -1, mh_total or -1,
+                oh_elapsed or -1, oh_total or -1,
+                oh_gap)
+    end,
+}
 
 -- [1] Shamanistic Rage (off-GCD — mana recovery + damage reduction)
 local Enh_ShamanisticRage = {
@@ -275,22 +601,21 @@ local Enh_WindfuryTwist = {
         end
 
         local now = GetTime()
-        local cycle = Constants.TWIST.CYCLE_TIME
 
         -- First time entering combat: drop WF immediately
         if not wf_twist.initialized then
             return true
         end
 
-        -- Check if it's time to switch phases
+        -- Phase-specific durations so the full cycle is ~10s (matches WF buff
+        -- duration), not 20s. WF holds for one GCD just to apply the buff,
+        -- then Grace runs for the rest of the buff window before we refresh.
         if wf_twist.phase == "windfury" then
-            -- WF is down, time to swap to default air totem?
             local elapsed = now - wf_twist.last_wf_time
-            if elapsed >= cycle then return true end
+            if elapsed >= Constants.TWIST.WF_PHASE_DURATION then return true end
         elseif wf_twist.phase == "default" then
-            -- Default air totem is down, time to swap back to WF?
             local elapsed = now - wf_twist.last_default_time
-            if elapsed >= cycle then return true end
+            if elapsed >= Constants.TWIST.DEFAULT_PHASE_DURATION then return true end
         end
 
         return false
@@ -409,10 +734,15 @@ local Enh_FireNovaTotemTwist = {
                 return A.FireNovaTotem:Show(icon), "[ENH] Fire Nova Totem (twist)"
             end
         elseif fnt_twist.phase == "default" then
-            -- Drop default fire totem after FNT exploded
-            local spell = resolve_totem_spell(context.settings.enh_fire_totem or "searing", NS.FIRE_TOTEM_SPELLS)
+            -- Drop the configured post-FNT totem (default Magma) during the gap
+            -- between FNT explosion and the next FNT off CD. Falls back to the
+            -- default fire totem setting if the post-FNT slot is left blank.
+            local post_key = context.settings.enh_fnt_post_totem
+                or context.settings.enh_fire_totem
+                or "magma"
+            local spell = resolve_totem_spell(post_key, NS.FIRE_TOTEM_SPELLS)
             if spell and spell:IsReady(PLAYER_UNIT) then
-                return spell:Show(icon), "[ENH] Fire Totem (post-FNT)"
+                return spell:Show(icon), format("[ENH] %s (post-FNT)", post_key)
             end
         end
 
@@ -440,6 +770,10 @@ local Enh_Shock = {
     matches = function(context, state)
         local s = context.settings
         local primary = s.enh_primary_shock or "earth_shock"
+
+        -- Hold-shocks: rotation skips shocks entirely; the interrupt middleware
+        -- (priority 510) still fires shocks on enemy casts independently.
+        if s.enh_shock_interrupt_only then return false end
 
         -- Mana conservation gate (bypassed when SR active or SR ready)
         local mana_stop = s.enh_mana_stop_shocks or 0
@@ -562,6 +896,7 @@ local Enh_AoE = {
 -- REGISTRATION
 -- ============================================================================
 rotation_registry:register("enhancement", {
+    named("SwingResync",         Enh_SwingResync),         -- top: bad-sync preempts everything
     named("ShamanisticRage",     Enh_ShamanisticRage),
     named("Racial",              Enh_Racial),
     named("TotemManagement",     Enh_TotemManagement),

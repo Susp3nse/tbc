@@ -240,6 +240,8 @@ local Ele_FlameShock = {
     setting_key = "ele_use_flame_shock",
 
     matches = function(context, state)
+        -- Hold-shocks: rotation skips shocks; interrupt middleware still fires them.
+        if context.settings.ele_shock_interrupt_only then return false end
         -- Only apply if DoT is not active
         if state.flame_shock_duration > 2 then return false end
         -- TTD gate: don't waste mana applying DoT on dying target
@@ -305,6 +307,8 @@ local Ele_EarthShock = {
     setting_key = "ele_use_earth_shock",
 
     matches = function(context, state)
+        -- Hold-shocks: rotation skips shocks; interrupt middleware still fires them.
+        if context.settings.ele_shock_interrupt_only then return false end
         -- Only use as filler when FS DoT is already active
         if state.flame_shock_duration <= 2 then return false end
         -- Mana conservation gate
