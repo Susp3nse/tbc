@@ -458,3 +458,30 @@ All magic numbers are in the `Constants` table (defined in Core):
 - Referenced libraries in `TBC-main/` and `Addon Libraries/` are external dependencies (gitignored)
 - `docs/api/` contains Lua type stubs for IDE IntelliSense
 - `docs/reference/` contains API reference documentation
+
+## Release Workflow
+
+When the user says "review PR ##, merge, and tag a release" (or similar), perform every step below without re-prompting.
+
+1. **Review** — `gh pr view <#>` and `gh pr diff <#>`. Summarize scope, flag risks (security, breakage, unverified assumptions), give an LGTM or hold if something's off. Trivial / mechanical PRs get a one-paragraph LGTM and proceed.
+
+2. **Merge** — `gh pr merge <#> --merge --delete-branch`. Always `--merge` (not `--squash` or `--rebase`) so commit attribution is preserved on main. Then `git checkout main && git pull origin main`.
+
+3. **Bump versions** (semver: patch for bugfix, minor for new feature / new setting, major for breaking change):
+   - `rotation/package.json` `"version"` field
+   - The per-class file the PR actually touched, e.g. `rotation/source/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
+   - Verify the build: `node rotation/build.js`
+
+4. **Update the website changelog** at `website/src/pages/changelog.astro`. Insert a new `<section class="section changelog-entry">` at the **top** (above the existing topmost entry), mirroring its format: `<h2>vX.Y.Z</h2>`, the appropriate `<span class="changelog-tag tag-feature">Feature</span>` or `tag-fix`, one `<h3>` per class touched, `<ul class="features">` with `<li><strong>Title</strong> &mdash; description</li>`.
+
+5. **Commit and push** — `chore: bump <class> to vX.Y.Z, package to vP.Q.R, update changelog` mentioning the PR number in the body. Push to main.
+
+6. **Annotated tag** — `git tag -a vP.Q.R -m "<release notes>"` then `git push origin vP.Q.R`. The tag message becomes the **GitHub Release body AND the Discord notification**, so write it for end-users (mirror the changelog content as plain text — no HTML). Pushing the tag triggers `release.yml` which publishes the release and pings Discord.
+
+### Hard rules
+
+- **Never tag without explicit user approval.** "Tag a release" in the request counts; absence of that phrase means stop after step 5 and ask.
+- **Annotated tags only** (`-a` + `-m`). Never lightweight tags.
+- **Tags are immutable releases** — never force-push or move an existing tag. If something needs fixing, ship a new patch version.
+- **Website-only or `discord-bot/`-only changes don't need a tag/release.** They get deployed by their own workflows (`deploy-website.yml`, `deploy-bot.yml`).
+- **Only bump rotation versions when rotation code changes.** Doc-only PRs that touch the rotation tree (e.g. comment-only edits to a class file) don't need version bumps.
