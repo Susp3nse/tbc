@@ -1,6 +1,6 @@
 {
   "name": "@flux/rotation",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "private": true,
   "main": "build.js",
   "scripts": {
