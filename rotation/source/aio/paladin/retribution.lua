@@ -235,24 +235,26 @@ local Ret_Opener = {
     end,
 }
 
--- [5] Complete Seal Twist: SoC active + in twist window → cast SoB
-local Ret_CompleteSealTwist = {
+-- [5] Twist: Seal of Blood/Martyr is the RESIDENT seal. Flash Seal of Command in
+-- during the 0.4s pre-swing window so the swing procs BOTH (Blood's guaranteed hit
+-- via the overlap + Command's proc). After the swing, MaintainBlood puts Blood back.
+-- We twist FROM Blood (not the other way round) so Blood keeps the dominant uptime —
+-- it's the guaranteed-damage seal and the one we Judge. Command rank per setting.
+local Ret_TwistCommand = {
     requires_combat = true,
     requires_enemy = true,
 
     matches = function(context, state)
         if not state.should_twist then return false end
-        if not state.seal_command_active then return false end
+        -- Only twist when Blood is the resident/active seal, so the overlap carries it.
+        if not state.seal_blood_active then return false end
         if not state.in_twist_window then return false end
         return true
     end,
 
     execute = function(icon, context, state)
-        if SealOfBloodAction:IsReady(PLAYER_UNIT) then
-            return SealOfBloodAction:Show(icon),
-                format("[RET] Twist -> SoB (swing in %.2fs)", state.time_to_swing)
-        end
-        return nil
+        return show_twist_soc(icon, context,
+            format("[RET] Twist -> SoC (swing in %.2fs)", state.time_to_swing))
     end,
 }
 
@@ -280,6 +282,13 @@ local Ret_JudgeSeal = {
         else
             if not context.has_any_seal then return false end
         end
+        -- When twisting, don't judge Blood in the last ~GCD before a swing: Judgement
+        -- consumes the seal, and we need Blood up for the swing (its overlap) plus a
+        -- GCD to re-apply it. Otherwise we'd leave the swing seal-less. Judge earlier.
+        if state.should_twist and judge == "blood"
+           and state.time_to_swing > 0 and state.time_to_swing < state.spell_gcd then
+            return false
+        end
         return true
     end,
 
@@ -299,12 +308,12 @@ local Ret_CrusaderStrike = {
         if not context.settings.ret_use_crusader_strike then return false end
         -- Don't waste GCD on CS without a seal active — let MaintainSealFallback re-seal first
         if not context.has_any_seal then return false end
-        -- Only protect the actual 0.4s twist window so the SoB twist cast isn't clipped.
-        -- We intentionally do NOT block the whole last ~1.5s before a swing: that pinned
-        -- CS to one slot per swing cycle and stretched its real interval to 9-11s instead
-        -- of firing near its 6s cooldown. CS damage + the Judgement-of-the-Crusader refresh
-        -- (which keeps the +3% raid crit up) outrank the occasional skipped twist.
-        if state.should_twist and state.seal_command_active and state.in_twist_window then
+        -- Only protect the actual 0.4s twist window so the Command-twist cast isn't
+        -- clipped. We intentionally do NOT block the whole last ~1.5s before a swing:
+        -- that pinned CS to one slot per swing and stretched its real interval to 9-11s
+        -- instead of firing near its 6s cooldown. CS damage + the Judgement-of-the-
+        -- Crusader refresh (which keeps the +3% raid crit up) outrank a skipped twist.
+        if state.should_twist and state.in_twist_window then
             return false
         end
         return true
@@ -315,46 +324,32 @@ local Ret_CrusaderStrike = {
     end,
 }
 
--- [8] Prep Seal Twist: cast SoC R1 to set up next twist
-local Ret_PrepSealTwist = {
+-- [8] Maintain Seal of Blood/Martyr as the RESIDENT seal. Re-applies it whenever it's
+-- not active — after Judgement consumes it, or after a Command twist swing — EXCEPT in
+-- the twist window, where we let the just-flashed Command ride into the swing. Because
+-- Blood is a 30s seal, this only fires when Blood actually dropped, so Blood stays up
+-- the vast majority of the time (dominant uptime), with Command only briefly twisted in.
+local Ret_MaintainBlood = {
     requires_combat = true,
 
     matches = function(context, state)
-        if not state.should_twist then return false end
-        -- Only prep if SoC is not already active
-        if state.seal_command_active then return false end
-        -- Don't override Seal of Wisdom during mana recovery
+        -- Already up — let it ride; no need to re-cast a 30s seal.
+        if state.seal_blood_active then return false end
+        -- Don't clobber a Command twist that's about to land on the swing.
+        if state.should_twist and state.in_twist_window then return false end
+        -- Don't override Seal of Wisdom during mana recovery.
         if context.seal_wisdom_active and context.settings.use_seal_of_wisdom_low_mana then
             local threshold = context.settings.seal_of_wisdom_mana_pct or 20
             if context.mana_pct <= threshold then return false end
-        end
-        -- Don't prep if in twist window (too late)
-        if state.in_twist_window then return false end
-        -- Don't prep if swing is very imminent
-        if state.time_to_swing > 0 and state.time_to_swing < 0.5 then return false end
-        -- Mirror wowsims: don't replace the judgeable seal with SoC if Judgement
-        -- comes off CD before latestTwistStart (time_to_swing - spellGCD).
-        -- Let JudgeSeal fire first, then prep SoC on the next frame.
-        -- Condition from wowsims: nextJudgementCD > latestTwistStart
-        if state.time_to_swing > 0 then
-            local judge = context.settings.ret_judge_seal or "blood"
-            local judge_seal_active =
-                (judge == "blood"    and state.seal_blood_active)       or
-                (judge == "crusader" and context.seal_crusader_active)  or
-                (judge == "wisdom"   and context.seal_wisdom_active)    or
-                (judge == "light"    and context.seal_light_active)
-            if judge_seal_active then
-                if state.judgement_cd_remaining <= (state.time_to_swing - state.spell_gcd) then
-                    return false
-                end
-            end
         end
         return true
     end,
 
     execute = function(icon, context, state)
-        return show_twist_soc(icon, context,
-            format("[RET] Prep SoC (swing in %.2fs)", state.time_to_swing))
+        if SealOfBloodAction:IsReady(PLAYER_UNIT) then
+            return SealOfBloodAction:Show(icon), "[RET] Maintain SoB (resident)"
+        end
+        return nil
     end,
 }
 
@@ -477,10 +472,10 @@ rotation_registry:register("retribution", {
     named("AvengingWrath",       Ret_AvengingWrath),
     named("Racial",              Ret_Racial),
     named("Opener",              Ret_Opener),
-    named("CompleteSealTwist",   Ret_CompleteSealTwist),
     named("JudgeSeal",           Ret_JudgeSeal),
     named("CrusaderStrike",      Ret_CrusaderStrike),
-    named("PrepSealTwist",       Ret_PrepSealTwist),
+    named("TwistCommand",        Ret_TwistCommand),
+    named("MaintainBlood",       Ret_MaintainBlood),
     named("HammerOfWrath",       Ret_HammerOfWrath),
     named("Exorcism",            Ret_Exorcism),
     named("Consecration",        Ret_Consecration),

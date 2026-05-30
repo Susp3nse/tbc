@@ -352,28 +352,37 @@ wrong behavior, so re-verify each class before "fixing" the shared helpers.
 ### Core Mechanic: Seal Twisting
 Seal twisting is THE defining mechanic of TBC Ret Paladin. It exploits the ~0.4s server batching window to proc two seals on a single auto-attack swing.
 
+> **CORRECTION (validated against live parses):** Seal of Blood / Seal of the Martyr
+> is the **RESIDENT** seal — keep it up almost all the time. Seal of Command is the
+> one you **flash in** for the twist. A good ret parse shows Martyr ~64% uptime /
+> Command ~41%; an earlier version of this rotation had it inverted (Command resident
+> ~62% / Martyr ~38%), which is a large DPS loss because Martyr is the guaranteed
+> every-swing damage seal AND the one you Judge. The old cycle below (Command resident,
+> twist Blood in) was WRONG — the corrected cycle keeps Blood resident and twists
+> Command in.
+
 **How it works:**
-1. Have Seal of Command active before your melee swing
-2. ~0.4 seconds before the swing lands, cast Seal of Blood (or Martyr)
-3. The swing processes BOTH seals: Command's 7 PPM proc + Blood's guaranteed +35% weapon dmg
-4. This is approximately a 13% DPS increase over non-twisting
+1. Have **Seal of Blood/Martyr** active (resident) before your melee swing
+2. ~0.4 seconds before the swing lands, cast **Seal of Command**
+3. The swing processes BOTH seals: Blood's guaranteed +35% weapon dmg (via the overlap) + Command's 7 PPM proc
+4. After the swing, re-apply Seal of Blood/Martyr (back to resident)
+5. This is approximately a 13% DPS increase over non-twisting
 
 **Key rules:**
-- Always use **Seal of Command Rank 1** (base ID 20375) while twisting — saves mana (65 vs 280); proc damage comes from the proc itself, not seal rank
+- **Blood/Martyr is the resident seal**; Command is twisted in. Maintain Blood — don't let the rotation fall back to Command as the default (it did, around Judgement/CS, which inverted the uptime).
+- Use **Seal of Command Rank 1** (base ID 20375) for the twist-in — saves mana (65 vs 280); proc damage comes from the proc itself, not seal rank. (Configurable: `ret_twist_seal_rank`, default R1.)
 - Never Judge Seal of Command — only Judge Seal of Blood
-- Requires a swing timer for the 0.4s window
+- Requires a swing timer for the 0.4s window (see the GetSwing caveat above)
 - wowsims constant: `twistWindow = 399 * time.Millisecond`
-- After judging, re-seal Command(R1) immediately, then twist to Blood before next swing
+- Don't Judge Blood in the last ~GCD before a swing: Judgement consumes the seal, leaving the swing seal-less; judge earlier in the cycle, then Blood rides.
 
-**Seal Twist Cycle:**
+**Seal Twist Cycle (corrected — Blood resident):**
 ```
-Swing lands (both seals proc)
-  → You now have Seal of Blood active
-  → Judge Seal of Blood (off-GCD!)
-  → Re-apply Seal of Command (R1)
-  → Wait for 0.4s before next swing
-  → Cast Seal of Blood
-  → Swing lands (both seals proc again)
+Seal of Blood/Martyr resident (up the whole time)
+  → Judge Seal of Blood when off CD (off-GCD!) → re-apply Seal of Blood
+  → ~0.4s before the swing: cast Seal of Command (the twist)
+  → Swing lands (both seals proc: Blood via overlap + Command)
+  → Re-apply Seal of Blood (back to resident)
   → Repeat
 ```
 
@@ -385,6 +394,15 @@ Swing lands (both seals proc)
 - 100% proc rate on any crit — with ~30% crit rate, near-100% uptime
 
 ### Single Target Rotation (from wowsims `rotation.go`)
+
+> **NOTE (sim vs live):** The wowsims priority below keeps **Seal of Command resident**
+> and twists Seal of Blood in. That is optimal in a SIM, which hits the 0.4s window on
+> every swing. A **live** addon cannot hit every window (frame + server-batch latency),
+> so a missed twist with Command resident leaves the swing with no Blood (its guaranteed
+> damage) — the failure mode we hit. The live Flux rotation therefore **inverts** this:
+> Blood/Martyr is resident (a missed twist still procs Blood), Command is flashed in.
+> See the corrected Seal Twist Cycle above. Keep this section for reference only.
+
 The wowsims retribution rotation operates in three phases: opener, main rotation, and low-mana fallback.
 
 ```
