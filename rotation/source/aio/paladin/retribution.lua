@@ -45,6 +45,12 @@ local get_spell_mana_cost = NS.get_spell_mana_cost
 -- needs to land it once at the start of the fight.
 local OPENER_COMBAT_WINDOW = 8
 
+-- How early (seconds) before the latest safe prep moment we allow Seal of Command to be
+-- prepped for a twist. Wider = more reliable twists but Command holds slightly longer
+-- (less Blood uptime); narrower = more Blood uptime but more missed twists under GCD
+-- contention. Tune against parse uptimes (target ~Blood 60%+ / Command ~40%).
+local PREP_LEAD_BUFFER = 0.3
+
 -- ============================================================================
 -- RETRIBUTION STATE (context_builder)
 -- ============================================================================
@@ -235,26 +241,29 @@ local Ret_Opener = {
     end,
 }
 
--- [5] Twist: Seal of Blood/Martyr is the RESIDENT seal. Flash Seal of Command in
--- during the 0.4s pre-swing window so the swing procs BOTH (Blood's guaranteed hit
--- via the overlap + Command's proc). After the swing, MaintainBlood puts Blood back.
--- We twist FROM Blood (not the other way round) so Blood keeps the dominant uptime —
--- it's the guaranteed-damage seal and the one we Judge. Command rank per setting.
-local Ret_TwistCommand = {
+-- [5] Twist into Blood: Command is prepped (active) → cast Seal of Blood/Martyr in the
+-- 0.4s pre-swing window so the swing procs BOTH (Command via the overlap + Blood's
+-- guaranteed hit). TBC twisting is UNIDIRECTIONAL — you can only twist Command -> Blood,
+-- so Command must be the active seal going into the window. Blood then rides as the
+-- resident seal until we prep Command again before the next swing.
+local Ret_TwistBlood = {
     requires_combat = true,
     requires_enemy = true,
 
     matches = function(context, state)
         if not state.should_twist then return false end
-        -- Only twist when Blood is the resident/active seal, so the overlap carries it.
-        if not state.seal_blood_active then return false end
+        -- Must be on Command to twist into Blood (unidirectional).
+        if not state.seal_command_active then return false end
         if not state.in_twist_window then return false end
         return true
     end,
 
     execute = function(icon, context, state)
-        return show_twist_soc(icon, context,
-            format("[RET] Twist -> SoC (swing in %.2fs)", state.time_to_swing))
+        if SealOfBloodAction:IsReady(PLAYER_UNIT) then
+            return SealOfBloodAction:Show(icon),
+                format("[RET] Twist -> SoB (swing in %.2fs)", state.time_to_swing)
+        end
+        return nil
     end,
 }
 
@@ -282,12 +291,18 @@ local Ret_JudgeSeal = {
         else
             if not context.has_any_seal then return false end
         end
-        -- When twisting, don't judge Blood in the last ~GCD before a swing: Judgement
-        -- consumes the seal, and we need Blood up for the swing (its overlap) plus a
-        -- GCD to re-apply it. Otherwise we'd leave the swing seal-less. Judge earlier.
-        if state.should_twist and judge == "blood"
-           and state.time_to_swing > 0 and state.time_to_swing < state.spell_gcd then
-            return false
+        -- When twisting, judge Blood RIGHT BEFORE prepping Command (the standard rule:
+        -- "cast Judgement right before you prep Command"). We drop Blood for the prep
+        -- anyway, so judging at that moment gets Judgement of Blood essentially for free
+        -- and avoids a wasted re-seal. JudgeSeal is off-GCD and outranks PrepCommand, so
+        -- it consumes Blood one frame and PrepCommand casts Command the next. Only judge
+        -- inside the prep lead band; in the resident phase an early judge would force a
+        -- re-seal whose GCD can eat the prep window (missed twist).
+        if state.should_twist and judge == "blood" and state.time_to_swing > 0 then
+            local lead = Constants.TWIST.WINDOW + state.spell_gcd
+            if state.time_to_swing < lead or state.time_to_swing > lead + PREP_LEAD_BUFFER then
+                return false
+            end
         end
         return true
     end,
@@ -324,19 +339,57 @@ local Ret_CrusaderStrike = {
     end,
 }
 
--- [8] Maintain Seal of Blood/Martyr as the RESIDENT seal. Re-applies it whenever it's
--- not active — after Judgement consumes it, or after a Command twist swing — EXCEPT in
--- the twist window, where we let the just-flashed Command ride into the swing. Because
--- Blood is a 30s seal, this only fires when Blood actually dropped, so Blood stays up
--- the vast majority of the time (dominant uptime), with Command only briefly twisted in.
+-- [8] Prep Command: switch from resident Blood to Seal of Command, but ONLY in the short
+-- lead just before the swing — late enough that Command isn't the resident seal, early
+-- enough that its GCD finishes before the 0.4s twist window so we can twist into Blood.
+-- This is the "from" side of the unidirectional Command -> Blood twist. Command rank per
+-- setting. Outside this lead, Blood stays resident (MaintainBlood), so Blood keeps the
+-- dominant uptime while Command is only briefly up to enable the twist.
+local Ret_PrepCommand = {
+    requires_combat = true,
+    requires_enemy = true,
+
+    matches = function(context, state)
+        if not state.should_twist then return false end
+        if state.seal_command_active then return false end   -- already prepped
+        if state.time_to_swing <= 0 then return false end
+        -- Prep lead band: [window+gcd, window+gcd+PREP_LEAD_BUFFER]. Below the band it's
+        -- too late to prep AND twist (skip this swing, Blood just rides); above it we'd
+        -- hold Command too long and steal Blood's uptime.
+        local lead = Constants.TWIST.WINDOW + state.spell_gcd
+        if state.time_to_swing < lead or state.time_to_swing > lead + PREP_LEAD_BUFFER then
+            return false
+        end
+        -- Don't override Seal of Wisdom during mana recovery.
+        if context.seal_wisdom_active and context.settings.use_seal_of_wisdom_low_mana then
+            local threshold = context.settings.seal_of_wisdom_mana_pct or 20
+            if context.mana_pct <= threshold then return false end
+        end
+        return true
+    end,
+
+    execute = function(icon, context, state)
+        return show_twist_soc(icon, context,
+            format("[RET] Prep SoC (swing in %.2fs)", state.time_to_swing))
+    end,
+}
+
+-- [9] Maintain Seal of Blood/Martyr as the RESIDENT seal — the guaranteed-damage seal we
+-- also Judge. Re-applies it whenever it's dropped (after a Judgement, or after a twist
+-- left Command up), EXCEPT in the pre-twist lead/window where PrepCommand + TwistBlood
+-- run. Blood is a 30s seal, so this only fires when it actually dropped → Blood keeps the
+-- dominant uptime, Command only flashes up briefly to enable each twist.
 local Ret_MaintainBlood = {
     requires_combat = true,
 
     matches = function(context, state)
         -- Already up — let it ride; no need to re-cast a 30s seal.
         if state.seal_blood_active then return false end
-        -- Don't clobber a Command twist that's about to land on the swing.
-        if state.should_twist and state.in_twist_window then return false end
+        -- In the pre-twist lead/window, let PrepCommand + TwistBlood drive the seal.
+        if state.should_twist and state.time_to_swing > 0 then
+            local lead = Constants.TWIST.WINDOW + state.spell_gcd
+            if state.time_to_swing <= lead + PREP_LEAD_BUFFER then return false end
+        end
         -- Don't override Seal of Wisdom during mana recovery.
         if context.seal_wisdom_active and context.settings.use_seal_of_wisdom_low_mana then
             local threshold = context.settings.seal_of_wisdom_mana_pct or 20
@@ -474,7 +527,8 @@ rotation_registry:register("retribution", {
     named("Opener",              Ret_Opener),
     named("JudgeSeal",           Ret_JudgeSeal),
     named("CrusaderStrike",      Ret_CrusaderStrike),
-    named("TwistCommand",        Ret_TwistCommand),
+    named("TwistBlood",          Ret_TwistBlood),
+    named("PrepCommand",         Ret_PrepCommand),
     named("MaintainBlood",       Ret_MaintainBlood),
     named("HammerOfWrath",       Ret_HammerOfWrath),
     named("Exorcism",            Ret_Exorcism),

@@ -352,39 +352,54 @@ wrong behavior, so re-verify each class before "fixing" the shared helpers.
 ### Core Mechanic: Seal Twisting
 Seal twisting is THE defining mechanic of TBC Ret Paladin. It exploits the ~0.4s server batching window to proc two seals on a single auto-attack swing.
 
-> **CORRECTION (validated against live parses):** Seal of Blood / Seal of the Martyr
-> is the **RESIDENT** seal — keep it up almost all the time. Seal of Command is the
-> one you **flash in** for the twist. A good ret parse shows Martyr ~64% uptime /
-> Command ~41%; an earlier version of this rotation had it inverted (Command resident
-> ~62% / Martyr ~38%), which is a large DPS loss because Martyr is the guaranteed
-> every-swing damage seal AND the one you Judge. The old cycle below (Command resident,
-> twist Blood in) was WRONG — the corrected cycle keeps Blood resident and twists
-> Command in.
+> **IMPORTANT — twisting is UNIDIRECTIONAL (Command → Blood only):** You can only twist
+> *from* Seal of Command *into* Seal of Blood/Martyr, not the reverse. So Command is the
+> **"prep" seal** (you must be on Command to twist) and Blood/Martyr is the **"twist"
+> seal** (what you twist into, right before the swing). After the twist, you **leave
+> Blood up** — it rides through CS / fillers / Judgement as the resident seal until you
+> prep Command again shortly before the next swing.
+>
+> This means **Blood/Martyr has the dominant UPTIME** (it's up most of the cycle) even
+> though **Command is the seal you twist *from***. A good ret parse: Martyr ~64% /
+> Command ~41%. Two wrong implementations to avoid:
+> 1. **Command resident the whole cycle** (old PrepSoC re-sealed Command after every
+>    Judgement) → Command ~62% / Martyr ~38%. Wrong: Blood barely up.
+> 2. **Flashing Command in while Blood is resident** (a brief mistaken "inversion") →
+>    that's the Blood→Command direction, which does NOT twist. The swing ends on Command.
+>
+> Correct: Blood resident → briefly prep Command in the ~1.5s before the swing → twist
+> into Blood in the 0.4s window → Blood rides again.
 
 **How it works:**
-1. Have **Seal of Blood/Martyr** active (resident) before your melee swing
-2. ~0.4 seconds before the swing lands, cast **Seal of Command**
-3. The swing processes BOTH seals: Blood's guaranteed +35% weapon dmg (via the overlap) + Command's 7 PPM proc
-4. After the swing, re-apply Seal of Blood/Martyr (back to resident)
-5. This is approximately a 13% DPS increase over non-twisting
+1. Seal of Blood/Martyr is up (resident) for most of the swing cycle
+2. ~1.5s before the swing (one GCD + the window), cast **Seal of Command** (prep)
+3. ~0.4s before the swing, cast **Seal of Blood/Martyr** (the twist into Blood)
+4. The swing processes BOTH seals: Command via the overlap + Blood's guaranteed +35% weapon dmg
+5. Blood stays up after the swing (Judge it, CS, fillers) until the next prep
+6. This is approximately a 13% DPS increase over non-twisting
 
 **Key rules:**
-- **Blood/Martyr is the resident seal**; Command is twisted in. Maintain Blood — don't let the rotation fall back to Command as the default (it did, around Judgement/CS, which inverted the uptime).
-- Use **Seal of Command Rank 1** (base ID 20375) for the twist-in — saves mana (65 vs 280); proc damage comes from the proc itself, not seal rank. (Configurable: `ret_twist_seal_rank`, default R1.)
+- **Command → Blood only** (unidirectional). Command is the prep/"from" seal; Blood is what you twist into and then keep up.
+- **Blood/Martyr should have the dominant uptime.** Don't let the rotation keep Command resident between twists (the original bug, around Judgement/CS).
+- Use **Seal of Command Rank 1** (base ID 20375) for the prep — saves mana (65 vs 280); proc damage comes from the proc itself, not seal rank. (Configurable: `ret_twist_seal_rank`, default R1.)
 - Never Judge Seal of Command — only Judge Seal of Blood
 - Requires a swing timer for the 0.4s window (see the GetSwing caveat above)
 - wowsims constant: `twistWindow = 399 * time.Millisecond`
-- Don't Judge Blood in the last ~GCD before a swing: Judgement consumes the seal, leaving the swing seal-less; judge earlier in the cycle, then Blood rides.
+- Only Judge Blood during its resident phase, not inside the pre-twist lead (Judgement consumes the seal and would fight the prep → twist sequence).
 
-**Seal Twist Cycle (corrected — Blood resident):**
+**Seal Twist Cycle (corrected — Command preps, twist INTO Blood, Blood rides):**
 ```
-Seal of Blood/Martyr resident (up the whole time)
-  → Judge Seal of Blood when off CD (off-GCD!) → re-apply Seal of Blood
-  → ~0.4s before the swing: cast Seal of Command (the twist)
-  → Swing lands (both seals proc: Blood via overlap + Command)
-  → Re-apply Seal of Blood (back to resident)
+Seal of Blood/Martyr resident (up most of the cycle)
+  → Judge Seal of Blood when off CD during the resident phase (off-GCD!) → re-apply Blood
+  → ~1.5s before the swing: cast Seal of Command  (PREP — the "from" seal)
+  → ~0.4s before the swing: cast Seal of Blood     (TWIST — Command -> Blood)
+  → Swing lands (both seals proc: Command via overlap + Blood guaranteed)
+  → Blood stays up (resident) through CS / fillers
   → Repeat
 ```
+
+Flux implementation: `Ret_MaintainBlood` (resident Blood), `Ret_PrepCommand` (prep in the
+short lead, gated by `PREP_LEAD_BUFFER`), `Ret_TwistBlood` (Command → Blood in the window).
 
 ### Vengeance Talent
 - Each melee/spell crit grants +1 stack of Vengeance buff (ID: 20059)
@@ -395,13 +410,13 @@ Seal of Blood/Martyr resident (up the whole time)
 
 ### Single Target Rotation (from wowsims `rotation.go`)
 
-> **NOTE (sim vs live):** The wowsims priority below keeps **Seal of Command resident**
-> and twists Seal of Blood in. That is optimal in a SIM, which hits the 0.4s window on
-> every swing. A **live** addon cannot hit every window (frame + server-batch latency),
-> so a missed twist with Command resident leaves the swing with no Blood (its guaranteed
-> damage) — the failure mode we hit. The live Flux rotation therefore **inverts** this:
-> Blood/Martyr is resident (a missed twist still procs Blood), Command is flashed in.
-> See the corrected Seal Twist Cycle above. Keep this section for reference only.
+> **NOTE:** The wowsims priority below describes the same unidirectional Command → Blood
+> twist, but its phrasing ("Prep Twist → cast Seal of Command" whenever Command is
+> inactive) reads as if Command is held as the default seal. In a SIM that's harmless —
+> it hits the 0.4s window every swing, so Blood is always twisted back in. **Live**, the
+> rotation must only prep Command in the short lead before the swing and keep Blood
+> resident the rest of the time (see the corrected cycle above), otherwise Command ends
+> up resident and Blood's uptime craters. Same mechanic, stricter timing live.
 
 The wowsims retribution rotation operates in three phases: opener, main rotation, and low-mana fallback.
 
