@@ -28,8 +28,8 @@ Action[A.PlayerClass] = {
 
     -- Seals
     SealOfRighteousness = Create({ Type = "Spell", ID = 20154, useMaxRank = true }),
-    SealOfCommandR1     = Create({ Type = "Spell", ID = 20375 }),                      -- R1 for twist (65 mana)
-    SealOfCommandMax    = Create({ Type = "Spell", ID = 20375, useMaxRank = true }),    -- Max rank
+    SealOfCommandR1     = Create({ Type = "Spell", ID = 20375, isRank = 1 }),           -- R1 for twist (65 mana). isRank=1 FORCES rank 1 — without it the macro casts by name = max rank (280 mana drain).
+    SealOfCommandMax    = Create({ Type = "Spell", ID = 20375, useMaxRank = true }),    -- Max rank (framework resolves to highest known)
     SealOfBlood         = Create({ Type = "Spell", ID = 31892 }),                       -- Horde only
     SealOfTheMartyr     = Create({ Type = "Spell", ID = 348700 }),                      -- Alliance SoB equiv (verify in-game)
     SealOfVengeance     = Create({ Type = "Spell", ID = 31801 }),                       -- Alliance stacking DoT

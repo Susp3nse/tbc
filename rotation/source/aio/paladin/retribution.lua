@@ -37,6 +37,8 @@ local format = string.format
 local UnitCreatureType = _G.UnitCreatureType
 local GetSpellCooldown = _G.GetSpellCooldown
 local GetTime = _G.GetTime
+local IsSpellKnown = _G.IsSpellKnown
+local get_spell_mana_cost = NS.get_spell_mana_cost
 
 -- Pull window (seconds) during which the Seal of the Crusader opener may fire.
 -- Crusader Strike refreshes the Judgement debuff afterward, so the opener only
@@ -98,6 +100,21 @@ local function get_ret_state(context)
     ret_state.spell_gcd = (A.GetGCD and A.GetGCD()) or 1.5
 
     return ret_state
+end
+
+-- Rank-safe Seal of Command cast for twisting.
+-- The rank is chosen by ret_twist_seal_rank; Rank 1 is the mana-efficient default
+-- because Seal of Command's proc damage is rank-independent (65 vs 280 mana).
+-- isRank-tagged actions make IsReady() unreliable (it fails for non-max ranks), so
+-- we gate on IsSpellKnown + mana and Show() directly — the same pattern Holy uses
+-- for its ranked heal casts.
+local function show_twist_soc(icon, context, log_message)
+    local soc = (context.settings.ret_twist_seal_rank == "max")
+        and A.SealOfCommandMax or A.SealOfCommandR1
+    if not IsSpellKnown(soc.ID) then return nil end
+    local cost = get_spell_mana_cost(soc)
+    if cost and cost > 0 and context.mana < cost then return nil end
+    return soc:Show(icon), log_message
 end
 
 -- ============================================================================
@@ -218,24 +235,26 @@ local Ret_Opener = {
     end,
 }
 
--- [5] Complete Seal Twist: SoC active + in twist window → cast SoB
-local Ret_CompleteSealTwist = {
+-- [5] Twist: Seal of Blood/Martyr is the RESIDENT seal. Flash Seal of Command in
+-- during the 0.4s pre-swing window so the swing procs BOTH (Blood's guaranteed hit
+-- via the overlap + Command's proc). After the swing, MaintainBlood puts Blood back.
+-- We twist FROM Blood (not the other way round) so Blood keeps the dominant uptime —
+-- it's the guaranteed-damage seal and the one we Judge. Command rank per setting.
+local Ret_TwistCommand = {
     requires_combat = true,
     requires_enemy = true,
 
     matches = function(context, state)
         if not state.should_twist then return false end
-        if not state.seal_command_active then return false end
+        -- Only twist when Blood is the resident/active seal, so the overlap carries it.
+        if not state.seal_blood_active then return false end
         if not state.in_twist_window then return false end
         return true
     end,
 
     execute = function(icon, context, state)
-        if SealOfBloodAction:IsReady(PLAYER_UNIT) then
-            return SealOfBloodAction:Show(icon),
-                format("[RET] Twist -> SoB (swing in %.2fs)", state.time_to_swing)
-        end
-        return nil
+        return show_twist_soc(icon, context,
+            format("[RET] Twist -> SoC (swing in %.2fs)", state.time_to_swing))
     end,
 }
 
@@ -263,6 +282,13 @@ local Ret_JudgeSeal = {
         else
             if not context.has_any_seal then return false end
         end
+        -- When twisting, don't judge Blood in the last ~GCD before a swing: Judgement
+        -- consumes the seal, and we need Blood up for the swing (its overlap) plus a
+        -- GCD to re-apply it. Otherwise we'd leave the swing seal-less. Judge earlier.
+        if state.should_twist and judge == "blood"
+           and state.time_to_swing > 0 and state.time_to_swing < state.spell_gcd then
+            return false
+        end
         return true
     end,
 
@@ -282,10 +308,13 @@ local Ret_CrusaderStrike = {
         if not context.settings.ret_use_crusader_strike then return false end
         -- Don't waste GCD on CS without a seal active — let MaintainSealFallback re-seal first
         if not context.has_any_seal then return false end
-        -- When twisting: don't CS if in twist window or swing imminent
-        if state.should_twist and state.seal_command_active then
-            if state.in_twist_window then return false end
-            if state.time_to_swing > 0 and state.time_to_swing < 1.5 then return false end
+        -- Only protect the actual 0.4s twist window so the Command-twist cast isn't
+        -- clipped. We intentionally do NOT block the whole last ~1.5s before a swing:
+        -- that pinned CS to one slot per swing and stretched its real interval to 9-11s
+        -- instead of firing near its 6s cooldown. CS damage + the Judgement-of-the-
+        -- Crusader refresh (which keeps the +3% raid crit up) outrank a skipped twist.
+        if state.should_twist and state.in_twist_window then
+            return false
         end
         return true
     end,
@@ -295,47 +324,30 @@ local Ret_CrusaderStrike = {
     end,
 }
 
--- [8] Prep Seal Twist: cast SoC R1 to set up next twist
-local Ret_PrepSealTwist = {
+-- [8] Maintain Seal of Blood/Martyr as the RESIDENT seal. Re-applies it whenever it's
+-- not active — after Judgement consumes it, or after a Command twist swing — EXCEPT in
+-- the twist window, where we let the just-flashed Command ride into the swing. Because
+-- Blood is a 30s seal, this only fires when Blood actually dropped, so Blood stays up
+-- the vast majority of the time (dominant uptime), with Command only briefly twisted in.
+local Ret_MaintainBlood = {
     requires_combat = true,
 
     matches = function(context, state)
-        if not state.should_twist then return false end
-        -- Only prep if SoC is not already active
-        if state.seal_command_active then return false end
-        -- Don't override Seal of Wisdom during mana recovery
+        -- Already up — let it ride; no need to re-cast a 30s seal.
+        if state.seal_blood_active then return false end
+        -- Don't clobber a Command twist that's about to land on the swing.
+        if state.should_twist and state.in_twist_window then return false end
+        -- Don't override Seal of Wisdom during mana recovery.
         if context.seal_wisdom_active and context.settings.use_seal_of_wisdom_low_mana then
             local threshold = context.settings.seal_of_wisdom_mana_pct or 20
             if context.mana_pct <= threshold then return false end
-        end
-        -- Don't prep if in twist window (too late)
-        if state.in_twist_window then return false end
-        -- Don't prep if swing is very imminent
-        if state.time_to_swing > 0 and state.time_to_swing < 0.5 then return false end
-        -- Mirror wowsims: don't replace the judgeable seal with SoC if Judgement
-        -- comes off CD before latestTwistStart (time_to_swing - spellGCD).
-        -- Let JudgeSeal fire first, then prep SoC on the next frame.
-        -- Condition from wowsims: nextJudgementCD > latestTwistStart
-        if state.time_to_swing > 0 then
-            local judge = context.settings.ret_judge_seal or "blood"
-            local judge_seal_active =
-                (judge == "blood"    and state.seal_blood_active)       or
-                (judge == "crusader" and context.seal_crusader_active)  or
-                (judge == "wisdom"   and context.seal_wisdom_active)    or
-                (judge == "light"    and context.seal_light_active)
-            if judge_seal_active then
-                if state.judgement_cd_remaining <= (state.time_to_swing - state.spell_gcd) then
-                    return false
-                end
-            end
         end
         return true
     end,
 
     execute = function(icon, context, state)
-        if A.SealOfCommandR1:IsReady(PLAYER_UNIT) then
-            return A.SealOfCommandR1:Show(icon),
-                format("[RET] Prep SoC R1 (swing in %.2fs)", state.time_to_swing)
+        if SealOfBloodAction:IsReady(PLAYER_UNIT) then
+            return SealOfBloodAction:Show(icon), "[RET] Maintain SoB (resident)"
         end
         return nil
     end,
@@ -460,10 +472,10 @@ rotation_registry:register("retribution", {
     named("AvengingWrath",       Ret_AvengingWrath),
     named("Racial",              Ret_Racial),
     named("Opener",              Ret_Opener),
-    named("CompleteSealTwist",   Ret_CompleteSealTwist),
     named("JudgeSeal",           Ret_JudgeSeal),
     named("CrusaderStrike",      Ret_CrusaderStrike),
-    named("PrepSealTwist",       Ret_PrepSealTwist),
+    named("TwistCommand",        Ret_TwistCommand),
+    named("MaintainBlood",       Ret_MaintainBlood),
     named("HammerOfWrath",       Ret_HammerOfWrath),
     named("Exorcism",            Ret_Exorcism),
     named("Consecration",        Ret_Consecration),

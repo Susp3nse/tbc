@@ -73,6 +73,12 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
         { header = "Seal Twisting", settings = {
             { type = "checkbox", key = "ret_seal_twist", default = true, label = "Seal Twist",
               tooltip = "Enable Command -> Blood seal twisting for max DPS. Requires swing timer. Disable for simpler rotation." },
+            { type = "dropdown", key = "ret_twist_seal_rank", default = "r1", label = "Twist Seal Rank",
+              tooltip = "Which rank of Seal of Command to twist with. Rank 1 is recommended: the proc damage is identical at every rank, so R1 saves mana (65 vs 280).",
+              options = {
+                  { value = "r1", text = "Rank 1 (recommended)" },
+                  { value = "max", text = "Max Rank" },
+              }},
         }},
         { header = "Abilities", settings = {
             { type = "checkbox", key = "ret_use_crusader_strike", default = true, label = "Crusader Strike",
