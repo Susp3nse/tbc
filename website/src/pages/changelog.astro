@@ -15,6 +15,19 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.12.0 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-fix">Fix</span>
+      <span class="changelog-tag tag-feature">Feature</span>
+
+      <h3>Paladin &mdash; Retribution</h3>
+      <ul class="features">
+        <li><strong>Seal Twisting Fixed</strong> &mdash; The swing timer was misread (<code>GetSwing</code> returns time <em>remaining</em>, not swing duration), which opened the twist window near the swing's midpoint &mdash; about 1.8s too early. Seal of Blood / Seal of the Martyr was cast far too soon and overwritten before the swing landed, so it procced on only a fraction of hits (~18 vs ~113 in a clean log) while wasting mana on re-seals. The twist now fires in the correct final-0.4s window, sustaining the seal across swings.</li>
+        <li><strong>Heart of the Crusader Opener</strong> &mdash; New <code>ret_opener_crusader</code> toggle (on by default). On the pull, casts Seal of the Crusader and Judges it to apply the +3% raid crit debuff; Crusader Strike refreshes it for the rest of the fight. Skips automatically if another paladin already has the debuff up, and won't get stuck if Judgement is on cooldown.</li>
+        <li><strong>Avenging Wrath Modes</strong> &mdash; New <code>ret_avenging_wrath</code> dropdown: <code>Never</code>, <code>On Cooldown</code>, <code>On Bosses</code>, or <code>During Burst</code> (default). No longer fires automatically on cooldown &mdash; it now waits for a burst trigger by default. Protection's Avenging Wrath is unchanged.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.11.1 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-fix">Fix</span>
 
