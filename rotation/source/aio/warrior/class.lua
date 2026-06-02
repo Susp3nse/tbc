@@ -253,7 +253,7 @@ end
 
 rotation_registry:register_class({
     name = "Warrior",
-    version = "v1.9.1",
+    version = "v1.9.2",
     playstyles = { "arms", "fury", "kebab", "protection" },
     idle_playstyle_name = nil,
 
