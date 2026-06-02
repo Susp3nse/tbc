@@ -499,8 +499,7 @@ local Prot_SunderArmor = {
     end,
 }
 
--- [6] Thunder Clap maintenance (requires Battle Stance — stance dance from Defensive)
-local RAGE_COST_TC = 20  -- Thunder Clap rage cost in TBC
+-- [6] Thunder Clap maintenance (TBC: castable in Defensive Stance — no stance dance)
 local Prot_ThunderClap = {
     requires_combat = true,
     requires_enemy = true,
@@ -517,24 +516,12 @@ local Prot_ThunderClap = {
         if not is_aoe_pull and not has_threat_lead(context, context.settings.prot_threat_lead or 0) then return false end
         -- Only refresh when debuff is missing or about to expire
         if state.thunder_clap_debuff > Constants.TC_REFRESH_WINDOW then return false end
-        -- TC requires Battle Stance — check if we have enough rage to cast TC
-        -- Note: don't use is_stance_swap_safe here — it checks post-swap rage which
-        -- is too conservative for tanks (rage from incoming hits covers the gap)
-        if context.stance ~= Constants.STANCE.BATTLE then
-            if context.rage < RAGE_COST_TC then return false end
-        end
-        -- TC is PBAoE — use PLAYER_UNIT for range check (self-cast), skipUsable for stance dance
-        return A.ThunderClap:IsReady(PLAYER_UNIT, nil, nil, nil, true)
+        -- TC is PBAoE and usable in Defensive Stance in TBC — cast in place, no swap.
+        -- PLAYER_UNIT for range check (self-cast); IsReady gates rage + usability.
+        return A.ThunderClap:IsReady(PLAYER_UNIT)
     end,
 
     execute = function(icon, context, state)
-        -- Swap to Battle Stance if needed (StanceCorrection middleware returns us to Defensive)
-        if context.stance ~= Constants.STANCE.BATTLE then
-            if A.BattleStance:IsReady(PLAYER_UNIT) then
-                return A.BattleStance:Show(icon), "[PROT] → Battle (for Thunder Clap)"
-            end
-            return nil
-        end
         return try_cast(A.ThunderClap, icon, PLAYER_UNIT,
             format("[PROT] Thunder Clap - Debuff: %.1fs", state.thunder_clap_debuff))
     end,
