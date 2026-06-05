@@ -9,6 +9,7 @@
   "scripts": {
     "cli": "node src/cli.js",
     "discover": "node src/cli.js discover --expansion tbc",
+    "hunter-review": "node src/hunter-review.js",
     "test": "node test/process-fight.test.js && node test/compare.test.js"
   },
   "dependencies": {

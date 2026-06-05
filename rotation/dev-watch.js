@@ -132,10 +132,10 @@ function handleChange(_eventType, filename) {
       }
     }
 
-    // If shared file changed, rebuild all classes
-    const toSync = isShared ? [...classes] : [...affectedClasses];
-    if (toSync.length > 0) {
-      syncAndMark(toSync);
+    // syncToSavedVariables purges Flux profiles not included in classNames, so
+    // always sync the full class set even when the source change is class-local.
+    if (isShared || affectedClasses.size > 0) {
+      syncAndMark(classes);
     }
   }, 300);
 }
