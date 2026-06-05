@@ -131,9 +131,9 @@ Action[A.PlayerClass] = {
 
     -- Items
     SuperHealingPotion = Create({ Type = "Potion", ID = 22829, QueueForbidden = true, Click = { unit = "player", type = "item", item = 22829 } }),
-    HSMaster1          = Create({ Type = "Spell", ID = 22105, Click = { unit = "player", type = "spell", spell = 22105 } }),
-    HSMaster2          = Create({ Type = "Spell", ID = 22104, Click = { unit = "player", type = "spell", spell = 22104 } }),
-    HSMaster3          = Create({ Type = "Spell", ID = 22103, Click = { unit = "player", type = "spell", spell = 22103 } }),
+    HSMaster1          = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
+    HSMaster2          = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
+    HSMaster3          = Create({ Type = "Item", ID = 22103, Click = { unit = "player", type = "item", item = 22103 } }),
     HastePotion        = Create({ Type = "Item", ID = 22838, Click = { unit = "player", type = "item", item = 22838 } }),
     MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
     DarkRune           = Create({ Type = "Item", ID = 20520, Click = { unit = "player", type = "item", item = 20520 } }),
