@@ -20,7 +20,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local named = NS.named
 local Constants = NS.Constants
-local ARCANE_IMMUNE = NS.ARCANE_IMMUNE
+local ARCANE_IMMUNE = NS.ARCANE_IMMUNE or (Constants and Constants.ARCANE_IMMUNE) or {}
 local Pet = NS.Pet
 local AtRange = NS.AtRange
 local InMelee = NS.InMelee
@@ -29,7 +29,7 @@ local CheckImmuneOrDoNotAttack = NS.CheckImmuneOrDoNotAttack
 local CheckCCImmune = NS.CheckCCImmune
 local ShouldUseWingClip = NS.ShouldUseWingClip
 local ShouldUseViperSting = NS.ShouldUseViperSting
-local num = NS.num
+local debug_print = NS.debug_print
 
 -- Framework helpers
 local CONST = A.Const
@@ -37,16 +37,103 @@ local GetGCD = A.GetGCD
 local GetCurrentGCD = A.GetCurrentGCD
 local GetLatency = A.GetLatency
 local BurstIsON = A.BurstIsON
+local is_force_active = NS.is_force_active
 local IsUnitEnemy = A.IsUnitEnemy
 local AuraIsValid = A.AuraIsValid
 local MultiUnits = A.MultiUnits
 
 local UnitIsUnit = _G.UnitIsUnit
+local UnitExists = _G.UnitExists
 local UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost
+local UnitGUID = _G.UnitGUID
 local GetNumGroupMembers = _G.GetNumGroupMembers
+local GetTime = _G.GetTime
 
 local PLAYER_UNIT = "player"
 local TARGET_UNIT = "target"
+local next_pet_attack_at = 0
+local next_start_attack_at = 0
+local next_hunter_trace_at = 0
+
+local function BurnPhaseActive()
+    return Unit(PLAYER_UNIT):HasBuffs(A.Heroism.ID) > 0
+        or Unit(PLAYER_UNIT):HasBuffs(A.Bloodlust.ID) > 0
+        or Unit(PLAYER_UNIT):HasBuffs(A.Drums.ID) > 0
+end
+
+local function BurstWindowOpen(unit, settings)
+    local force_burst_on = is_force_active and is_force_active("force_burst")
+    local autoSyncCDs = settings.auto_sync_cds
+
+    if not (force_burst_on or BurstIsON(unit) or (not BurstIsON(unit) and autoSyncCDs)) then
+        return false
+    end
+
+    return force_burst_on or (autoSyncCDs and BurnPhaseActive()) or not autoSyncCDs
+end
+
+local function PetNeedsAttack(unit)
+    if not UnitExists or not UnitExists("pet") or UnitIsDeadOrGhost("pet") then return false end
+    if UnitExists("pettarget") and UnitIsUnit("pettarget", unit) then return false end
+
+    local now = GetTime()
+    if now < next_pet_attack_at then return false end
+    next_pet_attack_at = now + 1.0
+    return true
+end
+
+local function ShouldStartMeleeAttack()
+    local now = GetTime()
+    if now < next_start_attack_at then return false end
+    next_start_attack_at = now + 0.75
+    return true
+end
+
+local function RaptorQueueReady(unit)
+    if not A.RaptorStrike then return false end
+    if A.RaptorStrike:IsSpellCurrent() then return false end
+
+    local spell = A.RaptorStrikeQueue or A.RaptorStrike
+    if spell.IsReady and spell:IsReady(unit) then return true end
+    if spell.GetCooldown then return (spell:GetCooldown() or 999) <= 0.15 end
+    return false
+end
+
+local function HunterTrace(context, unit, reason, atRange, inMeleeRange)
+    local settings = context.settings
+    if not (settings and (settings.debug_mode or settings.debug_system) and debug_print) then return end
+
+    local now = GetTime()
+    if now < next_hunter_trace_at then return end
+    next_hunter_trace_at = now + 0.50
+
+    local raptorReady = A.RaptorStrike and A.RaptorStrike:IsReady(unit)
+    local raptorCurrent = A.RaptorStrike and A.RaptorStrike:IsSpellCurrent()
+    local petOnUnit = UnitExists and UnitExists("pettarget") and UnitIsUnit("pettarget", unit)
+    local playerAggro = UnitExists and UnitExists("targettarget") and UnitIsUnit("targettarget", PLAYER_UNIT)
+    local petAggro = UnitExists and UnitExists("targettarget") and UnitIsUnit("targettarget", "pet")
+    local targetTargetGUID = UnitGUID and UnitGUID("targettarget") or "none"
+
+    debug_print(format(
+        "[HUNTER PATH] %s unit=%s atRange=%s inMelee=%s ctxMelee=%s targetRange=%s shoot=%.3f gcd=%.3f attacking=%s shooting=%s playerAggro=%s petAggro=%s targetTargetGUID=%s petOnUnit=%s raptorReady=%s raptorCurrent=%s",
+        reason,
+        unit,
+        tostring(atRange),
+        tostring(inMeleeRange),
+        tostring(context.in_melee_range),
+        tostring(context.target_range),
+        context.shoot_timer or -1,
+        context.gcd_remaining or -1,
+        tostring(Player:IsAttacking()),
+        tostring(Player:IsShooting()),
+        tostring(playerAggro),
+        tostring(petAggro),
+        tostring(targetTargetGUID),
+        tostring(petOnUnit),
+        tostring(raptorReady),
+        tostring(raptorCurrent)
+    ))
+end
 
 -- ============================================================================
 -- STRATEGIES
@@ -187,6 +274,11 @@ strategies[#strategies + 1] = named("CombatRotation", {
         -- Internal EnemyRotation for a given unit
         local function EnemyRotation(unit)
             local npcID = select(6, Unit(unit):InfoGUID())
+            local atRange = AtRange(unit)
+            local inMeleeRange = InMelee(unit)
+            local targetRange = context.target_range or math.huge
+            local shouldMeleeRecover = (not atRange) and (inMeleeRange == true or targetRange <= 5)
+            local weave = nil
 
             -- [R-1] Stop attacking if target is immune
             if CheckImmuneOrDoNotAttack(unit) then
@@ -197,22 +289,15 @@ strategies[#strategies + 1] = named("CombatRotation", {
             local min_ttd = s.cd_min_ttd or 0
             local ttd_ok = min_ttd == 0 or not context.ttd or context.ttd <= 0 or context.ttd >= min_ttd
 
-            -- [R-2] Tranquilizing Shot (enrage dispel)
-            if A.TranquilizingShot:IsReady(unit) and AuraIsValid(unit, nil, "Enrage") then
+            -- [R-2] Tranquilizing Shot (enrage dispel) — Flux by-ID list (enrages
+            -- are self-buffs on the creature) OR the framework's "Enrage" category.
+            if A.TranquilizingShot:IsReady(unit)
+               and ((Unit(unit):HasBuffs(Constants.TRANQ_ENRAGE, nil, true) or 0) > 0
+                    or AuraIsValid(unit, nil, "Enrage")) then
                 return A.TranquilizingShot:Show(icon), "[RANGED] Tranq Shot"
             end
 
-            -- [R-3] Misdirection on focus target
-            if A.Misdirection:IsReady(PLAYER_UNIT) and Unit("focus"):IsExists() and not Unit("focus"):IsDead() then
-                if context.combat_time < 6 then
-                    return A.Misdirection:Show(icon), "[RANGED] Misdirection (pull)"
-                end
-                if context.combat_time > 6 and not Unit("targettarget"):IsTank() then
-                    return A.Misdirection:Show(icon), "[RANGED] Misdirection (aggro)"
-                end
-            end
-
-            -- [R-4] Aspect of the Hawk (in combat)
+            -- [R-3] Aspect of the Hawk (in combat)
             if s.aspect_hawk then
                 local manaViperEnd = s.mana_viper_end or 30
                 local viperOff = (context.mana_pct > manaViperEnd and s.aspect_viper) or not s.aspect_viper
@@ -222,10 +307,11 @@ strategies[#strategies + 1] = named("CombatRotation", {
                 end
             end
 
-            -- [R-5] Readiness controller (outside burst)
+            -- [R-4] Readiness controller (outside burst)
             if s.use_readiness and A.Readiness:IsReady(PLAYER_UNIT) then
                 if s.readiness_rapid_fire and ttd_ok then
-                    if A.RapidFire:GetCooldown() >= 120 - (30 * num(A.RapidKilling1:IsTalentLearned())) - (30 * num(A.RapidKilling2:IsTalentLearned())) then
+                    local rkRank = (A.RapidKilling1.GetTalentRank and A.RapidKilling1:GetTalentRank()) or 0
+                    if A.RapidFire:GetCooldown() >= 300 - (60 * rkRank) then
                         return A.Readiness:Show(icon), "[RANGED] Readiness (Rapid Fire)"
                     end
                 end
@@ -236,68 +322,100 @@ strategies[#strategies + 1] = named("CombatRotation", {
                 end
             end
 
-            -- [R-6] Protect frozen target (auto-switch)
+            -- [R-5] Protect frozen target (auto-switch)
             if s.protect_freeze and Unit("target"):HasDeBuffs(A.FreezingTrapDebuff.ID) > 0 and MultiUnits:GetActiveEnemies() >= 2 then
                 return A:Show(icon, CONST.AUTOTARGET)
             end
 
-            -- [R-7] Freezing Trap on adds
+            -- [R-6] Freezing Trap on adds
             if A.FreezingTrap:IsReady(PLAYER_UNIT) and s.freezing_trap_pve and MultiUnits:GetActiveEnemies() >= 2 and MultiUnits:GetByRangeInCombat(5, 1, 5) >= 1 and not CheckCCImmune(unit) then
                 return A.FreezingTrap:Show(icon), "[RANGED] Freezing Trap"
             end
 
-            -- [R-8] Mend Pet
+            -- [R-7] Mend Pet
             local mendPetHP = s.mend_pet_hp or 30
             if A.MendPet:IsReady(PLAYER_UNIT) and context.pet_hp < mendPetHP and context.pet_active and Unit("pet"):HasBuffs(A.MendPet.ID, true) == 0 then
                 return A.MendPet:Show(icon), "[RANGED] Mend Pet"
             end
 
-            -- [R-9] Hunter's Mark
-            if A.HuntersMark:IsReady(unit) and Unit(unit):HasDeBuffs(A.HuntersMark.ID) == 0
-               and ((Player:GetDeBuffsUnitCount(A.HuntersMark.ID) == 0 and s.static_mark) or not s.static_mark)
+            -- [R-8] Hunter's Mark — refresh "mark_refresh" sec before expiry so
+            -- the ramping AP bonus isn't lost on drop. 0 = re-apply only once
+            -- fully gone. markRemaining is 0 when the mark is absent, so a fresh
+            -- cast still passes the <= test. Static Mark only guards re-marking a
+            -- *different* target (markRemaining == 0), never the current refresh.
+            local markRemaining = Unit(unit):HasDeBuffs(A.HuntersMark.ID, true)
+            if A.HuntersMark:IsReady(unit) and markRemaining <= (s.mark_refresh or 0)
+               and (markRemaining > 0 or not s.static_mark
+                    or Player:GetDeBuffsUnitCount(A.HuntersMark.ID) == 0)
                and Unit(unit):TimeToDie() > 2
                and not ARCANE_IMMUNE[npcID]
                and ((Unit(unit):IsBoss() and s.boss_mark) or not s.boss_mark) then
                 return A.HuntersMark:Show(icon), "[RANGED] Hunter's Mark"
             end
 
-            -- [R-10] Experimental pet controller
-            if s.experimental_pet and context.pet_active then
-                if not Pet:IsAttacking() and context.pet_hp > mendPetHP - 20 then
+            -- [R-9] Experimental pet controller. Do not let pet attack block
+            -- melee recovery; if we are in melee, player startattack/Raptor owns it.
+            if s.experimental_pet and context.pet_active and not shouldMeleeRecover then
+                if PetNeedsAttack(unit) and context.pet_hp > mendPetHP - 20 then
+                    HunterTrace(context, unit, "return_petattack", atRange, inMeleeRange)
                     return A.PetAttack:Show(icon), "[RANGED] Pet Attack"
                 end
             end
 
-            -- [R-11] Kill Command (off-GCD, 5s CD — highest DPS priority)
-            if ttd_ok and A.KillCommand:IsReady(unit) then
+            -- [R-10] Kill Command is off-GCD, but the single-key clicker can only
+            -- fire one icon per press. Prefer real GCD shots when the GCD is open;
+            -- show KC while locked out or as a fallback below.
+            local gcdRemainingForKC = GetCurrentGCD() or 0
+            if not shouldMeleeRecover and ttd_ok and gcdRemainingForKC > 0.05 and A.KillCommand:IsReady(unit) then
                 return A.KillCommand:Show(icon), "[RANGED] Kill Command"
+            end
+
+            if shouldMeleeRecover then
+                HunterTrace(context, unit, "melee_precheck", atRange, inMeleeRange)
+            elseif context.in_melee_range and atRange then
+                HunterTrace(context, unit, "ctx_melee_ignored_ranged_ok", atRange, inMeleeRange)
+            end
+
+            if s.show_melee_weave_coach and NS.HunterMeleeWeaveCoach then
+                weave = NS.HunterMeleeWeaveCoach:Evaluate(unit)
+            end
+
+            -- Manual-only Raptor queue window. The main rotation must not
+            -- auto-prequeue Raptor from fuzzy close range; use /flux raptor
+            -- when intentionally weaving in.
+            if is_force_active and is_force_active("force_raptor") and RaptorQueueReady(unit)
+                and (inMeleeRange == true or (targetRange > 0 and targetRange <= 7)) then
+                HunterTrace(context, unit, "return_manual_raptor_queue", atRange, inMeleeRange)
+                return (A.RaptorStrikeQueue or A.RaptorStrike):Show(icon), "[WEAVE] Manual Raptor Queue"
             end
 
             -- ============================================
             -- RANGED ROTATION (at range)
             -- ============================================
-            if AtRange(unit) then
-                -- [R-12] Auto Shoot
+            if atRange then
+                -- [R-11] Auto Shoot
                 if not Player:IsShooting() then
-                    return A:Show(icon, CONST.AUTOSHOOT)
+                    HunterTrace(context, unit, "return_autoshoot", atRange, inMeleeRange)
+                    return A:Show(icon, CONST.AUTOSHOOT), "[RANGED] Auto Shoot"
                 end
 
-                -- [R-13] Intimidation (PvE aggro)
+                -- [R-12] Intimidation (PvE aggro)
                 if A.Intimidation:IsReady(unit) and s.intimidation_pve and UnitIsUnit("targettarget", PLAYER_UNIT) and Unit("target"):IsControlAble("stun") and not CheckCCImmune(unit) then
                     return A.Intimidation:Show(icon), "[RANGED] Intimidation"
                 end
 
-                -- [R-14] Concussive Shot (PvE)
+                -- [R-13] Concussive Shot (PvE)
                 if A.ConcussiveShot:IsReady(unit) and s.concussive_shot_pve and not Unit(unit):IsBoss()
                    and Unit("target"):IsMelee() and UnitIsUnit("targettarget", PLAYER_UNIT)
                    and A.LastPlayerCastName ~= A.Intimidation:Info()
                    and (not A.Intimidation:IsReady(unit) or Unit("pet"):HasBuffs(A.Intimidation.ID) == 0 or not s.intimidation_pve)
                    and Unit(unit):HasDeBuffs(A.WingClip.ID) < GetGCD()
                    and not ARCANE_IMMUNE[npcID] and not CheckCCImmune(unit) then
+                    HunterTrace(context, unit, "return_concussive_pve_player_aggro", atRange, inMeleeRange)
                     return A.ConcussiveShot:Show(icon), "[RANGED] Concussive Shot (PvE)"
                 end
 
-                -- [R-14b] PvP Concussive Shot
+                -- [R-13b] PvP Concussive Shot
                 if A.IsInPvP and A.ConcussiveShot:IsReady(unit) and not CheckCCImmune(unit) and Unit(unit):HasDeBuffs(A.WingClip.ID) < GetGCD() then
                     local range = GetRange(unit)
                     if range > 0 and (range < 10 or range > 25) then
@@ -307,7 +425,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                     end
                 end
 
-                -- [R-15] PvP Viper Sting
+                -- [R-14] PvP Viper Sting
                 if A.IsInPvP and A.ViperSting:IsReady(unit) then
                     if ShouldUseViperSting(unit) then
                         if Unit(unit):HasDeBuffs(A.ViperSting.ID, true) <= GetGCD() then
@@ -316,204 +434,167 @@ strategies[#strategies + 1] = named("CombatRotation", {
                     end
                 end
 
-                -- [R-16] Burst Cooldowns
+                -- [R-15] Burst Cooldowns
                 local useAoE = s.aoe
-                local autoSyncCDs = s.auto_sync_cds
-                local BurnPhase = Unit(PLAYER_UNIT):HasBuffs(A.Heroism.ID) > 0 or Unit(PLAYER_UNIT):HasBuffs(A.Bloodlust.ID) > 0 or Unit(PLAYER_UNIT):HasBuffs(A.Drums.ID) > 0
+                if BurstWindowOpen(unit, s) then
+                    if ttd_ok and A.BestialWrath:IsReady(PLAYER_UNIT) and s.use_bestial_wrath and context.pet_active then
+                        return A.BestialWrath:Show(icon), "[BURST] Bestial Wrath"
+                    end
 
-                if BurstIsON(unit) or (not BurstIsON(unit) and autoSyncCDs) then
-                    if (autoSyncCDs and BurnPhase) or not autoSyncCDs then
-                        if ttd_ok and A.BestialWrath:IsReady(PLAYER_UNIT) and s.use_bestial_wrath and context.pet_active and (Unit(unit):TimeToDie() > 5 or Unit(unit):IsBoss()) then
-                            return A.BestialWrath:Show(icon), "[BURST] Bestial Wrath"
-                        end
+                    if ttd_ok and A.RapidFire:IsReady(PLAYER_UNIT) and s.use_rapid_fire and Unit(PLAYER_UNIT):HasBuffs(A.RapidFire.ID, true) == 0 then
+                        return A.RapidFire:Show(icon), "[BURST] Rapid Fire"
+                    end
 
-                        if ttd_ok and A.RapidFire:IsReady(PLAYER_UNIT) and s.use_rapid_fire and Unit(PLAYER_UNIT):HasBuffs(A.RapidFire.ID, true) == 0 and (Unit(unit):TimeToDie() > 5 or Unit(unit):IsBoss()) then
-                            return A.RapidFire:Show(icon), "[BURST] Rapid Fire"
-                        end
-
-                        if ttd_ok and A.Readiness:IsReady(PLAYER_UNIT) and s.use_readiness then
-                            if s.readiness_rapid_fire then
-                                if A.RapidFire:GetCooldown() >= 60 then
-                                    return A.Readiness:Show(icon), "[BURST] Readiness (Rapid Fire)"
-                                end
-                            end
-                            if s.readiness_misdirection then
-                                if A.Misdirection:GetCooldown() > 30 then
-                                    return A.Readiness:Show(icon), "[BURST] Readiness (Misdirection)"
-                                end
+                    if ttd_ok and A.Readiness:IsReady(PLAYER_UNIT) and s.use_readiness then
+                        if s.readiness_rapid_fire then
+                            if A.RapidFire:GetCooldown() >= 60 then
+                                return A.Readiness:Show(icon), "[BURST] Readiness (Rapid Fire)"
                             end
                         end
-
-                        if ttd_ok and A.BloodFury:IsReady(PLAYER_UNIT) and s.use_racial and (Unit(unit):TimeToDie() > 5 or Unit(unit):IsBoss()) then
-                            return A.BloodFury:Show(icon), "[BURST] Blood Fury"
+                        if s.readiness_misdirection then
+                            if A.Misdirection:GetCooldown() > 30 then
+                                return A.Readiness:Show(icon), "[BURST] Readiness (Misdirection)"
+                            end
                         end
+                    end
 
-                        if ttd_ok and A.Berserking:IsReady(PLAYER_UNIT) and s.use_racial and (Unit(unit):TimeToDie() > 5 or Unit(unit):IsBoss()) then
-                            return A.Berserking:Show(icon), "[BURST] Berserking"
-                        end
+                    if ttd_ok and A.BloodFury:IsReady(PLAYER_UNIT) and s.use_racial then
+                        return A.BloodFury:Show(icon), "[BURST] Blood Fury"
+                    end
 
-                        if s.use_haste_potion and A.HastePotion:IsReady(PLAYER_UNIT) then
-                            return A:Show(icon, CONST.POTION), "[BURST] Haste Potion"
-                        end
+                    if ttd_ok and A.Berserking:IsReady(PLAYER_UNIT) and s.use_racial then
+                        return A.Berserking:Show(icon), "[BURST] Berserking"
+                    end
+
+                    if ttd_ok and s.use_haste_potion and A.HastePotion:IsReady(PLAYER_UNIT) then
+                        return A.HastePotion:Show(icon), "[BURST] Haste Potion"
+                    end
+
+                    -- Trinkets (legacy Hunter_Goob_opt parity: fire inline on GGL Burst)
+                    if ttd_ok and s.trinket1_mode == "offensive" and A.Trinket1 and A.Trinket1:IsReady(PLAYER_UNIT) then
+                        return A.Trinket1:Show(icon), "[BURST] Trinket 1"
+                    end
+                    if ttd_ok and s.trinket2_mode == "offensive" and A.Trinket2 and A.Trinket2:IsReady(PLAYER_UNIT) then
+                        return A.Trinket2:Show(icon), "[BURST] Trinket 2"
                     end
                 end
 
-                -- [R-17] Moving Arcane Shot
+                -- [R-16] Moving Arcane Shot
                 local useArcane = s.use_arcane
                 local arcaneShotMana = s.arcane_shot_mana or 15
                 local manaSave = s.mana_save or 30
 
-                if context.is_moving and A.ArcaneShot:IsReady(unit) and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
+                if context.is_moving and useArcane and A.ArcaneShot:IsReady(unit) and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
                     return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (moving)"
                 end
 
-                -- [R-18] Shot Weaving
+                -- [R-17] Shot Weaving
                 local ShootTimer = context.shoot_timer
-                local speed = context.weapon_speed
-                local latency = GetLatency()
-                local SteadyAfterHaste = A.SteadyShot:GetSpellCastTimeCache()
-                local MultiAfterHaste = A.MultiShot:GetSpellCastTimeCache()
 
-                -- Fallback: if GetSpellInfo returned base (unhasted) cast time, use manual calc
-                if SteadyAfterHaste >= 1.5 then
-                    local WpnSpeedSld = s.weapon_speed or 3
-                    local haste = WpnSpeedSld / speed
-                    SteadyAfterHaste = 1.5 / haste
-                    MultiAfterHaste = 0.5 / haste
-                end
-
-                if s.warces then
-                    -- Warces haste-adjusted version
-                    local gcdLeft = GetCurrentGCD() or 0
-                    local available = ShootTimer - gcdLeft - latency
-
-                    if GetGCD() <= speed then
-                        if available >= MultiAfterHaste and available < SteadyAfterHaste and A.MultiShot:IsReady(unit) and useAoE and context.mana_pct > manaSave then
-                            if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
-                            return A.MultiShot:Show(icon), "[RANGED] Multi-Shot (warces)"
-                        end
-                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
-                            if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
-                            return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (warces)"
-                        end
-                        if available >= SteadyAfterHaste and A.SteadyShot:IsReady(unit) and A.LastPlayerCastName == A.ArcaneShot:Info() then
-                            if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
-                            return A.SteadyShot:Show(icon), "[RANGED] Steady Shot (warces post-arcane)"
-                        end
-                        if available >= SteadyAfterHaste and A.SteadyShot:IsReady(unit) then
-                            if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
-                            return A.SteadyShot:Show(icon), "[RANGED] Steady Shot (warces)"
-                        end
+                -- [R-17a] Adaptive DPS Rotation (port of wowsims rotation.go:139-280).
+                -- Per-tick DPS-weighted shot choice. Stings get pre-priority.
+                -- On shoot/none, no special is cast and auto-shot continues.
+                if NS.HunterAdaptive then
+                    if s.use_serpent_sting and A.SerpentSting:IsReady(unit)
+                       and Unit(unit):HasDeBuffs(A.SerpentSting.ID, true) <= GetGCD()
+                       and Unit(unit):TimeToDie() >= 4 and context.mana_pct > manaSave then
+                        if CT then CT:RecordSuggestion("Serpent Sting", ShootTimer) end
+                        return A.SerpentSting:Show(icon), "[ADAPT] Serpent Sting"
+                    end
+                    if s.use_scorpid_sting and A.ScorpidSting:IsReady(unit)
+                       and Unit(unit):HasDeBuffs(A.ScorpidSting.ID, true) <= GetGCD() + 0.5
+                       and Unit(unit):IsBoss() and context.mana_pct > manaSave then
+                        if CT then CT:RecordSuggestion("Scorpid Sting", ShootTimer) end
+                        return A.ScorpidSting:Show(icon), "[ADAPT] Scorpid Sting"
+                    end
+                    if s.use_viper_sting_pve and A.ViperSting:IsReady(unit)
+                       and Unit(unit):PowerType() == "MANA" and Unit(unit):Power() >= 10
+                       and context.mana_pct > manaSave then
+                        if CT then CT:RecordSuggestion("Viper Sting", ShootTimer) end
+                        return A.ViperSting:Show(icon), "[ADAPT] Viper Sting"
                     end
 
-                    if GetGCD() > speed then
-                        if available >= MultiAfterHaste and available < SteadyAfterHaste and A.MultiShot:IsReady(unit) and useAoE and context.mana_pct > manaSave then
-                            if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
-                            return A.MultiShot:Show(icon), "[RANGED] Multi-Shot (warces slow)"
-                        end
-                        if ShootTimer > 0 and available < MultiAfterHaste and A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
-                            if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
-                            return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot (warces slow)"
-                        end
-                        if available >= SteadyAfterHaste and A.SteadyShot:IsReady(unit) then
-                            if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
-                            return A.SteadyShot:Show(icon), "[RANGED] Steady Shot (warces slow)"
-                        end
+                    local choice = NS.HunterAdaptive.ChooseAction(unit, {
+                        useMulti = useAoE,
+                        useArcane = useArcane,
+                        arcaneImmune = ARCANE_IMMUNE[npcID],
+                        manaPct = context.mana_pct,
+                        manaSaveFloor = manaSave,
+                        arcaneManaFloor = arcaneShotMana,
+                    })
+                    local sqw = tonumber(_G.GetCVar and _G.GetCVar("SpellQueueWindow")) or 0
+                    local queueWindow = math.max(0.10, math.min(0.40, sqw / 1000))
+                    local gcdLeftForQueue = context.gcd_remaining or GetCurrentGCD() or 0
+                    local steadyQueueable = (not context.is_moving) and gcdLeftForQueue <= queueWindow
+                    if choice == "steady" and (A.SteadyShot:IsReady(unit) or steadyQueueable) then
+                        if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
+                        return A.SteadyShot:Show(icon), "[ADAPT] Steady Shot"
+                    elseif choice == "multi" and A.MultiShot:IsReady(unit) and useAoE and context.mana_pct > manaSave then
+                        if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
+                        return A.MultiShot:Show(icon), "[ADAPT] Multi-Shot"
+                    elseif choice == "arcane" and A.ArcaneShot:IsReady(unit)
+                           and not ARCANE_IMMUNE[npcID]
+                           and context.mana_pct > arcaneShotMana then
+                        if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
+                        return A.ArcaneShot:Show(icon), "[ADAPT] Arcane Shot"
                     end
-                end
-
-                -- Standard version (swing timer based)
-                -- Gate: only weave when there's a window between auto shots
-                if not s.warces then
-                    local steadyCast = Player:Execute_Time(A.SteadyShot.ID)
-                    local multiCast = Player:Execute_Time(A.MultiShot.ID)
-                    local canWeave = ShootTimer < steadyCast and (ShootTimer > multiCast or ShootTimer <= latency)
-
-                    if canWeave then
-                        -- Multi-Shot (gated by mana_save)
-                        if A.MultiShot:IsReady(unit) and useAoE and context.mana_pct > manaSave then
-                            if CT then CT:RecordSuggestion("Multi-Shot", ShootTimer) end
-                            return A.MultiShot:Show(icon), "[RANGED] Multi-Shot"
-                        end
-
-                        -- Stings (gated by mana_save — expensive at 275 mana)
-                        if context.mana_pct > manaSave then
-                            if s.use_serpent_sting then
-                                if A.SerpentSting:IsReady(unit) and Unit(unit):HasDeBuffs(A.SerpentSting.ID, true) <= GetGCD() and Unit(unit):TimeToDie() >= 4 then
-                                    if CT then CT:RecordSuggestion("Serpent Sting", ShootTimer) end
-                                    return A.SerpentSting:Show(icon), "[RANGED] Serpent Sting"
-                                end
-                            end
-
-                            if s.use_scorpid_sting then
-                                if A.ScorpidSting:IsReady(unit) and Unit(unit):HasDeBuffs(A.ScorpidSting.ID, true) <= GetGCD() + 0.5 and Unit(unit):IsBoss() then
-                                    if CT then CT:RecordSuggestion("Scorpid Sting", ShootTimer) end
-                                    return A.ScorpidSting:Show(icon), "[RANGED] Scorpid Sting"
-                                end
-                            end
-
-                            if s.use_viper_sting_pve then
-                                if A.ViperSting:IsReady(unit) and Unit(unit):PowerType() == "MANA" and Unit(unit):Power() >= 10 then
-                                    if CT then CT:RecordSuggestion("Viper Sting", ShootTimer) end
-                                    return A.ViperSting:Show(icon), "[RANGED] Viper Sting (PvE)"
-                                end
-                            end
-                        end
-
-                        -- Arcane Shot (gated by its own mana threshold)
-                        if A.ArcaneShot:IsReady(unit) and useArcane and not ARCANE_IMMUNE[npcID] and context.mana_pct > arcaneShotMana then
-                            if CT then CT:RecordSuggestion("Arcane Shot", ShootTimer) end
-                            return A.ArcaneShot:Show(icon), "[RANGED] Arcane Shot"
-                        end
-                    end
-
-                    -- Steady Shot: always castable (cheap at 110 mana), fires when window allows
-                    if (ShootTimer >= steadyCast or (ShootTimer <= latency and ShootTimer > 0)) then
-                        if A.SteadyShot:IsReady(unit) then
-                            if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
-                            return A.SteadyShot:Show(icon), "[RANGED] Steady Shot"
-                        end
-                    end
+                    -- choice == "shoot"/"none" -> no special; auto-shot continues
                 end
             end -- end AtRange
+
+            -- Off-GCD fallback after ranged GCD shots had first chance.
+            if (atRange or not shouldMeleeRecover) and ttd_ok and A.KillCommand:IsReady(unit) then
+                return A.KillCommand:Show(icon), "[RANGED] Kill Command"
+            end
 
             -- ============================================
             -- MELEE ROTATION (in melee range)
             -- ============================================
-            if InMelee(unit) then
-                -- [R-19] Disengage (PvE, when mob is on us)
-                if not A.IsInPvP and A.Disengage:IsReady(unit) and UnitIsUnit("targettarget", PLAYER_UNIT)
-                   and (not A.Intimidation:IsReady(unit) or Unit("pet"):HasBuffs(A.Intimidation.ID) == 0 or not s.intimidation_pve) then
-                    return A.Disengage:Show(icon), "[MELEE] Disengage"
-                end
+            if shouldMeleeRecover then
+                HunterTrace(context, unit, "melee_branch", atRange, inMeleeRange)
 
-                -- [R-20] Explosive Trap (AoE in melee)
+                -- [R-18] Explosive Trap (AoE in melee)
                 if A.ExplosiveTrap:IsReady(unit) and MultiUnits:GetByRange(5, 3) > 2 and s.aoe then
                     return A.ExplosiveTrap:Show(icon), "[MELEE] Explosive Trap"
                 end
 
-                -- [R-21] Wing Clip
+                -- [R-19] Raptor Strike queue for deliberate melee weaving
+                if s.show_melee_weave_coach and A.RaptorStrikeQueue and NS.HunterMeleeWeaveCoach then
+                    weave = weave or NS.HunterMeleeWeaveCoach:Evaluate(unit)
+                    if weave and weave.state == "GREEN" and weave.action == "RAPTOR"
+                       and A.RaptorStrikeQueue:IsReady(unit) and not A.RaptorStrike:IsSpellCurrent() then
+                        return A.RaptorStrikeQueue:Show(icon), "[WEAVE] Raptor Strike Queue"
+                    end
+                end
+
+                -- [R-20] Wing Clip
                 if ShouldUseWingClip(unit) and A.WingClip:IsReady(unit) and Unit(unit):HasDeBuffs(A.WingClip.ID, true) <= GetGCD()
                    and A.WingClip:AbsentImun(unit, Constants.Temp.TotalAndPhysAndCC) and not CheckCCImmune(unit) then
+                    HunterTrace(context, unit, "return_wingclip", atRange, inMeleeRange)
                     return A.WingClip:Show(icon), "[MELEE] Wing Clip"
                 end
 
-                -- [R-22] Mongoose Bite
-                if A.MongooseBite:IsReady(unit) then
-                    return A.MongooseBite:Show(icon), "[MELEE] Mongoose Bite"
-                end
-
-                -- [R-23] Raptor Strike
-                if A.RaptorStrike:IsReady(unit) and not A.RaptorStrike:IsSpellCurrent() and not Player:IsShooting() then
+                -- [R-21] Raptor Strike. In melee recovery, this should be allowed
+                -- even if Auto Shot still reports active; Raptor itself is the
+                -- important queued action once we are truly in melee range.
+                if A.RaptorStrike:IsReady(unit) and not A.RaptorStrike:IsSpellCurrent() then
+                    HunterTrace(context, unit, "return_raptor", atRange, inMeleeRange)
                     return A.RaptorStrike:Show(icon), "[MELEE] Raptor Strike"
                 end
 
-                -- [R-24] Auto Attack
-                if not Player:IsAttacking() then
-                    return A:Show(icon, CONST.AUTOATTACK)
+                -- [R-22] Auto Attack
+                if A.StartAttack and not Player:IsAttacking() and not Player:IsShooting()
+                    and ShouldStartMeleeAttack() then
+                    HunterTrace(context, unit, "return_startattack_melee_fallback", atRange, inMeleeRange)
+                    return A.StartAttack:Show(icon), "[MELEE] Start Attack"
+                elseif not Player:IsAttacking() and Player:IsShooting() then
+                    HunterTrace(context, unit, "skip_startattack_while_shooting", atRange, inMeleeRange)
                 end
             end -- end InMelee
 
+            if shouldMeleeRecover or atRange then
+                HunterTrace(context, unit, "return_nil", atRange, inMeleeRange)
+            end
             return nil
         end -- end EnemyRotation
 

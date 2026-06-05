@@ -268,6 +268,95 @@ local function create_slider(parent, x, y, w, def, scroll)
     return ctr, h + THEME.widget_gap
 end
 
+-- Decimal slider: explicit type for fractional values (e.g. weapon speed 2.9).
+-- Schema accepts `precision` (default 1) — 1 = 0.1 steps, 2 = 0.01 steps.
+-- Distinct from `slider` so integer sliders stay integer-only and we don't
+-- thread float-precision logic through the integer path.
+local function create_slider_decimal(parent, x, y, w, def, scroll)
+    local h = 50
+    local precision = def.precision or 1
+    local step = 1
+    for _ = 1, precision do step = step / 10 end
+    local fmt = def.format or ("%." .. precision .. "f")
+
+    local ctr = CreateFrame("Frame", nil, parent)
+    ctr:SetSize(w, h)
+    ctr:SetPoint("TOPLEFT", x, y)
+
+    local lbl = ctr:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    lbl:SetPoint("TOPLEFT", 0, 0)
+    lbl:SetText(def.label)
+    lbl:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
+
+    local val_text = ctr:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    val_text:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
+    val_text:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
+
+    local slider = CreateFrame("Slider", nil, ctr)
+    slider:SetSize(THEME.slider_w, 14)
+    slider:SetPoint("TOPLEFT", 0, -22)
+    slider:SetOrientation("HORIZONTAL")
+    slider:SetMinMaxValues(def.min, def.max)
+    slider:SetValueStep(step)
+    slider:SetObeyStepOnDrag(true)
+    slider:EnableMouse(true)
+
+    local track = slider:CreateTexture(nil, "BACKGROUND")
+    track:SetPoint("LEFT"); track:SetPoint("RIGHT")
+    track:SetHeight(4)
+    track:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 1)
+
+    local thumb_tex = slider:CreateTexture(nil, "OVERLAY")
+    thumb_tex:SetSize(10, 18)
+    thumb_tex:SetColorTexture(THEME.accent[1], THEME.accent[2], THEME.accent[3], 1)
+    slider:SetThumbTexture(thumb_tex)
+
+    local mn = ctr:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    mn:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, -2)
+    mn:SetText(format(fmt, def.min))
+    mn:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
+
+    local mx = ctr:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    mx:SetPoint("TOPRIGHT", slider, "BOTTOMRIGHT", 0, -2)
+    mx:SetText(format(fmt, def.max))
+    mx:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
+
+    local cur = read_setting(def.key, def.default) or def.default
+    slider:SetValue(cur)
+    val_text:SetText(format(fmt, cur))
+
+    slider:SetScript("OnValueChanged", function(_, v)
+        v = floor(v / step + 0.5) * step
+        if v < def.min then v = def.min end
+        if v > def.max then v = def.max end
+        val_text:SetText(format(fmt, v))
+        write_setting(def.key, v)
+    end)
+
+    ctr:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(def.label, 1, 1, 1)
+        if def.tooltip then GameTooltip:AddLine(def.tooltip, nil, nil, nil, true) end
+        GameTooltip:Show()
+    end)
+    ctr:SetScript("OnLeave", GameTooltip_Hide)
+    ctr:EnableMouse(true)
+
+    if scroll then
+        setup_scroll_forward(ctr, scroll)
+        setup_scroll_forward(slider, scroll)
+    end
+
+    ctr.key = def.key
+    ctr.default = def.default
+    ctr.set_value = function(v)
+        v = v or def.default
+        slider:SetValue(v)
+        val_text:SetText(format(fmt, v))
+    end
+    return ctr, h + THEME.widget_gap
+end
+
 local function create_dropdown(parent, x, y, w, def, scroll)
     local h = 44
     local dw = w - 4
@@ -445,6 +534,8 @@ local function create_tab_panel(tab_index)
                     widget, height = create_checkbox(content, x, y_pos, w, setting, scroll)
                 elseif setting.type == "slider" then
                     widget, height = create_slider(content, x, y_pos, w, setting, scroll)
+                elseif setting.type == "slider_decimal" then
+                    widget, height = create_slider_decimal(content, x, y_pos, w, setting, scroll)
                 elseif setting.type == "dropdown" then
                     widget, height = create_dropdown(content, x, y_pos, w, setting, scroll)
                 end
@@ -787,6 +878,13 @@ SlashCmdList["FLUXAIO"] = function(msg)
         return
     end
 
+    if msg == "raptor" and class_name == "Hunter" then
+        NS.set_force_flag("force_raptor")
+        NS.show_notification("RAPTOR", 3.0, { 0.67, 0.83, 0.45 })
+        print(format("|cff%s[Flux AIO]|r |cFFFFFF00Manual Raptor queue|r activated!", class_hex))
+        return
+    end
+
     if msg == "status" then
         if NS.toggle_dashboard then
             NS.toggle_dashboard()
@@ -802,6 +900,9 @@ SlashCmdList["FLUXAIO"] = function(msg)
         print("  /flux burst     - Force burst cooldowns")
         print("  /flux def       - Force defensive cooldowns")
         print("  /flux gap       - Use gap closer")
+        if class_name == "Hunter" then
+            print("  /flux raptor    - Force one manual Raptor queue window")
+        end
         print("  /flux status    - Toggle combat dashboard")
         print("  /fticks         - Toggle cat energy-tick debug print")
         print("  /flux help      - Show this help")
