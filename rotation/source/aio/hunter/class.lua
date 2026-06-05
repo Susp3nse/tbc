@@ -395,7 +395,7 @@ A.ShouldUseViperSting = ShouldUseViperSting
 -- ============================================================================
 rotation_registry:register_class({
     name = "Hunter",
-    version = "v1.7.1",
+    version = "v1.8.0",
     playstyles = { "ranged" },
     idle_playstyle_name = nil,
 
