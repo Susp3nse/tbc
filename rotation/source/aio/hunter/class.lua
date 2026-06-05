@@ -185,9 +185,10 @@ Constants.ARCANE_IMMUNE = NS.ARCANE_IMMUNE or {
 }
 NS.ARCANE_IMMUNE = NS.ARCANE_IMMUNE or Constants.ARCANE_IMMUNE
 
--- NPCs we never Feign Death on for threat (e.g. mobs that punish/ignore feign).
+-- NPCs the threat Feign Death should skip. Seeded with the Netherstrand
+-- Longbow (the bow Kael'thas hands out in Tempest Keep).
 Constants.NO_FEIGN = NS.NO_FEIGN or {
-    [21268] = true,
+    [21268] = true,  -- Netherstrand Longbow (Tempest Keep)
 }
 NS.NO_FEIGN = NS.NO_FEIGN or Constants.NO_FEIGN
 
