@@ -37,6 +37,12 @@ local function build_widget(st, empty)
     elseif st.type == "checkbox" then
         return { E = "Checkbox", DB = st.key, DBV = st.default,
             L = { enUS = st.label }, TT = { enUS = st.tooltip }, M = empty }
+    elseif st.type == "slider_decimal" then
+        -- Decimal slider: legacy GGL StdUi takes Precision (decimal count).
+        -- Schema's `precision` field maps directly (default 1 = 0.1 step).
+        return { E = "Slider", DB = st.key, DBV = st.default,
+            MIN = st.min, MAX = st.max, Precision = st.precision or 1,
+            L = { enUS = st.label }, TT = { enUS = st.tooltip }, M = empty }
     else
         return { E = "Slider", DB = st.key, DBV = st.default,
             MIN = st.min, MAX = st.max,

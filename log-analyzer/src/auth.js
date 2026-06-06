@@ -1,9 +1,11 @@
-import { config } from './config.js';
+import { assertWclConfig, config } from './config.js';
 
 let cachedToken = null;
 let tokenExpiry = 0;
 
 export async function getToken() {
+  assertWclConfig();
+
   const now = Date.now();
   if (cachedToken && now < tokenExpiry) {
     return cachedToken;

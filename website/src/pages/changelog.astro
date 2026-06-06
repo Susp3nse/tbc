@@ -15,6 +15,21 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.15.0 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-feature">Feature</span>
+      <span class="changelog-tag tag-fix">Fix</span>
+
+      <h3>Hunter &mdash; Ranged</h3>
+      <ul class="features">
+        <li><strong>Adaptive DPS Engine</strong> &mdash; The ranged rotation is now a single per-tick engine that weighs every shot by its damage-per-cast and rebalances automatically as your haste changes, replacing the old fixed weave modes. Stings keep their pre-priority, and when no special beats waiting it simply lets Auto Shot ride.</li>
+        <li><strong>Wing Clip Breaks Kael'thas Mind Control</strong> &mdash; With Infinity Blade equipped, targeting a Mind-Controlled ally now suggests only Wing Clip to break the control with melee damage, suppressing the rest of the rotation until they're free.</li>
+        <li><strong>Sharper Immunity &amp; Enrage Handling</strong> &mdash; PvP immunities now follow the framework's maintained categories, PvE immunity is matched by spell ID (fixing a name collision that wrongly held DPS on Kael'thas), and Tranquilizing Shot reliably strips creature enrages. Feign Death also skips the Netherstrand Longbow.</li>
+        <li><strong>Manual Raptor Queue</strong> &mdash; New <code>/flux raptor</code> command forces a single Raptor Strike weave window on demand for melee-weaving hunters.</li>
+        <li><strong>Healthstone Actually Fires</strong> &mdash; The recovery middleware was registering the Master Healthstone as a spell instead of a bag item, so it never used it; corrected to match every other class.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.14.0 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-feature">Feature</span>
 

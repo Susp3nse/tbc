@@ -215,7 +215,7 @@ function HunterDebug:UpdateDisplay()
 
     local atRange = targetExists and HA.ArcaneShot and HA.ArcaneShot:IsInRange(unit) or false
     local inMelee = targetExists and HA.WingClip and HA.WingClip:IsInRange(unit) or false
-    local targetRange = targetExists and Unit(unit):GetRange() or 0
+    local targetRange = targetExists and NS.GetRange and NS.GetRange(unit) or 0
     local rangeMode = inMelee and "MELEE" or (atRange and "RANGED" or "OUT OF RANGE")
 
     local inPvP = HA.IsInPvP or false

@@ -29,14 +29,17 @@ end
 local Listener              = A.Listener
 local GetTime               = _G.GetTime
 local GetLatency            = A.GetLatency
+local GetPing               = A.GetPing
 local CreateFrame           = _G.CreateFrame
 local UIParent              = _G.UIParent
 local UnitRangedDamage      = _G.UnitRangedDamage
 local UnitGUID              = _G.UnitGUID
 local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
 local date                  = _G.date
+local time                  = _G.time
 local print                 = _G.print
 local GetSpellInfo          = _G.GetSpellInfo
+local GetFramerate          = _G.GetFramerate
 
 -- Melee-only spells that prove the player was in melee range
 local MeleeSpellNames = {
@@ -66,6 +69,9 @@ local BACKDROP_THIN = {
     edgeSize = 1,
 }
 
+local FRAME_WIDTH = 360
+local LOG_TEXT_WIDTH = 302
+
 local function create_theme_button(parent, width, height, text)
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
     btn:SetSize(width, height)
@@ -73,7 +79,7 @@ local function create_theme_button(parent, width, height, text)
     btn:SetBackdropColor(THEME.bg_widget[1], THEME.bg_widget[2], THEME.bg_widget[3], 1)
     btn:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
 
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("CENTER")
     label:SetText(text)
     label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
@@ -104,6 +110,10 @@ local ClipTracker = {
     -- Cast tracking
     CurrentCastSpell = nil,
     CurrentCastStartTime = nil,
+    CurrentCastSuggestionLag = nil,
+    LastTrackedCastEndTime = nil,
+    LastTrackedCastName = nil,
+    LastTrackedCastSuggestionLag = nil,
 
     -- Rotation suggestion tracking
     LastSuggestion = nil,
@@ -120,6 +130,7 @@ local ClipTracker = {
     -- Log buffer
     ClipLog = {},
     ClipLogMax = 5000,
+    LastAutoResult = nil,
 
     -- Combat session stats
     CombatStats = {
@@ -131,6 +142,18 @@ local ClipTracker = {
         clipsBySeverity = { GREEN = 0, YELLOW = 0, ORANGE = 0, RED = 0 },
         autoShotCount = 0,
         combatStartTime = 0,
+        clipsByHaste = {
+            BASE    = { count = 0, totalTime = 0 },
+            LIGHT   = { count = 0, totalTime = 0 },
+            MAJOR   = { count = 0, totalTime = 0 },
+            DOUBLE  = { count = 0, totalTime = 0 },
+            PEAK    = { count = 0, totalTime = 0 },
+            ULTRA   = { count = 0, totalTime = 0 },
+            UNKNOWN = { count = 0, totalTime = 0 },
+        },
+        autoShotsByHaste = {
+            BASE = 0, LIGHT = 0, MAJOR = 0, DOUBLE = 0, PEAK = 0, ULTRA = 0, UNKNOWN = 0,
+        },
     },
 
     -- UI state
@@ -142,7 +165,7 @@ local ClipTracker = {
 
     -- Severity filter state
     SeverityEnabled = {
-        GREEN = true,
+        GREEN = false,
         YELLOW = true,
         ORANGE = true,
         RED = true,
@@ -161,17 +184,131 @@ local ClipTracker = {
 -- HELPER FUNCTIONS
 -- ============================================================================
 
+local wallClockOffset = ((time and time()) or 0) - GetTime()
+
+local function RefreshWallClockOffset()
+    wallClockOffset = ((time and time()) or 0) - GetTime()
+end
+
 local function GetTimestamp()
     local gameTime = GetTime()
-    local ms = format("%.2f", gameTime % 1)
-    return format("%s.%s", date("%H:%M:%S"), ms:sub(3))
+    if date and time then
+        local wall = wallClockOffset + gameTime
+        local sec = math.floor(wall)
+        local centis = math.floor((wall - sec) * 100 + 0.5)
+        if centis >= 100 then
+            sec = sec + 1
+            centis = 0
+        end
+        return format("%s.%02d", date("%H:%M:%S", sec), centis)
+    end
+    return format("%.3f", gameTime)
+end
+
+-- Dynamic jitter floor: filters server-tick + frame quantization + ping variance.
+-- Scales with ping so users on worse networks get a wider noise floor automatically.
+-- NOT based on SpellQueueWindow — that's input buffer, not jitter, and would make
+-- SQW-comparison parses apples-to-oranges.
+local function GetJitterFloor()
+    local ping = GetPing() or 0
+    return math.max(0.05, ping / 2 + 0.04)
+end
+
+local function ComputeHasteBucket(rangedSpeed)
+    if not rangedSpeed or rangedSpeed == 0 then return "UNKNOWN" end
+    if rangedSpeed >= 2.35 then return "BASE"
+    elseif rangedSpeed >= 2.00 then return "LIGHT"
+    elseif rangedSpeed >= 1.70 then return "MAJOR"
+    elseif rangedSpeed >= 1.40 then return "DOUBLE"
+    elseif rangedSpeed >= 1.15 then return "PEAK"
+    else return "ULTRA"
+    end
+end
+
+local SHORT_SPELL_NAMES = {
+    ["Auto Shot"] = "Auto",
+    ["Steady Shot"] = "Steady",
+    ["Multi-Shot"] = "Multi",
+    ["Arcane Shot"] = "Arcane",
+    ["Kill Command"] = "KC",
+    ["Bestial Wrath"] = "BW",
+    ["Rapid Fire"] = "RF",
+}
+
+local SEVERITY_LABELS = {
+    GREEN = "G",
+    YELLOW = "Y",
+    ORANGE = "O",
+    RED = "R",
+}
+
+local VERDICT_LABELS = {
+    TRIVIAL = "trivial",
+    NECESSARY = "needed",
+    WORTH_IT = "worth",
+    QUESTIONABLE = "maybe",
+    BAD_CLIP = "bad",
+}
+
+local function ShortText(text, maxLen)
+    text = tostring(text or "--")
+    if string.len(text) <= maxLen then return text end
+    return string.sub(text, 1, math.max(1, maxLen - 1)) .. "~"
+end
+
+local function ShortSpellName(spellName)
+    if not spellName or spellName == "" then return "Unknown" end
+    return SHORT_SPELL_NAMES[spellName] or ShortText(spellName, 14)
+end
+
+local AUTO_SHOT_SPELL_IDS = {
+    [75]   = true, -- Auto Shot combat log spell
+    [2480] = true, -- Shoot Bow
+    [7919] = true, -- Shoot Crossbow
+    [7918] = true, -- Shoot Gun
+    [3018] = true, -- Shoot
+    [5019] = true, -- Shoot/Wand
+}
+
+local AUTO_SHOT_SPELL_NAMES = {
+    ["Auto Shot"] = true,
+    ["Shoot Bow"] = true,
+    ["Shoot Crossbow"] = true,
+    ["Shoot Gun"] = true,
+    ["Shoot"] = true,
+}
+
+local function IsAutoShotSpell(spellID, spellName)
+    return (spellID and AUTO_SHOT_SPELL_IDS[spellID]) or (spellName and AUTO_SHOT_SPELL_NAMES[spellName]) or false
+end
+
+local function SuggestionLagFor(spellName, now)
+    if not spellName or not ClipTracker.LastSuggestionTime then return nil end
+    if ClipTracker.LastSuggestion ~= spellName then return nil end
+    local lag = now - ClipTracker.LastSuggestionTime
+    if lag < 0 or lag > 2.0 then return nil end
+    return lag
+end
+
+local MIN_GREEN_MS = 150
+local MIN_YELLOW_MS = 250
+local MIN_ORANGE_MS = 500
+
+local function ThresholdMs(value, fallback)
+    value = tonumber(value)
+    if not value or value <= 0 then return fallback end
+    return value
 end
 
 local function GetSeverity(delay)
-    local s = NS.cached_settings
-    local t1 = (s.clip_threshold_1 or 125) / 1000
-    local t2 = (s.clip_threshold_2 or 250) / 1000
-    local t3 = (s.clip_threshold_3 or 500) / 1000
+    local s = NS.cached_settings or {}
+    local minFloorMs = GetJitterFloor() * 1000
+    local t1ms = math.max(ThresholdMs(s.clip_threshold_1, MIN_GREEN_MS), MIN_GREEN_MS, minFloorMs)
+    local t2ms = math.max(ThresholdMs(s.clip_threshold_2, MIN_YELLOW_MS), MIN_YELLOW_MS, t1ms + 50)
+    local t3ms = math.max(ThresholdMs(s.clip_threshold_3, MIN_ORANGE_MS), MIN_ORANGE_MS, t2ms + 100)
+    local t1 = t1ms / 1000
+    local t2 = t2ms / 1000
+    local t3 = t3ms / 1000
     if delay <= t1 then return "GREEN"
     elseif delay <= t2 then return "YELLOW"
     elseif delay <= t3 then return "ORANGE"
@@ -181,9 +318,22 @@ end
 
 local function GetSpellCastTime(spellName)
     if not spellName then return 0 end
+    if spellName == "Steady Shot" or spellName == "Multi-Shot" then
+        local speed = UnitRangedDamage("player") or 0
+        local baseSpeed = (NS.cached_settings and NS.cached_settings.weapon_speed) or speed
+        local haste = speed > 0 and baseSpeed > 0 and (baseSpeed / speed) or 1
+        if haste <= 0 then haste = 1 end
+        if spellName == "Steady Shot" then return 1.5 / haste end
+        return 0.5 / haste
+    end
     local name, _, _, castTime = GetSpellInfo(spellName)
     if castTime and castTime > 0 then return castTime / 1000 end
     return 0
+end
+
+local function EstimatedCastStartLag(spellName, eventTime)
+    local castTime = GetSpellCastTime(spellName)
+    return SuggestionLagFor(spellName, eventTime - (castTime or 0))
 end
 
 local function EvaluateWorth(clipDuration, causeSpell, wasMoving)
@@ -196,8 +346,7 @@ local function EvaluateWorth(clipDuration, causeSpell, wasMoving)
         return "NECESSARY"
     end
 
-    local latency = GetLatency() or 0.05
-    if clipDuration <= latency then
+    if clipDuration <= GetJitterFloor() then
         return "TRIVIAL"
     end
 
@@ -256,15 +405,32 @@ function ClipTracker:ResetCombatStats()
         clipsBySeverity = { GREEN = 0, YELLOW = 0, ORANGE = 0, RED = 0 },
         autoShotCount = 0,
         combatStartTime = GetTime(),
+        clipsByHaste = {
+            BASE    = { count = 0, totalTime = 0 },
+            LIGHT   = { count = 0, totalTime = 0 },
+            MAJOR   = { count = 0, totalTime = 0 },
+            DOUBLE  = { count = 0, totalTime = 0 },
+            PEAK    = { count = 0, totalTime = 0 },
+            ULTRA   = { count = 0, totalTime = 0 },
+            UNKNOWN = { count = 0, totalTime = 0 },
+        },
+        autoShotsByHaste = {
+            BASE = 0, LIGHT = 0, MAJOR = 0, DOUBLE = 0, PEAK = 0, ULTRA = 0, UNKNOWN = 0,
+        },
     }
     self.IsFirstShot = true
     self.LastAutoShotTime = nil
     self.LastExpectedSpeed = nil
     self.CurrentCastSpell = nil
     self.CurrentCastStartTime = nil
+    self.CurrentCastSuggestionLag = nil
+    self.LastTrackedCastEndTime = nil
+    self.LastTrackedCastName = nil
+    self.LastTrackedCastSuggestionLag = nil
     self.LastSuggestion = nil
     self.LastSuggestionTime = nil
     self.LastSuggestionSwing = nil
+    self.LastAutoResult = nil
     self:ResetIntervalState()
 end
 
@@ -280,32 +446,88 @@ function ClipTracker:OnAutoShotFired()
     local now = GetTime()
     self.CombatStats.autoShotCount = self.CombatStats.autoShotCount + 1
 
+    -- Increment per-bucket auto-shot count using current speed (for per-bucket rate denominator)
+    local curSpeed = UnitRangedDamage("player") or 3.0
+    local curBucket = ComputeHasteBucket(curSpeed)
+    self.CombatStats.autoShotsByHaste[curBucket] = (self.CombatStats.autoShotsByHaste[curBucket] or 0) + 1
+
     if self.IsFirstShot or not self.LastAutoShotTime or not self.LastExpectedSpeed then
         self.LastAutoShotTime = now
-        self.LastExpectedSpeed = UnitRangedDamage("player") or 3.0
+        self.LastExpectedSpeed = curSpeed
         self.IsFirstShot = false
+        self.LastAutoResult = {
+            rawTime = now,
+            clipDuration = 0,
+            severity = "GREEN",
+            verdict = "SYNC",
+            causeSpell = "First Auto",
+            haste_bucket = curBucket,
+        }
         self:ResetIntervalState()
         return
     end
 
     local elapsed = now - self.LastAutoShotTime
-    local delay = elapsed - self.LastExpectedSpeed
+    local prevSpeed = self.LastExpectedSpeed
 
-    -- Discard unreasonable values (target swap, death, etc.)
-    if delay > 10 or delay < -1 then
+    -- Haste changes inside an Auto Shot interval make the expected interval
+    -- ambiguous. Drop exactly that transition interval so haste gains/losses
+    -- don't show up as player-caused clips.
+    if curSpeed and prevSpeed and (curSpeed > prevSpeed + 0.05 or curSpeed < prevSpeed - 0.05) then
         self.LastAutoShotTime = now
-        self.LastExpectedSpeed = UnitRangedDamage("player") or 3.0
+        self.LastExpectedSpeed = curSpeed
+        self.LastAutoResult = {
+            rawTime = now,
+            clipDuration = 0,
+            severity = "GREEN",
+            verdict = "HASTE",
+            causeSpell = "Haste",
+            haste_bucket = curBucket,
+        }
+        self:ResetIntervalState()
+        return
+    end
+
+    local expectedSpeed = prevSpeed
+    local delay = elapsed - expectedSpeed
+
+    -- Discard unreasonable values (combat-join gap, target swap, death, etc.).
+    -- A real clip is bounded by the slowest cast (~2s) plus headroom; anything > 4s is a tracking artifact.
+    if delay > 4 or delay < -1 then
+        self.LastAutoShotTime = now
+        self.LastExpectedSpeed = curSpeed
+        self.LastAutoResult = {
+            rawTime = now,
+            clipDuration = 0,
+            severity = "GREEN",
+            verdict = "RESET",
+            causeSpell = "Reset",
+            haste_bucket = curBucket,
+        }
         self:ResetIntervalState()
         return
     end
 
     -- Record speed at this shot for next comparison
-    local prevSpeed = self.LastExpectedSpeed
     self.LastAutoShotTime = now
-    self.LastExpectedSpeed = UnitRangedDamage("player") or 3.0
+    self.LastExpectedSpeed = curSpeed
+    local hasteBucket = ComputeHasteBucket(self.LastExpectedSpeed)
 
-    -- Only record clips above threshold
-    if delay <= 0.01 then
+    -- Only record clips above the dynamic jitter floor (server-tick + frame + ping variance)
+    if delay <= GetJitterFloor() then
+        self.LastAutoResult = {
+            timestamp = GetTimestamp(),
+            rawTime = now,
+            clipDuration = 0,
+            expectedSpeed = expectedSpeed,
+            actualInterval = elapsed,
+            causeSpell = "Clean",
+            causeCastTime = 0,
+            severity = "GREEN",
+            wasMoving = false,
+            verdict = "CLEAN",
+            haste_bucket = hasteBucket,
+        }
         self:ResetIntervalState()
         return
     end
@@ -313,6 +535,7 @@ function ClipTracker:OnAutoShotFired()
     -- Determine cause (priority: melee > cast-bar spell > movement > instant cast > unknown)
     local causeSpell = nil
     local causeCastTime = 0
+    local causeInputLag = nil
     local hadMelee = #self.MeleeSpellsDuringInterval > 0
 
     -- Priority 1: Melee spells were cast during interval
@@ -331,6 +554,7 @@ function ClipTracker:OnAutoShotFired()
         if castAge < 5 then
             causeSpell = self.CurrentCastSpell
             causeCastTime = GetSpellCastTime(self.CurrentCastSpell)
+            causeInputLag = self.CurrentCastSuggestionLag
         end
     end
 
@@ -347,10 +571,23 @@ function ClipTracker:OnAutoShotFired()
         causeCastTime = 0
     end
 
-    -- Priority 4: Framework's last cast (instant spells like Arcane Shot)
-    if not causeSpell and A.LastPlayerCastName then
-        causeSpell = A.LastPlayerCastName
-        causeCastTime = GetSpellCastTime(causeSpell)
+    -- Priority 4: most-recent completed cast (CLEU-tracked LastTrackedCastName is primary;
+    -- A.LastPlayerCastName is a backup for any framework-tracked instants we missed).
+    -- Freshness gate: max age = min(rangedSpeed, 1.5s) so OOC stale casts don't bleed in.
+    if not causeSpell then
+        local maxAge = math.min(self.LastExpectedSpeed or 1.5, 1.5)
+        local lastEnd = self.LastTrackedCastEndTime or 0
+        if lastEnd > 0 and (now - lastEnd) <= maxAge then
+            local lastSpell = self.LastTrackedCastName or A.LastPlayerCastName
+            if IsAutoShotSpell(nil, lastSpell) then
+                lastSpell = nil
+            end
+            causeSpell = lastSpell
+            if causeSpell then
+                causeCastTime = GetSpellCastTime(causeSpell)
+                causeInputLag = self.LastTrackedCastSuggestionLag
+            end
+        end
     end
 
     if wasMoving and not causeSpell then
@@ -366,20 +603,31 @@ function ClipTracker:OnAutoShotFired()
     local verdict = EvaluateWorth(delay, causeSpell, wasMoving)
 
     -- Record clip event
+    local sqwAtTime = tonumber(_G.GetCVar and _G.GetCVar("SpellQueueWindow")) or 0
+    local latAtTime = GetLatency() or 0
+    -- Window covers a full Steady Shot cycle (1.5s cast + buffer) so post-cast clips count as rotational.
+    local isRotationalCall = (self.LastSuggestionTime or 0) >= (now - 2.0)
+
     local entry = {
         timestamp = GetTimestamp(),
         rawTime = now,
         clipDuration = delay,
-        expectedSpeed = prevSpeed,
+        expectedSpeed = expectedSpeed,
         actualInterval = elapsed,
         causeSpell = causeSpell,
         causeCastTime = causeCastTime,
+        causeInputLag = causeInputLag,
         severity = severity,
         wasMoving = wasMoving,
         verdict = verdict,
+        sqw_at_time = sqwAtTime,
+        latency_at_time = latAtTime,
+        is_rotational_call = isRotationalCall,
+        haste_bucket = hasteBucket,
     }
 
     table.insert(self.ClipLog, entry)
+    self.LastAutoResult = entry
     while #self.ClipLog > self.ClipLogMax do
         table.remove(self.ClipLog, 1)
     end
@@ -400,6 +648,12 @@ function ClipTracker:OnAutoShotFired()
     end
     stats.clipsBySpell[causeSpell].count = stats.clipsBySpell[causeSpell].count + 1
     stats.clipsBySpell[causeSpell].totalTime = stats.clipsBySpell[causeSpell].totalTime + delay
+
+    if not stats.clipsByHaste[hasteBucket] then
+        stats.clipsByHaste[hasteBucket] = { count = 0, totalTime = 0 }
+    end
+    stats.clipsByHaste[hasteBucket].count = stats.clipsByHaste[hasteBucket].count + 1
+    stats.clipsByHaste[hasteBucket].totalTime = stats.clipsByHaste[hasteBucket].totalTime + delay
 
     -- Update display
     if self.IsVisible and self.Frame and self.Frame:IsShown() then
@@ -422,6 +676,22 @@ end
 -- COMBAT SUMMARY
 -- ============================================================================
 
+function ClipTracker:GetRates()
+    local stats = self.CombatStats
+    local total = stats.autoShotCount or 0
+    if total <= 0 then
+        return { headline_rate = 0, real_rate = 0, noise_rate = 0 }
+    end
+    local sev = stats.clipsBySeverity or {}
+    local realCount = (sev.YELLOW or 0) + (sev.ORANGE or 0) + (sev.RED or 0)
+    local noiseCount = sev.GREEN or 0
+    return {
+        headline_rate = (stats.totalClips or 0) / total * 100,
+        real_rate     = realCount / total * 100,
+        noise_rate    = noiseCount / total * 100,
+    }
+end
+
 function ClipTracker:PrintCombatSummary()
     if not self:IsEnabled() then return end
     if not NS.cached_settings.clip_print_summary then return end
@@ -432,13 +702,16 @@ function ClipTracker:PrintCombatSummary()
     local combatDuration = GetTime() - stats.combatStartTime
     if combatDuration < 3 then return end
 
-    local clipRate = stats.totalClips > 0 and (stats.totalClips / stats.autoShotCount * 100) or 0
+    local rates = self:GetRates()
     local avgPerShot = stats.totalClipTime / stats.autoShotCount
     local avgPerClip = stats.totalClips > 0 and (stats.totalClipTime / stats.totalClips) or 0
+    local noiseCount = stats.clipsBySeverity.GREEN or 0
 
     print(format("|cffFF8000[ClipTracker]|r Combat Summary (%.1fs)", combatDuration))
-    print(format("  Auto Shots: %d | Clips: %d (%.1f%%) | Total Clip Time: %.2fs",
-        stats.autoShotCount, stats.totalClips, clipRate, stats.totalClipTime))
+    print(format("  Real Clip Rate: %.1f%% (Y+) | Total: %d | Noise (G): %d (%.1f%%)",
+        rates.real_rate, stats.totalClips, noiseCount, rates.noise_rate))
+    print(format("  Auto Shots: %d | Total Clip Time: %.2fs",
+        stats.autoShotCount, stats.totalClipTime))
     print(format("  Avg Clip/Shot: %.3fs | Avg Clip (clipped only): %.3fs | Worst: %.3fs (%s)",
         avgPerShot, avgPerClip, stats.worstClip, stats.worstClipCause ~= "" and stats.worstClipCause or "N/A"))
     print(format("  Green: %d | Yellow: %d | Orange: %d | Red: %d",
@@ -458,6 +731,27 @@ function ClipTracker:PrintCombatSummary()
             print(format("    %s: %dx (%.2fs total, %.3fs avg)", c.spell, c.count, c.totalTime, avg))
         end
     end
+
+    -- Clips by haste bucket
+    local bucketOrder = { "BASE", "LIGHT", "MAJOR", "DOUBLE", "PEAK", "ULTRA", "UNKNOWN" }
+    local anyBucket = false
+    for _, b in ipairs(bucketOrder) do
+        local d = stats.clipsByHaste[b]
+        if d and d.count > 0 then anyBucket = true break end
+    end
+    if anyBucket then
+        print("  Clips by haste bucket:")
+        for _, b in ipairs(bucketOrder) do
+            local d = stats.clipsByHaste[b]
+            if d and d.count > 0 then
+                local avg = d.totalTime / d.count
+                local denom = stats.autoShotsByHaste[b] or 0
+                local rate = denom > 0 and (d.count / denom * 100) or 0
+                print(format("    %s: %dx (%.2fs total, %.3fs avg, %.1f%% rate)",
+                    b, d.count, d.totalTime, avg, rate))
+            end
+        end
+    end
 end
 
 -- ============================================================================
@@ -467,11 +761,20 @@ end
 local pGUID = nil
 
 local function OnCLEU()
+    if not ClipTracker:IsEnabled() then return end
     local _, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellID, spellName = CombatLogGetCurrentEventInfo()
     if not pGUID then pGUID = UnitGUID("player") end
     if sourceGUID ~= pGUID then return end
 
-    if subevent == "SPELL_CAST_SUCCESS" then
+    if subevent == "SPELL_CAST_START" then
+        -- Track in-progress casts via CLEU (UNIT_SPELLCAST_START is unreliable in TBC Anniversary)
+        if spellName and not IsAutoShotSpell(spellID, spellName) and not MeleeSpellNames[spellName] then
+            local now = GetTime()
+            ClipTracker.CurrentCastSpell = spellName
+            ClipTracker.CurrentCastStartTime = now
+            ClipTracker.CurrentCastSuggestionLag = SuggestionLagFor(spellName, now)
+        end
+    elseif subevent == "SPELL_CAST_SUCCESS" then
         if spellID == 75 then
             -- Auto Shot fired
             ClipTracker:OnAutoShotFired()
@@ -482,6 +785,17 @@ local function OnCLEU()
                 time = GetTime(),
             })
             ClipTracker.WasInMeleeInterval = true
+        elseif spellName then
+            -- Track completed casts so the fallback attribution can find them.
+            -- This fires reliably in TBC Anniversary for both instant casts (Arcane Shot, Aspect)
+            -- and cast-time casts (Steady Shot, Multi Shot — at cast end).
+            local now = GetTime()
+            ClipTracker.LastTrackedCastName = spellName
+            ClipTracker.LastTrackedCastEndTime = now
+            ClipTracker.LastTrackedCastSuggestionLag = ClipTracker.CurrentCastSuggestionLag or EstimatedCastStartLag(spellName, now)
+            ClipTracker.CurrentCastSpell = nil
+            ClipTracker.CurrentCastStartTime = nil
+            ClipTracker.CurrentCastSuggestionLag = nil
         end
     elseif subevent == "SWING_DAMAGE" or subevent == "SWING_MISSED" then
         -- Melee auto-attack → proves we were in melee range
@@ -489,18 +803,39 @@ local function OnCLEU()
     end
 end
 
-local function OnSpellcastStart(_, unit, _, spellID)
+local function OnSpellcastStart(unit, _, spellID)
     if unit ~= "player" then return end
     if not ClipTracker:IsEnabled() then return end
     local spellName = GetSpellInfo(spellID)
+    if IsAutoShotSpell(spellID, spellName) then return end
     if spellName then
+        local now = GetTime()
         ClipTracker.CurrentCastSpell = spellName
-        ClipTracker.CurrentCastStartTime = GetTime()
+        ClipTracker.CurrentCastStartTime = now
+        ClipTracker.CurrentCastSuggestionLag = SuggestionLagFor(spellName, now)
     end
+end
+
+local function OnSpellcastEnd(unit, _, spellID)
+    if unit ~= "player" then return end
+    if not ClipTracker:IsEnabled() then return end
+    local spellName = GetSpellInfo(spellID)
+    if IsAutoShotSpell(spellID, spellName) then return end
+    if spellName then
+        local now = GetTime()
+        ClipTracker.LastTrackedCastEndTime = now
+        ClipTracker.LastTrackedCastName = spellName
+        ClipTracker.LastTrackedCastSuggestionLag = ClipTracker.CurrentCastSuggestionLag or EstimatedCastStartLag(spellName, now)
+    end
+    -- Clear current cast so the cast-bar branch doesn't grab a stale cast
+    ClipTracker.CurrentCastSpell = nil
+    ClipTracker.CurrentCastStartTime = nil
+    ClipTracker.CurrentCastSuggestionLag = nil
 end
 
 local function OnCombatStart()
     if not ClipTracker:IsEnabled() then return end
+    RefreshWallClockOffset()
     ClipTracker:ResetCombatStats()
 end
 
@@ -529,6 +864,8 @@ end
 -- Register events via Action Listener
 Listener:Add("CLIPTRACKER_CLEU", "COMBAT_LOG_EVENT_UNFILTERED", OnCLEU)
 Listener:Add("CLIPTRACKER_CAST", "UNIT_SPELLCAST_START", OnSpellcastStart)
+Listener:Add("CLIPTRACKER_CAST_SUCCEEDED", "UNIT_SPELLCAST_SUCCEEDED", OnSpellcastEnd)
+Listener:Add("CLIPTRACKER_CAST_STOP", "UNIT_SPELLCAST_STOP", OnSpellcastEnd)
 Listener:Add("CLIPTRACKER_COMBAT_START", "PLAYER_REGEN_DISABLED", OnCombatStart)
 Listener:Add("CLIPTRACKER_COMBAT_END", "PLAYER_REGEN_ENABLED", OnCombatEnd)
 Listener:Add("CLIPTRACKER_MOVE_START", "PLAYER_STARTED_MOVING", OnStartMoving)
@@ -542,8 +879,8 @@ function ClipTracker:CreateFrame()
     if self.Frame then return self.Frame end
 
     local f = CreateFrame("Frame", "HunterClipTrackerFrame", UIParent, "BackdropTemplate")
-    f:SetSize(550, 450)
-    f:SetPoint("CENTER", UIParent, "CENTER", 250, 0)
+    f:SetSize(FRAME_WIDTH, 430)
+    f:SetPoint("CENTER", UIParent, "CENTER", 190, 0)
     f:SetBackdrop(BACKDROP_THIN)
     f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
     f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], THEME.border[4])
@@ -556,10 +893,10 @@ function ClipTracker:CreateFrame()
     f:Hide()
 
     -- Title
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     f.title:SetPoint("TOPLEFT", 12, -8)
-    f.title:SetText("Auto Shot Clip Tracker")
-    f.title:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
+    f.title:SetText("Clip Tracker")
+    f.title:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
 
     -- Close button
     local close = CreateFrame("Button", nil, f)
@@ -582,9 +919,8 @@ function ClipTracker:CreateFrame()
 
     -- Severity filter buttons
     local severities = { "GREEN", "YELLOW", "ORANGE", "RED" }
-    local sevNames = { GREEN = "Green", YELLOW = "Yellow", ORANGE = "Orange", RED = "Red" }
     f.filterButtons = {}
-    local btnWidth = 60
+    local btnWidth = 32
 
     for i, sev in ipairs(severities) do
         local btn = CreateFrame("Button", nil, f, "BackdropTemplate")
@@ -596,12 +932,15 @@ function ClipTracker:CreateFrame()
 
         local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         label:SetPoint("CENTER")
-        label:SetText(sevNames[sev])
+        label:SetText(SEVERITY_LABELS[sev] or sev)
         local color = self.SeverityColors[sev]
         label:SetTextColor(color[1], color[2], color[3])
 
         btn.severity = sev
-        btn.enabled = true
+        btn.enabled = ClipTracker.SeverityEnabled[sev]
+        if not btn.enabled then
+            btn:SetAlpha(0.4)
+        end
 
         btn:SetScript("OnClick", function(self)
             self.enabled = not self.enabled
@@ -618,23 +957,37 @@ function ClipTracker:CreateFrame()
     end
 
     -- Live stats strip
+    local statsBg = f:CreateTexture(nil, "ARTWORK")
+    statsBg:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -56)
+    statsBg:SetSize(FRAME_WIDTH - 16, 28)
+    statsBg:SetColorTexture(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], 0.88)
+
     f.statsStrip = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    f.statsStrip:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -58)
-    f.statsStrip:SetPoint("TOPRIGHT", f, "TOPRIGHT", -10, -58)
+    f.statsStrip:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -58)
+    f.statsStrip:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, -58)
     f.statsStrip:SetJustifyH("LEFT")
+    f.statsStrip:SetWordWrap(false)
     f.statsStrip:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-    f.statsStrip:SetText("Clips: 0 | Avg/Shot: 0.000s | Total: 0.00s | Rate: 0.0% | Worst: 0.000s")
+    f.statsStrip:SetText("Real 0.0% | Noise 0.0% | Clips 0/0")
+
+    f.statsStrip2 = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    f.statsStrip2:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -70)
+    f.statsStrip2:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, -70)
+    f.statsStrip2:SetJustifyH("LEFT")
+    f.statsStrip2:SetWordWrap(false)
+    f.statsStrip2:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
+    f.statsStrip2:SetText("Worst 0ms N/A | P --ms FPS -- SQW --")
 
     -- Scroll frame for logs
     local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    sf:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -74)
+    sf:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -90)
     sf:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -30, 38)
 
     -- Log text
     local logText = CreateFrame("EditBox", nil, sf)
     logText:SetMultiLine(true)
     logText:SetFontObject("GameFontHighlightSmall")
-    logText:SetWidth(490)
+    logText:SetWidth(LOG_TEXT_WIDTH)
     logText:SetAutoFocus(false)
     logText:EnableMouse(true)
     logText:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -696,13 +1049,20 @@ function ClipTracker:UpdateStatsStrip()
     if not self.Frame or not self.Frame.statsStrip then return end
 
     local stats = self.CombatStats
-    local clipRate = stats.autoShotCount > 0 and (stats.totalClips / stats.autoShotCount * 100) or 0
-    local avgPerShot = stats.autoShotCount > 0 and (stats.totalClipTime / stats.autoShotCount) or 0
-    local worstCause = stats.worstClipCause ~= "" and stats.worstClipCause or "N/A"
+    local rates = self:GetRates()
+    local worstCause = stats.worstClipCause ~= "" and ShortText(stats.worstClipCause, 18) or "N/A"
+    local pingMs = math.floor(((GetPing() or 0) * 1000) + 0.5)
+    local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
+    local sqw = tonumber(_G.GetCVar and _G.GetCVar("SpellQueueWindow")) or 0
 
     self.Frame.statsStrip:SetText(format(
-        "Clips: %d | Avg/Shot: %.3fs | Total: %.2fs | Rate: %.1f%% | Worst: %.3fs (%s)",
-        stats.totalClips, avgPerShot, stats.totalClipTime, clipRate, stats.worstClip, worstCause))
+        "Real %.1f%% | Noise %.1f%% | Clips %d/%d",
+        rates.real_rate, rates.noise_rate, stats.totalClips, stats.autoShotCount))
+    if self.Frame.statsStrip2 then
+        self.Frame.statsStrip2:SetText(format(
+            "Worst %dms %s | P %dms FPS %d SQW %d",
+            math.floor((stats.worstClip or 0) * 1000 + 0.5), worstCause, pingMs, fps, sqw))
+    end
 end
 
 function ClipTracker:RefreshLogDisplay()
@@ -712,16 +1072,22 @@ function ClipTracker:RefreshLogDisplay()
     for _, entry in ipairs(self.ClipLog) do
         if self.SeverityEnabled[entry.severity] then
             local color = self.SeverityColors[entry.severity]
-            local colorHex = format("|cff%02x%02x%02x", color[1] * 255, color[2] * 255, color[3] * 255)
+            local colorHex = format("|cff%02x%02x%02x",
+                math.floor(color[1] * 255 + 0.5),
+                math.floor(color[2] * 255 + 0.5),
+                math.floor(color[3] * 255 + 0.5))
 
-            local causeDetail = entry.causeSpell
+            local causeDetail = ShortSpellName(entry.causeSpell)
             if entry.causeCastTime and entry.causeCastTime > 0 then
-                causeDetail = format("%s (%.2fs cast)", entry.causeSpell, entry.causeCastTime)
+                causeDetail = format("%s %.2fs", causeDetail, entry.causeCastTime)
             end
+            causeDetail = ShortText(causeDetail, 16)
+            local verdict = VERDICT_LABELS[entry.verdict] or ShortText(entry.verdict, 8)
+            local clipMs = math.floor((entry.clipDuration or 0) * 1000 + 0.5)
+            local severity = SEVERITY_LABELS[entry.severity] or entry.severity
 
-            local line = format("%s[%s] [%s] +%.3fs clip | %s | %s|r",
-                colorHex, entry.timestamp, entry.severity, entry.clipDuration,
-                causeDetail, entry.verdict)
+            local line = format("%s%s  +%dms  %s  %-16s %s|r",
+                colorHex, entry.timestamp or "?", clipMs, severity, causeDetail, verdict)
             table.insert(lines, line)
         end
     end
@@ -749,14 +1115,19 @@ end
 
 function ClipTracker:GetCSVExport()
     local lines = {}
-    -- CSV header
-    table.insert(lines, "timestamp,clip_duration,expected_speed,actual_interval,cause_spell,cause_cast_time,severity,was_moving,verdict")
+    -- CSV header (new columns appended at end to preserve old-export parsers)
+    table.insert(lines, "timestamp,clip_duration,expected_speed,actual_interval,cause_spell,cause_cast_time,severity,was_moving,verdict,sqw_at_time,latency_at_time,is_rotational_call,haste_bucket,raw_time,cause_input_lag")
 
     for _, entry in ipairs(self.ClipLog) do
-        table.insert(lines, format("%s,%.4f,%.4f,%.4f,%s,%.4f,%s,%s,%s",
+        table.insert(lines, format("%s,%.4f,%.4f,%.4f,%s,%.4f,%s,%s,%s,%d,%.4f,%s,%s,%.3f,%.4f",
             entry.timestamp, entry.clipDuration, entry.expectedSpeed, entry.actualInterval,
             entry.causeSpell, entry.causeCastTime or 0, entry.severity,
-            tostring(entry.wasMoving), entry.verdict))
+            tostring(entry.wasMoving), entry.verdict,
+            entry.sqw_at_time or 0, entry.latency_at_time or 0,
+            tostring(entry.is_rotational_call or false),
+            entry.haste_bucket or "UNKNOWN",
+            entry.rawTime or 0,
+            entry.causeInputLag or -1))
     end
 
     -- Append summary block
@@ -783,6 +1154,23 @@ function ClipTracker:GetCSVExport()
         for spell, data in pairs(stats.clipsBySpell) do
             local avg = data.count > 0 and (data.totalTime / data.count) or 0
             table.insert(lines, format("  %s: %dx (%.3fs total, %.4fs avg)", spell, data.count, data.totalTime, avg))
+        end
+
+        -- Per-haste-bucket summary
+        table.insert(lines, "")
+        table.insert(lines, "--- HASTE BUCKETS ---")
+        local bucketOrder = { "BASE", "LIGHT", "MAJOR", "DOUBLE", "PEAK", "ULTRA", "UNKNOWN" }
+        for _, b in ipairs(bucketOrder) do
+            local d = stats.clipsByHaste[b]
+            local denom = stats.autoShotsByHaste[b] or 0
+            if (d and d.count > 0) or denom > 0 then
+                local count = d and d.count or 0
+                local totalTime = d and d.totalTime or 0
+                local avg = count > 0 and (totalTime / count) or 0
+                local rate = denom > 0 and (count / denom * 100) or 0
+                table.insert(lines, format("  %s: %dx clips / %d shots (%.1f%% rate, %.3fs total, %.4fs avg)",
+                    b, count, denom, rate, totalTime, avg))
+            end
         end
     end
 
@@ -902,6 +1290,10 @@ function ClipTracker:Toggle()
     end
 end
 
+function ClipTracker:GetLastAutoResult()
+    return self.LastAutoResult
+end
+
 -- ============================================================================
 -- AUTO SHOW/HIDE FROM SCHEMA TOGGLE (show_clip_tracker)
 -- ============================================================================
@@ -926,8 +1318,38 @@ watchFrame:SetScript("OnUpdate", function(self, elapsed)
     if self.elapsed >= 0.5 then
         self.elapsed = 0
         CheckToggleState()
+        -- Keep ping/fps live in the stats strip even when no clips are firing.
+        if ClipTracker.IsVisible and ClipTracker.Frame and ClipTracker.Frame:IsShown() then
+            ClipTracker:UpdateStatsStrip()
+        end
     end
 end)
+
+-- ============================================================================
+-- OFFLINE DUMP API
+-- ============================================================================
+
+local function deepcopy(t, seen)
+    if type(t) ~= "table" then return t end
+    seen = seen or {}
+    if seen[t] then return seen[t] end
+    local copy = {}
+    seen[t] = copy
+    for k, v in pairs(t) do
+        copy[deepcopy(k, seen)] = deepcopy(v, seen)
+    end
+    return copy
+end
+
+function ClipTracker:DumpToSavedVar()
+    _G.FluxAIOClipDumps = _G.FluxAIOClipDumps or {}
+    table.insert(_G.FluxAIOClipDumps, {
+        time    = date("%Y-%m-%d %H:%M:%S"),
+        entries = deepcopy(self.ClipLog),
+        stats   = deepcopy(self.CombatStats),
+    })
+    return #_G.FluxAIOClipDumps
+end
 
 -- ============================================================================
 -- NAMESPACE REGISTRATION

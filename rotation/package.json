@@ -1,12 +1,13 @@
 {
   "name": "@flux/rotation",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "private": true,
   "main": "build.js",
   "scripts": {
     "build": "node build.js",
     "build:sync": "node build.js --sync",
     "build:all": "node build.js --all",
+    "sim:hunter": "node sim/hunter-adaptive-sim.js",
     "watch": "node dev-watch.js"
   },
   "excludeClasses": []

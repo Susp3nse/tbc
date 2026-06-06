@@ -65,6 +65,7 @@ NS.RACE_ORC = RACE_ORC
 NS.force_burst = 0
 NS.force_defensive = 0
 NS.force_gap = 0
+NS.force_raptor = 0
 
 local FORCE_DURATION = 3.0
 

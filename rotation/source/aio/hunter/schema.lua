@@ -55,11 +55,13 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 
     -- Tab 2: Rotation
     [2] = { name = "Rotation", sections = {
-        { header = "Steady Shot Timing", settings = {
-            { type = "checkbox", key = "warces", default = false, label = "Warces Haste Mode",
-              tooltip = "Use warces' GCD + latency haste-adjusted timing for shot weaving. More precise, requires weapon speed slider." },
-            { type = "slider", key = "weapon_speed", default = 3, min = 1, max = 4, label = "Weapon Speed (sec)",
-              tooltip = "Your ranged weapon speed (for warces mode haste calculations).", format = "%d" },
+        { header = "Adaptive Engine", settings = {
+            { type = "checkbox", key = "inhouse_swingshot", default = false, label = "In-House SwingShot",
+              tooltip = "Use Flux's own Auto Shot clock for Adaptive DPS. Falls back to Action's GetSwingShoot() while unsynced." },
+            { type = "slider", key = "adaptive_exec_pad_ms", default = 100, min = 0, max = 250, label = "Adaptive Cast Pad (ms)",
+              tooltip = "Safety time added to Adaptive's cast-vs-auto clip check. Raise if logs show borderline recommendations clipping; lower if Adaptive waits too much.", format = "%d ms" },
+            { type = "slider_decimal", key = "weapon_speed", default = 2.9, min = 1.5, max = 4, precision = 1, label = "Weapon Speed (sec)",
+              tooltip = "Your ranged weapon speed (e.g. 2.8, 2.9, 3.0). Used by Adaptive DPS for the haste multiplier. Set this to your unbuffed bow/gun/crossbow speed." },
         }},
         { header = "Arcane Shot", settings = {
             { type = "checkbox", key = "use_arcane", default = false, label = "Use Arcane Shot",
@@ -80,6 +82,8 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Don't switch Hunter's Mark target until it expires." },
             { type = "checkbox", key = "boss_mark", default = false, label = "Boss Only Mark",
               tooltip = "Only apply Hunter's Mark on boss targets." },
+            { type = "slider", key = "mark_refresh", default = 0, min = 0, max = 15, label = "Mark Refresh Lead (sec)",
+              tooltip = "Re-cast Hunter's Mark this many seconds before it expires so the built-up attack power isn't lost when it drops. 0 = only re-apply after it fully falls off.", format = "%d sec" },
         }},
         { header = "Traps & Aggro", settings = {
             { type = "checkbox", key = "freezing_trap_pve", default = true, label = "Freezing Trap on Adds",
@@ -92,6 +96,8 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Use Intimidation stun on aggro swap." },
             { type = "checkbox", key = "use_feign_death", default = false, label = "Feign Death (Threat)",
               tooltip = "Auto Feign Death when you have aggro on your target." },
+            { type = "checkbox", key = "use_wing_clip", default = true, label = "Wing Clip (Melee)",
+              tooltip = "Auto-cast Wing Clip on melee targets. HP thresholds and bosses are still honored. Turn off to never auto-suggest Wing Clip." },
         }},
     }},
 
@@ -202,16 +208,26 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
               tooltip = "Print clip summary to chat after combat." },
         }},
         { header = "Clip Severity Thresholds (ms)", settings = {
-            { type = "slider", key = "clip_threshold_1", default = 125, min = 0, max = 1000, label = "Green/Yellow (ms)",
+            { type = "slider", key = "clip_threshold_1", default = 150, min = 0, max = 1000, label = "Green/Yellow (ms)",
               tooltip = "Clips below this are Green (trivial). Above = Yellow.", format = "%d ms" },
             { type = "slider", key = "clip_threshold_2", default = 250, min = 0, max = 1000, label = "Yellow/Orange (ms)",
               tooltip = "Clips above this are Orange (significant).", format = "%d ms" },
             { type = "slider", key = "clip_threshold_3", default = 500, min = 0, max = 2000, label = "Orange/Red (ms)",
               tooltip = "Clips above this are Red (severe).", format = "%d ms" },
         }},
+        { header = "Melee Weave Coach", settings = {
+            { type = "checkbox", key = "show_melee_weave_coach", default = false, label = "Show Melee Weave Coach",
+              tooltip = "Show a read-only traffic-light timer for manual Raptor Strike melee weaving." },
+            { type = "slider", key = "weave_round_trip_ms", default = 900, min = 300, max = 2200, label = "Round Trip Budget (ms)",
+              tooltip = "Estimated time to enter melee, queue/land Raptor, and return to ranged distance. Lower for large hitboxes.", format = "%d ms" },
+            { type = "slider", key = "weave_exit_buffer_ms", default = 300, min = 0, max = 1000, label = "Exit Safety Buffer (ms)",
+              tooltip = "Extra time reserved before ranged Auto Shot windup begins. Raise this if orange/red feels late.", format = "%d ms" },
+        }},
         { header = "Debug Panel", settings = {
             { type = "checkbox", key = "show_debug_panel", default = false, label = "Show Debug Panel",
               tooltip = "Show real-time hunter debug information." },
+            { type = "checkbox", key = "show_adaptive_panel", default = false, label = "Show Adaptive Engine Panel",
+              tooltip = "Live view of adaptive's per-tick scores, derived stats, and recent fires." },
         }},
     }},
 }

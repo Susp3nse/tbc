@@ -80,7 +80,6 @@ Action[A.PlayerClass] = {
 
     -- Survival
     Counterattack    = Create({ Type = "Spell", ID = 19306, useMaxRank = true, Click = { autounit = "harm", type = "spell" } }),
-    Deterrence       = Create({ Type = "Spell", ID = 19263, Click = { unit = "player", type = "spell", spell = 19263 } }),
     Disengage        = Create({ Type = "Spell", ID = 781, useMaxRank = true, Click = { autounit = "harm", type = "spell", spell = 781 } }),
     ExplosiveTrap    = Create({ Type = "Spell", ID = 13813, useMaxRank = true, Click = { unit = "player", type = "spell" } }),
     FeignDeath       = Create({ Type = "Spell", ID = 5384, Click = { unit = "player", type = "spell", spell = 5384 } }),
@@ -90,7 +89,30 @@ Action[A.PlayerClass] = {
     ImmolationTrap   = Create({ Type = "Spell", ID = 13795, useMaxRank = true, Click = { unit = "player", type = "spell" } }),
     Misdirection     = Create({ Type = "Spell", ID = 34477, Click = { unit = "focus", type = "spell", spell = 34477 } }),
     MongooseBite     = Create({ Type = "Spell", ID = 1495, useMaxRank = true, Click = { autounit = "harm", type = "spell" } }),
-    RaptorStrike     = Create({ Type = "Spell", ID = 2973, useMaxRank = true, Click = { autounit = "harm", type = "spell" } }),
+    RaptorStrike     = Create({
+        Type = "Spell",
+        ID = 2973,
+        useMaxRank = true,
+        Click = {
+            autounit = "harm",
+            type = "spell",
+            macrobefore = "/stopcasting\n/startattack\n",
+            macroafter = "/startattack\n",
+        },
+    }),
+    RaptorStrikeQueue = Create({
+        Type = "Spell",
+        ID = 2973,
+        useMaxRank = true,
+        Desc = "Raptor Strike Queue",
+        MacroForbidden = true,
+        Click = {
+            autounit = "harm",
+            type = "spell",
+            macrobefore = "/stopcasting\n/startattack\n",
+            macroafter = "/startattack\n",
+        },
+    }),
     Readiness        = Create({ Type = "Spell", ID = 23989, Click = { unit = "player", type = "spell", spell = 23989 } }),
     SnakeTrap        = Create({ Type = "Spell", ID = 34600, Click = { unit = "player", type = "spell", spell = 34600 } }),
     TrackHidden      = Create({ Type = "Spell", ID = 19885, Click = { unit = "player", type = "spell", spell = 19885 } }),
@@ -98,8 +120,9 @@ Action[A.PlayerClass] = {
     WyvernSting      = Create({ Type = "Spell", ID = 19386, useMaxRank = true, Click = { autounit = "harm", type = "spell" } }),
 
     -- Talents
-    RapidKilling1 = Create({ Type = "Talent", ID = 34948 }),
-    RapidKilling2 = Create({ Type = "Talent", ID = 34949 }),
+    RapidKilling1 = Create({ Type = "Spell", ID = 34948, Hidden = true, isTalent = true }),
+    RapidKilling2 = Create({ Type = "Spell", ID = 34949, Hidden = true, isTalent = true }),
+    MortalShots   = Create({ Type = "Spell",  ID = 19485, Hidden = true, isTalent = true }),
 
     -- Misc / Buffs
     Heroism   = Create({ Type = "Spell", ID = 32182 }),
@@ -108,9 +131,9 @@ Action[A.PlayerClass] = {
 
     -- Items
     SuperHealingPotion = Create({ Type = "Potion", ID = 22829, QueueForbidden = true, Click = { unit = "player", type = "item", item = 22829 } }),
-    HSMaster1          = Create({ Type = "Spell", ID = 22105, Click = { unit = "player", type = "spell", spell = 22105 } }),
-    HSMaster2          = Create({ Type = "Spell", ID = 22104, Click = { unit = "player", type = "spell", spell = 22104 } }),
-    HSMaster3          = Create({ Type = "Spell", ID = 22103, Click = { unit = "player", type = "spell", spell = 22103 } }),
+    HSMaster1          = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
+    HSMaster2          = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
+    HSMaster3          = Create({ Type = "Item", ID = 22103, Click = { unit = "player", type = "item", item = 22103 } }),
     HastePotion        = Create({ Type = "Item", ID = 22838, Click = { unit = "player", type = "item", item = 22838 } }),
     MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
     DarkRune           = Create({ Type = "Item", ID = 20520, Click = { unit = "player", type = "item", item = 20520 } }),
@@ -118,6 +141,13 @@ Action[A.PlayerClass] = {
 
     -- Immunity/Pooling
     PoolResource = Create({ Type = "Spell", ID = 1, FixedTexture = 612968, Desc = "Target Immune - Stop DPS" }),
+    StartAttack = Create({
+        Type = "Spell",
+        ID = 6603,
+        FixedTexture = 132333,
+        Desc = "Start Melee Attack",
+        Click = { autounit = "harm", type = "spell", spell = 6603, macrobefore = "/stopcasting\n/startattack\n" },
+    }),
 
     -- Pet Attack
     PetAttack = Create({ Type = "Spell", ID = 1, FixedTexture = 134296, Desc = "Pet Attack", Macro = "/petattack" }),
@@ -135,7 +165,7 @@ local rotation_registry = NS.rotation_registry
 local cached_settings = NS.cached_settings
 local Pet = LibStub("PetLibrary")
 local Toaster = _G.Toaster
-local GetSpellTexture = _G.TMW.GetSpellTexture
+local GetSpellTexture = (_G.TMW and type(_G.TMW.GetSpellTexture) == "function" and _G.TMW.GetSpellTexture) or _G.GetSpellTexture
 
 local UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost
 local UnitRangedDamage = _G.UnitRangedDamage
@@ -145,6 +175,22 @@ local GetNumGroupMembers = _G.GetNumGroupMembers
 -- CONSTANTS
 -- ============================================================================
 local Constants = {}
+
+Constants.ARCANE_IMMUNE = NS.ARCANE_IMMUNE or {
+    [15691] = true,
+    [17096] = true,
+    [18864] = true,
+    [18865] = true,
+    [20478] = true,
+}
+NS.ARCANE_IMMUNE = NS.ARCANE_IMMUNE or Constants.ARCANE_IMMUNE
+
+-- NPCs the threat Feign Death should skip. Seeded with the Netherstrand
+-- Longbow (the bow Kael'thas hands out in Tempest Keep).
+Constants.NO_FEIGN = NS.NO_FEIGN or {
+    [21268] = true,  -- Netherstrand Longbow (Tempest Keep)
+}
+NS.NO_FEIGN = NS.NO_FEIGN or Constants.NO_FEIGN
 
 -- Immunity check tables (for AbsentImun calls)
 Constants.Temp = {
@@ -160,25 +206,30 @@ Constants.Temp = {
     DisableMag                  = {"TotalImun", "DamageMagicImun", "Freedom", "CCTotalImun"},
 }
 
--- PvP Immunity Spell IDs (from LibAuraTypes.lua TBC)
-Constants.TOTAL_IMUN  = { 642, 1020, 45438, 11958, 1022, 5599, 10278, 31224, 33786, 710, 18647 }
-Constants.PHYS_IMUN   = { 1022, 5599, 10278, 642, 1020, 45438, 11958, 33786, 710, 18647 }
-Constants.MAGIC_IMUN  = { 31224, 8178, 642, 1020, 45438, 11958, 33786 }
-Constants.CC_IMUN     = { 19574, 34471, 18499, 1719, 31224, 642, 1020, 45438, 11958, 33786 }
+-- PvP immunity: handled by the Action framework's maintained categories
+-- ("TotalImun"/"CCTotalImun"), matched in CheckImmuneOrDoNotAttack/CheckCCImmune.
+-- We intentionally do NOT keep our own PvP ID lists (they rot and drift).
 
--- PvE Boss Immunity Mechanics (TBC)
+-- PvE Boss Immunity Mechanics (TBC) — Flux-owned, hunter-tuned, matched BY ID.
+-- ONLY list "targetable but immune via an aura" cases; untargetable/despawned
+-- bosses (submerge, air phase, banish, invisibility) are already handled by the
+-- target/range checks. NEVER add an absorb shield you want to break (e.g. Kael
+-- Shock Barrier 36815) — that would wrongly pool DPS. Verify every ID against
+-- logs/Wowhead BEFORE adding (name lookups lie; e.g. 46165 == "Shock Barrier").
 Constants.PVE_IMMUNITY_BUFFS = {
-    39872,  -- Teron Gorefiend - Shadow of Death
-    41450,  -- Illidan - Demon Form transition
-    41451,  -- Illidan - Shadow Prison
-    40733,  -- Illidan - Flame Crash immunity
-    46165,  -- Felmyst - Demonic Vapor
-    38112,  -- Hydross - Mark transition immunity
-    45662,  -- Brutallus - Burn
-    46410,  -- Kil'jaeden - Darkness
-    46228,  -- Kil'jaeden - Sacrifice
-    30410,  -- Shade of Akama
-    43431,  -- Reliquary of Souls - Spirit Shock
+    38112,  -- Lady Vashj - Magic Barrier (Phase 2 damage immunity; clears at Phase 3)
+}
+
+-- Enrage/Frenzy self-buffs that Tranquilizing Shot should strip. Flux-owned,
+-- matched BY ID (HasBuffs) in [R-2]; OR'd with the framework's "Enrage" category.
+-- All verified as Dispel type: Enrage on Wowhead. Grow as more are spotted.
+Constants.TRANQ_ENRAGE = {
+    23342,  -- Frenzy (+150% atk speed, Fire Nova)
+    19451,  -- Frenzy (+150% atk speed, Lava Breath)
+    21340,  -- Berserk (+75% atk speed, Shadow Bolt Volley)
+    22428,  -- Frenzy (+100% atk speed)
+    26041,  -- Frenzy (+150% atk speed, Silence)
+    26051,  -- Frenzy (+150% atk speed, poison bolt)
 }
 
 -- Mana-using classes for Viper Sting
@@ -211,41 +262,38 @@ NS.Pet = Pet
 -- ============================================================================
 -- TOASTER REGISTRATION
 -- ============================================================================
-if Toaster then
+if Toaster and type(Toaster.Register) == "function" then
     Toaster:Register("TripToast", function(toast, ...)
         local title, message, spellID = ...
-        toast:SetTitle(title or "nil")
-        toast:SetText(message or "nil")
+        if toast.SetTitle then toast:SetTitle(title or "nil") end
+        if toast.SetText then toast:SetText(message or "nil") end
         if spellID then
             if type(spellID) ~= "number" then
-                toast:SetIconTexture("Interface\\FriendsFrame\\Battlenet-WoWicon")
+                if toast.SetIconTexture then toast:SetIconTexture("Interface\\FriendsFrame\\Battlenet-WoWicon") end
             else
-                toast:SetIconTexture((GetSpellTexture(spellID)))
+                if toast.SetIconTexture and GetSpellTexture then toast:SetIconTexture((GetSpellTexture(spellID))) end
             end
         else
-            toast:SetIconTexture("Interface\\FriendsFrame\\Battlenet-WoWicon")
+            if toast.SetIconTexture then toast:SetIconTexture("Interface\\FriendsFrame\\Battlenet-WoWicon") end
         end
-        toast:SetUrgencyLevel("normal")
+        if toast.SetUrgencyLevel then toast:SetUrgencyLevel("normal") end
     end)
 end
 
 -- ============================================================================
--- CACHED RANGE FUNCTIONS
+-- RANGE FUNCTIONS
 -- ============================================================================
 local function AtRange(unit)
     return A.ArcaneShot:IsInRange(unit)
 end
-AtRange = A.MakeFunctionCachedDynamic(AtRange)
 
 local function InMelee(unit)
     return A.WingClip:IsInRange(unit)
 end
-InMelee = A.MakeFunctionCachedDynamic(InMelee)
 
 local function GetRange(unit)
     return Unit(unit):GetRange() or 0
 end
-GetRange = A.MakeFunctionCachedDynamic(GetRange)
 
 NS.AtRange = AtRange
 NS.InMelee = InMelee
@@ -269,11 +317,13 @@ local function CheckImmuneOrDoNotAttack(unit)
     if not Unit(unit):IsExists() then return false end
 
     if A.IsInPvP then
-        if (Unit(unit):HasBuffs(Constants.TOTAL_IMUN) or 0) > 0 then return true end
-        if (Unit(unit):HasDeBuffs(Constants.TOTAL_IMUN) or 0) > 0 then return true end
+        -- PvP: use Action's maintained immunity category (Divine Shield, Ice Block, Banish, ...)
+        if (Unit(unit):HasBuffs("TotalImun") or 0) > 0 then return true end
+        if (Unit(unit):HasDeBuffs("TotalImun") or 0) > 0 then return true end
     else
-        if (Unit(unit):HasBuffs(Constants.PVE_IMMUNITY_BUFFS) or 0) > 0 then return true end
-        if (Unit(unit):HasDeBuffs(Constants.PVE_IMMUNITY_BUFFS) or 0) > 0 then return true end
+        -- PvE: Flux-owned list, matched BY ID (byID=true) to avoid spell-name collisions
+        if (Unit(unit):HasBuffs(Constants.PVE_IMMUNITY_BUFFS, nil, true) or 0) > 0 then return true end
+        if (Unit(unit):HasDeBuffs(Constants.PVE_IMMUNITY_BUFFS, nil, true) or 0) > 0 then return true end
     end
     return false
 end
@@ -281,11 +331,13 @@ end
 --- Check if target is CC-immune (PvP only)
 local function CheckCCImmune(unit)
     if not A.IsInPvP then return false end
-    return (Unit(unit):HasBuffs(Constants.CC_IMUN) or 0) > 0
+    -- PvP: use Action's maintained CC-immunity category
+    return (Unit(unit):HasBuffs("CCTotalImun") or 0) > 0
 end
 
 --- Should we use Wing Clip on this target?
 local function ShouldUseWingClip(unit)
+    if cached_settings.use_wing_clip == false then return false end
     if Unit(unit):IsBoss() then return false end
 
     local targetHP = Unit(unit):HealthPercent()
@@ -344,7 +396,7 @@ A.ShouldUseViperSting = ShouldUseViperSting
 -- ============================================================================
 rotation_registry:register_class({
     name = "Hunter",
-    version = "v1.7.1",
+    version = "v1.8.0",
     playstyles = { "ranged" },
     idle_playstyle_name = nil,
 

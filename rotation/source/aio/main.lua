@@ -99,6 +99,8 @@ function rotation_registry:execute_middleware(icon, context)
             end
             set_last_action(mw.name, "MW")
             return result
+         elseif debug_system and debug_print then
+            debug_print(format("[MW] NO_ACTION %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
          end
       end
       end
@@ -171,15 +173,16 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
          if passes then
             local result, log_msg = strategy.execute(icon, context, state)
 
-            if debug_mode and log_msg and debug_print then
-               debug_print(format("[%s] %s%s", playstyle:upper(), forced and "[FORCED] " or "", log_msg))
-            elseif debug_system and debug_print then
-               debug_print(format("[%s] EXECUTED %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
-            end
-
             if result then
+               if debug_mode and log_msg and debug_print then
+                  debug_print(format("[%s] %s%s", playstyle:upper(), forced and "[FORCED] " or "", log_msg))
+               elseif debug_system and debug_print then
+                  debug_print(format("[%s] EXECUTED %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
+               end
                set_last_action(strategy.name, playstyle)
                return result
+            elseif debug_system and debug_print then
+               debug_print(format("[%s] NO_ACTION %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
             end
          end
       end
