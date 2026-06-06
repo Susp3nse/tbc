@@ -264,6 +264,120 @@ function findCodeSnippets(lines, profileStart, profileEnd) {
   return null;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findNamedBracedSection(lines, profileStart, profileEnd, sectionName) {
+  const pattern = new RegExp(`^\\["${escapeRegExp(sectionName)}"\\]\\s*=\\s*\\{`);
+  for (let i = profileStart; i <= profileEnd; i++) {
+    if (lines[i].trim().match(pattern)) {
+      let braceDepth = 0;
+      let foundOpen = false;
+      for (let j = i; j <= profileEnd; j++) {
+        for (const ch of lines[j]) {
+          if (ch === '{') { braceDepth++; foundOpen = true; }
+          if (ch === '}') braceDepth--;
+        }
+        if (foundOpen && braceDepth <= 0) {
+          return { start: i, end: j };
+        }
+      }
+      break;
+    }
+  }
+  return null;
+}
+
+function findScalarLine(lines, profileStart, profileEnd, keyName) {
+  const pattern = new RegExp(`^\\["${escapeRegExp(keyName)}"\\]\\s*=`);
+  for (let i = profileStart; i <= profileEnd; i++) {
+    if (lines[i].trim().match(pattern)) return i;
+  }
+  return -1;
+}
+
+function replaceNamedBracedSection(targetLines, templateProfileLines, sectionName) {
+  const src = findNamedBracedSection(templateProfileLines, 0, templateProfileLines.length - 1, sectionName);
+  if (!src) return targetLines;
+
+  const srcLines = templateProfileLines.slice(src.start, src.end + 1);
+  const dst = findNamedBracedSection(targetLines, 0, targetLines.length - 1, sectionName);
+  if (dst) {
+    return [
+      ...targetLines.slice(0, dst.start),
+      ...srcLines,
+      ...targetLines.slice(dst.end + 1),
+    ];
+  }
+
+  // Insert before the profile-closing brace when the target profile lacks this section.
+  return [
+    ...targetLines.slice(0, -1),
+    ...srcLines,
+    targetLines[targetLines.length - 1],
+  ];
+}
+
+function replaceScalarFromTemplate(targetLines, templateProfileLines, keyName) {
+  const srcIndex = findScalarLine(templateProfileLines, 0, templateProfileLines.length - 1, keyName);
+  if (srcIndex < 0) return targetLines;
+
+  const dstIndex = findScalarLine(targetLines, 0, targetLines.length - 1, keyName);
+  if (dstIndex >= 0) {
+    const result = [...targetLines];
+    result[dstIndex] = templateProfileLines[srcIndex];
+    return result;
+  }
+
+  return [
+    targetLines[0],
+    templateProfileLines[srcIndex],
+    ...targetLines.slice(1),
+  ];
+}
+
+function loadTemplateProfileLines(templatePath) {
+  const effectiveTemplatePath = templatePath && fs.existsSync(templatePath)
+    ? templatePath
+    : (fs.existsSync(TEMPLATE_PATH) ? TEMPLATE_PATH : null);
+  if (!effectiveTemplatePath) return null;
+
+  const templateLines = fs.readFileSync(effectiveTemplatePath, 'utf8').split(/\r?\n/);
+  const tmplProfilesSection = findBracedSection(templateLines, /^\["profiles"\]\s*=\s*\{/);
+  if (!tmplProfilesSection) {
+    console.error('  ERROR: No ["profiles"] section in template');
+    return null;
+  }
+
+  for (let i = tmplProfilesSection.start + 1; i <= tmplProfilesSection.end; i++) {
+    if (templateLines[i].trim().match(/^\[".+"\]\s*=\s*\{/)) {
+      let depth = 0;
+      for (let j = i; j <= tmplProfilesSection.end; j++) {
+        for (const ch of templateLines[j]) {
+          if (ch === '{') depth++;
+          if (ch === '}') depth--;
+        }
+        if (depth <= 0) {
+          return templateLines.slice(i, j + 1);
+        }
+      }
+      break;
+    }
+  }
+
+  console.error('  ERROR: Could not find profile skeleton in template');
+  return null;
+}
+
+function refreshManagedProfileScaffold(profileLines, templateProfileLines) {
+  let result = profileLines;
+  result = replaceNamedBracedSection(result, templateProfileLines, 'Groups');
+  result = replaceScalarFromTemplate(result, templateProfileLines, 'NumGroups');
+  result = replaceScalarFromTemplate(result, templateProfileLines, 'TextureName');
+  return result;
+}
+
 /**
  * Find a profile by name inside ["profiles"] = { ... }.
  * Returns { start, end } or null.
@@ -351,10 +465,12 @@ function removeProfile(lines, profileName) {
 function syncProfile(lines, profileName, modules, templatePath) {
   const snippetLines = buildCodeSnippets(modules);
   const profile = findProfile(lines, profileName);
+  const templateProfileLines = loadTemplateProfileLines(templatePath);
 
   if (profile) {
-    // Profile exists — replace CodeSnippets only
-    const cs = findCodeSnippets(lines, profile.start, profile.end);
+    // Profile exists — replace CodeSnippets and the managed TMW scaffold.
+    let existingProfileLines = lines.slice(profile.start, profile.end + 1);
+    const cs = findCodeSnippets(existingProfileLines, 0, existingProfileLines.length - 1);
     if (!cs) {
       // Profile is incomplete (no CodeSnippets) — strip it and rebuild from template
       // so it gets proper Groups, Icons, Conditions, and ActionDB
@@ -365,10 +481,18 @@ function syncProfile(lines, profileName, modules, templatePath) {
       ];
       // Fall through to create-from-template below
     } else {
-      return [
-        ...lines.slice(0, cs.start),
+      existingProfileLines = [
+        ...existingProfileLines.slice(0, cs.start),
         ...snippetLines,
-        ...lines.slice(cs.end + 1),
+        ...existingProfileLines.slice(cs.end + 1),
+      ];
+      if (templateProfileLines) {
+        existingProfileLines = refreshManagedProfileScaffold(existingProfileLines, templateProfileLines);
+      }
+      return [
+        ...lines.slice(0, profile.start),
+        ...existingProfileLines,
+        ...lines.slice(profile.end + 1),
       ];
     }
   }
@@ -376,11 +500,7 @@ function syncProfile(lines, profileName, modules, templatePath) {
   // Profile doesn't exist — create from template
   console.log(`  Creating new profile "${profileName}" from template...`);
 
-  let templateLines;
-  if (templatePath && fs.existsSync(templatePath)) {
-    const tmpl = fs.readFileSync(templatePath, 'utf8');
-    templateLines = tmpl.split(/\r?\n/);
-  } else {
+  if (!templateProfileLines) {
     // Minimal profile if no template
     console.log('  WARNING: No template found, creating minimal profile');
     const newProfile = [
@@ -405,38 +525,8 @@ function syncProfile(lines, profileName, modules, templatePath) {
     return result;
   }
 
-  // Extract first profile from template's ["profiles"] as skeleton
-  const tmplProfilesSection = findBracedSection(templateLines, /^\["profiles"\]\s*=\s*\{/);
-  if (!tmplProfilesSection) {
-    console.error('  ERROR: No ["profiles"] section in template');
-    return lines;
-  }
-
-  let tmplProfile = null;
-  for (let i = tmplProfilesSection.start + 1; i <= tmplProfilesSection.end; i++) {
-    if (templateLines[i].trim().match(/^\[".+"\]\s*=\s*\{/)) {
-      let depth = 0;
-      for (let j = i; j <= tmplProfilesSection.end; j++) {
-        for (const ch of templateLines[j]) {
-          if (ch === '{') depth++;
-          if (ch === '}') depth--;
-        }
-        if (depth <= 0) {
-          tmplProfile = { start: i, end: j };
-          break;
-        }
-      }
-      break;
-    }
-  }
-
-  if (!tmplProfile) {
-    console.error('  ERROR: Could not find profile skeleton in template');
-    return lines;
-  }
-
   // Clone the template profile, rename it, replace CodeSnippets
-  let profileLines = templateLines.slice(tmplProfile.start, tmplProfile.end + 1);
+  let profileLines = [...templateProfileLines];
   profileLines[0] = `["${profileName}"] = {`;
 
   const clonedCS = findCodeSnippets(profileLines, 0, profileLines.length - 1);
