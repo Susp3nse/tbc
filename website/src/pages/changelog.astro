@@ -15,6 +15,17 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.14.0 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-feature">Feature</span>
+
+      <h3>Build &amp; Display System</h3>
+      <ul class="features">
+        <li><strong>Managed Multi-Group Display Scaffold</strong> &mdash; The TMW profile template moved from a single icon group to a managed multi-group layout (Shown Main / Hidden APL / Visible APL). This is shared display plumbing every class builds on, so a rotation can expose a hidden action-priority group plus a toggle-gated visible display without each class hand-maintaining its own group structure.</li>
+        <li><strong>Scaffold Refreshes on Every Sync</strong> &mdash; The build now refreshes the managed group structure (groups, group count, texture) into existing profiles on every sync, not just on first creation, so older profiles upgrade to the new layout automatically. Note: this means in-game manual tweaks to group scale/columns/position are overwritten on the next sync &mdash; the group layout is build-managed.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.13.2 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-fix">Fix</span>
 
