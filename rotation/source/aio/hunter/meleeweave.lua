@@ -26,7 +26,7 @@ local GetSpellInfo     = _G.GetSpellInfo
 local UnitGUID         = _G.UnitGUID
 local UnitRangedDamage = _G.UnitRangedDamage
 local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
-local Listener         = _G.Listener
+local Listener         = A.Listener
 
 local BACKDROP = {
     bgFile   = "Interface\\Buttons\\WHITE8X8",
