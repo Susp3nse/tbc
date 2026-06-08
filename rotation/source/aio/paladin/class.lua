@@ -359,7 +359,8 @@ rotation_registry:register_class({
         else
             ctx.time_to_swing = 0
         end
-        ctx.in_twist_window = ctx.time_to_swing > 0 and ctx.time_to_swing <= Constants.TWIST.WINDOW
+        local twist_window = ctx.settings.ret_twist_window or Constants.TWIST.WINDOW
+        ctx.in_twist_window = ctx.time_to_swing > 0 and ctx.time_to_swing <= twist_window
 
         -- Sync framework AutoTarget with our use_auto_tab setting:
         -- When our smart Auto Tab is enabled, disable the native one (we manage targeting).

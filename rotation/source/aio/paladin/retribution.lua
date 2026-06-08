@@ -68,6 +68,7 @@ local ret_state = {
     target_undead_or_demon = false,
     judgement_cd_remaining = 0,
     spell_gcd = 1.5,
+    twist_window = 0.4,
 }
 
 local function get_ret_state(context)
@@ -79,6 +80,9 @@ local function get_ret_state(context)
     ret_state.seal_command_active = context.seal_command_active
     ret_state.in_twist_window = context.in_twist_window
     ret_state.time_to_swing = context.time_to_swing
+    -- Configurable twist lead (seconds before the swing). Default 0.40s (~server batch
+    -- window); raise for latency. Drives both the twist window and the prep lead.
+    ret_state.twist_window = context.settings.ret_twist_window or Constants.TWIST.WINDOW
 
     -- Mana thresholds (from wowsims)
     ret_state.low_mana = context.mana <= Constants.TWIST.LOW_MANA
@@ -299,7 +303,7 @@ local Ret_JudgeSeal = {
         -- inside the prep lead band; in the resident phase an early judge would force a
         -- re-seal whose GCD can eat the prep window (missed twist).
         if state.should_twist and judge == "blood" and state.time_to_swing > 0 then
-            local lead = Constants.TWIST.WINDOW + state.spell_gcd
+            local lead = state.twist_window + state.spell_gcd
             if state.time_to_swing < lead or state.time_to_swing > lead + PREP_LEAD_BUFFER then
                 return false
             end
@@ -323,12 +327,13 @@ local Ret_CrusaderStrike = {
         if not context.settings.ret_use_crusader_strike then return false end
         -- Don't waste GCD on CS without a seal active — let MaintainSealFallback re-seal first
         if not context.has_any_seal then return false end
-        -- Only protect the actual 0.4s twist window so the Command-twist cast isn't
-        -- clipped. We intentionally do NOT block the whole last ~1.5s before a swing:
-        -- that pinned CS to one slot per swing and stretched its real interval to 9-11s
-        -- instead of firing near its 6s cooldown. CS damage + the Judgement-of-the-
-        -- Crusader refresh (which keeps the +3% raid crit up) outrank a skipped twist.
-        if state.should_twist and state.in_twist_window then
+        -- Once Seal of Command is prepped for a twist (or we're in the twist window),
+        -- DON'T fire CS — let the Command -> Blood twist land. CS firing here clips the
+        -- twist: its GCD runs into the window, the swing procs Command instead of
+        -- twisting into Blood, and the prep is wasted. CS fires freely while Blood is the
+        -- resident seal (the start/middle of the swing) — which is "CS at the start of an
+        -- auto-attack" and when it's most useful anyway.
+        if state.should_twist and (state.seal_command_active or state.in_twist_window) then
             return false
         end
         return true
@@ -356,7 +361,7 @@ local Ret_PrepCommand = {
         -- Prep lead band: [window+gcd, window+gcd+PREP_LEAD_BUFFER]. Below the band it's
         -- too late to prep AND twist (skip this swing, Blood just rides); above it we'd
         -- hold Command too long and steal Blood's uptime.
-        local lead = Constants.TWIST.WINDOW + state.spell_gcd
+        local lead = state.twist_window + state.spell_gcd
         if state.time_to_swing < lead or state.time_to_swing > lead + PREP_LEAD_BUFFER then
             return false
         end
@@ -387,7 +392,7 @@ local Ret_MaintainBlood = {
         if state.seal_blood_active then return false end
         -- In the pre-twist lead/window, let PrepCommand + TwistBlood drive the seal.
         if state.should_twist and state.time_to_swing > 0 then
-            local lead = Constants.TWIST.WINDOW + state.spell_gcd
+            local lead = state.twist_window + state.spell_gcd
             if state.time_to_swing <= lead + PREP_LEAD_BUFFER then return false end
         end
         -- Don't override Seal of Wisdom during mana recovery.
@@ -417,8 +422,8 @@ local Ret_HammerOfWrath = {
         if not state.target_below_20 then return false end
         -- Skip when mana is critical — strip to SoB+CS+Judge only (wowsims)
         if state.low_mana then return false end
-        -- Don't clip twist
-        if state.should_twist and state.in_twist_window then return false end
+        -- Don't clip a prepped Command twist (or the twist window)
+        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
         return true
     end,
 
@@ -438,8 +443,8 @@ local Ret_Exorcism = {
         if context.is_moving then return false end
         if not state.target_undead_or_demon then return false end
         if not state.can_exorcism then return false end
-        -- Don't clip twist window
-        if state.should_twist and state.in_twist_window then return false end
+        -- Don't clip a prepped Command twist (or the twist window)
+        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
         -- Need enough time before next swing for the 1.5s cast
         if state.should_twist and state.time_to_swing > 0 and state.time_to_swing < 2.0 then return false end
         return true
@@ -463,8 +468,8 @@ local Ret_Consecration = {
         -- AoE threshold check
         local aoe_thresh = context.settings.ret_aoe_threshold or 0
         if aoe_thresh > 0 and context.enemy_count < aoe_thresh then return false end
-        -- Don't clip twist window
-        if state.should_twist and state.in_twist_window then return false end
+        -- Don't clip a prepped Command twist (or the twist window)
+        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
         return true
     end,
 
@@ -484,8 +489,8 @@ local Ret_HolyWrath = {
         if not state.target_undead_or_demon then return false end
         if context.enemy_count < 3 then return false end
         if context.mana_pct < 40 then return false end
-        -- Don't clip twist window
-        if state.should_twist and state.in_twist_window then return false end
+        -- Don't clip a prepped Command twist (or the twist window)
+        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
         return true
     end,
 

@@ -79,6 +79,9 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
                   { value = "r1", text = "Rank 1 (recommended)" },
                   { value = "max", text = "Max Rank" },
               }},
+            { type = "slider", key = "ret_twist_window", default = 0.4, min = 0.25, max = 0.8, step = 0.05,
+              label = "Twist Lead", format = "%.2fs",
+              tooltip = "How early before your swing lands to twist into Blood. ~0.40s matches the server batch window. Raise it to compensate for latency; too high and Command's overlap expires before the swing (twist fails). Also shifts the Command prep earlier to match." },
         }},
         { header = "Abilities", settings = {
             { type = "checkbox", key = "ret_use_crusader_strike", default = true, label = "Crusader Strike",
