@@ -15,6 +15,18 @@ import { url } from '../config';
     </section>
 
     <section class="section changelog-entry">
+      <h2>v1.16.0 <span class="changelog-date">2026</span></h2>
+      <span class="changelog-tag tag-feature">Feature</span>
+      <span class="changelog-tag tag-fix">Fix</span>
+
+      <h3>Paladin &mdash; Retribution</h3>
+      <ul class="features">
+        <li><strong>Configurable Twist Lead</strong> &mdash; New <em>Twist Lead</em> slider (Retribution &gt; Seal Twisting, default 0.40s, range 0.25&ndash;0.80s) controls how early before your swing the rotation twists into Seal of Blood. Raise it to compensate for latency &mdash; the whole Command-prep &rarr; twist sequence shifts earlier together.</li>
+        <li><strong>Crusader Strike No Longer Clips the Twist</strong> &mdash; Once Seal of Command was prepped, Crusader Strike and fillers (Hammer of Wrath, Exorcism, Consecration, Holy Wrath) could still fire in the ~1s before the swing, running their GCD into the twist window so the swing procced Command instead of twisting into Blood. They now hold once a twist is committed and only fire while Blood is the resident seal, sharply increasing twist count.</li>
+      </ul>
+    </section>
+
+    <section class="section changelog-entry">
       <h2>v1.15.0 <span class="changelog-date">2026</span></h2>
       <span class="changelog-tag tag-feature">Feature</span>
       <span class="changelog-tag tag-fix">Fix</span>
