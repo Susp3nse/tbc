@@ -10,7 +10,7 @@ This is a monorepo with three packages:
 
 | Package | Description |
 |---------|-------------|
-| `rotation/` | Core WoW rotation addon (Lua source + Node.js build system) |
+| `rotation/` | Core WoW rotation addon (Lua source + TypeScript build system) |
 | `website/` | Static site for script distribution and documentation (Astro) |
 | `discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
 
@@ -51,7 +51,7 @@ The rotation uses a **Strategy Registry** pattern:
 1. **Middleware** — shared logic (recovery, cooldowns, buffs, dispels) that runs first, priority-ordered
 2. **Strategies** — playstyle-specific rotations registered per form/spec
 
-Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`rotation/build.js`) auto-discovers class modules and compiles them into a single TMW profile.
+Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 

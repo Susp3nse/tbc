@@ -1,0 +1,141 @@
+[16:55:30] Watching C:\Users\Corde\tbc\rotation\source\aio — 9 class(es) (druid: 15 modules, hunter: 15 modules, mage: 12 modules, paladin: 13 modules, priest: 14 modules, rogue: 12 modules, shaman: 12 modules, warlock: 12 modules, warrior: 13 modules)
+[16:55:30] Syncing to 1 account(s): 371499864#1
+[16:55:30] Synced: Flux Druid (15 modules, 68ms)
+[16:55:30] Synced: Flux Hunter (15 modules, 108ms)
+[16:55:30] Synced: Flux Mage (12 modules, 134ms)
+[16:55:30] Synced: Flux Paladin (13 modules, 179ms)
+[16:55:30] Synced: Flux Priest (14 modules, 207ms)
+[16:55:30] Synced: Flux Rogue (12 modules, 235ms)
+[16:55:30] Synced: Flux Shaman (12 modules, 265ms)
+[16:55:30] Synced: Flux Warlock (12 modules, 290ms)
+[16:55:30] Synced: Flux Warrior (13 modules, 318ms)
+[16:55:30] Watching for changes... (Ctrl+C to stop)
+[16:55:30] Watching SavedVariables for external changes (e.g. /reload)
+[17:04:31] Changed: druid/class.lua
+[17:04:31] Synced: Flux Druid (15 modules, 60ms)
+[17:04:31] Synced: Flux Hunter (15 modules, 87ms)
+[17:04:32] Synced: Flux Mage (12 modules, 112ms)
+[17:04:32] Synced: Flux Paladin (13 modules, 141ms)
+[17:04:32] Synced: Flux Priest (14 modules, 169ms)
+[17:04:32] Synced: Flux Rogue (12 modules, 196ms)
+[17:04:32] Synced: Flux Shaman (12 modules, 221ms)
+[17:04:32] Synced: Flux Warlock (12 modules, 245ms)
+[17:04:32] Synced: Flux Warrior (13 modules, 272ms)
+[17:04:56] Changed: druid/class.lua
+[17:04:56] Synced: Flux Druid (15 modules, 50ms)
+[17:04:56] Synced: Flux Hunter (15 modules, 77ms)
+[17:04:56] Synced: Flux Mage (12 modules, 101ms)
+[17:04:56] Synced: Flux Paladin (13 modules, 126ms)
+[17:04:56] Synced: Flux Priest (14 modules, 152ms)
+[17:04:56] Synced: Flux Rogue (12 modules, 175ms)
+[17:04:56] Synced: Flux Shaman (12 modules, 200ms)
+[17:04:56] Synced: Flux Warlock (12 modules, 224ms)
+[17:04:56] Synced: Flux Warrior (13 modules, 251ms)
+[17:05:09] Changed: druid/class.lua
+[17:05:09] Synced: Flux Druid (15 modules, 50ms)
+[17:05:09] Synced: Flux Hunter (15 modules, 77ms)
+[17:05:09] Synced: Flux Mage (12 modules, 101ms)
+[17:05:09] Synced: Flux Paladin (13 modules, 127ms)
+[17:05:09] Synced: Flux Priest (14 modules, 152ms)
+[17:05:09] Synced: Flux Rogue (12 modules, 175ms)
+[17:05:09] Synced: Flux Shaman (12 modules, 200ms)
+[17:05:09] Synced: Flux Warlock (12 modules, 222ms)
+[17:05:09] Synced: Flux Warrior (13 modules, 248ms)
+[17:07:30] [RELOAD] SavedVariables overwritten externally — re-syncing all classes
+[17:07:30] Synced: Flux Druid (15 modules, 48ms)
+[17:07:30] Synced: Flux Hunter (15 modules, 75ms)
+[17:07:30] Synced: Flux Mage (12 modules, 98ms)
+[17:07:30] Synced: Flux Paladin (13 modules, 123ms)
+[17:07:30] Synced: Flux Priest (14 modules, 147ms)
+[17:07:31] Synced: Flux Rogue (12 modules, 169ms)
+[17:07:31] Synced: Flux Shaman (12 modules, 193ms)
+[17:07:31] Synced: Flux Warlock (12 modules, 215ms)
+[17:07:31] Synced: Flux Warrior (13 modules, 240ms)
+[17:14:06] [RELOAD] SavedVariables overwritten externally — re-syncing all classes
+[17:14:07] Synced: Flux Druid (15 modules, 51ms)
+[17:14:07] Synced: Flux Hunter (15 modules, 79ms)
+[17:14:07] Synced: Flux Mage (12 modules, 103ms)
+[17:14:07] Synced: Flux Paladin (13 modules, 127ms)
+[17:14:07] Synced: Flux Priest (14 modules, 151ms)
+[17:14:07] Synced: Flux Rogue (12 modules, 175ms)
+[17:14:07] Synced: Flux Shaman (12 modules, 200ms)
+[17:14:07] Synced: Flux Warlock (12 modules, 223ms)
+[17:14:07] Synced: Flux Warrior (13 modules, 249ms)
+[17:29:18] Changed: druid/balance.lua
+[17:29:18] Changed: druid/bear.lua
+[17:29:18] Changed: druid/caster.lua
+[17:29:18] Changed: druid/cat.lua
+[17:29:18] Changed: ui.lua (shared)
+[17:29:18] Changed: warrior/arms.lua
+[17:29:18] Changed: druid/schema.lua
+[17:29:18] Changed: warlock/affliction.lua
+[17:29:18] Changed: warlock/class.lua
+[17:29:18] Changed: druid/middleware.lua
+[17:29:18] Changed: warlock/destruction.lua
+[17:29:18] Changed: warrior/schema.lua
+[17:29:18] Changed: mage/schema.lua
+[17:29:18] Changed: warlock/demonology.lua
+[17:29:18] Changed: priest/discipline.lua
+[17:29:18] Changed: warrior/protection.lua
+[17:29:18] Changed: warlock/schema.lua
+[17:29:18] Changed: warlock/middleware.lua
+[17:29:18] Changed: warrior/kebab.lua
+[17:29:18] Changed: warrior/fury.lua
+[17:29:18] Changed: shaman/schema.lua
+[17:29:18] Changed: mage/middleware.lua
+[17:29:18] Changed: priest/class.lua
+[17:29:18] Changed: hunter/class.lua
+[17:29:18] Changed: hunter/debugui.lua
+[17:29:18] Changed: shaman/restoration.lua
+[17:29:18] Changed: hunter/meleeweave.lua
+[17:29:18] Changed: hunter/adaptivepanel.lua
+[17:29:18] Changed: hunter/middleware.lua
+[17:29:18] Changed: mage/frost.lua
+[17:29:18] Changed: shaman/enhancement.lua
+[17:29:18] Changed: hunter/cliptracker.lua
+[17:29:18] Changed: priest/smite.lua
+[17:29:18] Changed: mage/fire.lua
+[17:29:18] Changed: shaman/elemental.lua
+[17:29:18] Changed: hunter/schema.lua
+[17:29:18] Changed: mage/arcane.lua
+[17:29:18] Changed: hunter/adaptive.lua
+[17:29:18] Changed: hunter/rotation.lua
+[17:29:18] Changed: shaman/class.lua
+[17:29:18] Changed: priest/shadow.lua
+[17:29:18] Changed: mage/class.lua
+[17:29:18] Changed: priest/holy.lua
+[17:29:18] Changed: priest/middleware.lua
+[17:29:18] Changed: priest/schema.lua
+[17:29:18] Changed: priest/healing.lua
+[17:29:18] Changed: paladin/healing.lua
+[17:29:18] Changed: rogue/assassination.lua
+[17:29:18] Changed: paladin/holy.lua
+[17:29:18] Changed: paladin/middleware.lua
+[17:29:18] Changed: paladin/protection.lua
+[17:29:18] Changed: rogue/combat.lua
+[17:29:18] Changed: rogue/class.lua
+[17:29:18] Changed: paladin/schema.lua
+[17:29:18] Changed: rogue/middleware.lua
+[17:29:18] Changed: rogue/schema.lua
+[17:29:18] Changed: paladin/retribution.lua
+[17:29:18] Changed: rogue/subtlety.lua
+[17:29:18] Synced: Flux Druid (15 modules, 52ms)
+[17:29:18] Synced: Flux Hunter (15 modules, 83ms)
+[17:29:18] Synced: Flux Mage (12 modules, 107ms)
+[17:29:18] Synced: Flux Paladin (13 modules, 133ms)
+[17:29:19] Synced: Flux Priest (14 modules, 158ms)
+[17:29:19] Synced: Flux Rogue (12 modules, 185ms)
+[17:29:19] Synced: Flux Shaman (12 modules, 210ms)
+[17:29:19] Synced: Flux Warlock (12 modules, 235ms)
+[17:29:19] Synced: Flux Warrior (13 modules, 261ms)
+[17:29:42] Changed: main.lua (shared)
+[17:29:42] Changed: settings.lua (shared)
+[17:29:42] Synced: Flux Druid (15 modules, 52ms)
+[17:29:42] Synced: Flux Hunter (15 modules, 81ms)
+[17:29:42] Synced: Flux Mage (12 modules, 104ms)
+[17:29:42] Synced: Flux Paladin (13 modules, 130ms)
+[17:29:42] Synced: Flux Priest (14 modules, 155ms)
+[17:29:42] Synced: Flux Rogue (12 modules, 180ms)
+[17:29:42] Synced: Flux Shaman (12 modules, 207ms)
+[17:29:42] Synced: Flux Warlock (12 modules, 230ms)
+[17:29:42] Synced: Flux Warrior (13 modules, 267ms)

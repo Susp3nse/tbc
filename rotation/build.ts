@@ -5,19 +5,21 @@
  * Used both as a CLI tool and as a module imported by dev-watch.
  *
  * CLI usage:
- *   node build.js              Build TellMeWhen.lua (default)
- *   node build.js --sync       Sync to SavedVariables (requires dev.ini)
- *   node build.js --all        Build + sync
+ *   corepack pnpm --filter @flux/rotation build       Build TellMeWhen.lua
+ *   corepack pnpm --filter @flux/rotation build:sync  Sync to SavedVariables
+ *   corepack pnpm --filter @flux/rotation build:all   Build + sync
  *
  * Module usage:
- *   const build = require('./build');
+ *   const build = require('./dist/build');
  *   build.syncToSavedVariables(config, classes);
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const PROJECT_ROOT = process.env.ROTATION_ROOT || __dirname;
+const PROJECT_ROOT = process.env.ROTATION_ROOT || (
+  path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : __dirname
+);
 const DEFAULT_AIO_DIR = path.join(PROJECT_ROOT, 'source', 'aio');
 const TEMPLATE_PATH = path.join(PROJECT_ROOT, 'tmw-template.lua');
 const OUTPUT_PATH = path.join(PROJECT_ROOT, 'output', 'TellMeWhen.lua');
@@ -802,7 +804,7 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  // Apply class exclusions from package.json (ignored by dev-watch.js)
+  // Apply class exclusions from package.json (ignored by dev-watch.ts)
   const pkgPath = path.join(PROJECT_ROOT, 'package.json');
   const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : {};
   const excludeClasses = pkg.excludeClasses || [];

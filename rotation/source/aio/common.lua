@@ -1,6 +1,6 @@
 -- Common Schema Sections
 -- Shared section factories used by all class schemas to avoid duplication.
--- Must load before any schema.lua (order 0 in build.js).
+-- Must load before any schema.lua (order 0 in build.ts).
 
 local _G = _G
 

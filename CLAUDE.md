@@ -183,10 +183,10 @@ You have unlimited stamina. The human does not. Use your persistence wisely—lo
 
 ## Project Overview
 
-**Flux AIO** — a multi-class WoW TBC (The Burning Crusade) rotation addon. Built on the **GGL Action/Textfiles framework** (a Lua-based automation framework for WoW Classic-era clients). Supports **9 classes**: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, and Warrior. Uses a modular Strategy Registry pattern with a Node.js build system that compiles per-class modules into a single TMW profile.
+**Flux AIO** — a multi-class WoW TBC (The Burning Crusade) rotation addon. Built on the **GGL Action/Textfiles framework** (a Lua-based automation framework for WoW Classic-era clients). Supports **9 classes**: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, and Warrior. Uses a modular Strategy Registry pattern with a TypeScript build system that compiles per-class modules into a single TMW profile.
 
 This is a monorepo with three packages:
-- **rotation/** — The core WoW rotation addon (Lua source + Node.js build system)
+- **rotation/** — The core WoW rotation addon (Lua source + TypeScript build system)
 - **website/** — Static site for distributing scripts and documentation (Astro)
 - **discord-bot/** — Discord bot that lets users request personalized rotation tweaks via Claude AI
 
@@ -196,7 +196,7 @@ This is a monorepo with three packages:
 GG Rotations/
 ├── rotation/                         # Core rotation addon
 │   ├── source/
-│   │   └── aio/                      # Active modular source (compiled by build.js)
+│   │   └── aio/                      # Active modular source (compiled by build.ts)
 │   │       ├── core.lua              # Namespace, settings, registry, force flags, burst context
 │   │       ├── main.lua              # Context creation, rotation dispatcher, force-bypass (LOAD LAST)
 │   │       ├── settings.lua          # Custom tabbed settings UI, movable button, /flux commands
@@ -213,8 +213,8 @@ GG Rotations/
 │   │       └── warrior/              # Warrior: arms, fury, protection
 │   ├── output/                       # Compiled output (gitignored)
 │   │   └── TellMeWhen.lua
-│   ├── build.js                      # Build script: discovers modules, compiles AIO
-│   ├── dev-watch.js                  # File watcher: auto-rebuild + sync to SavedVariables
+│   ├── build.ts                      # Build script: discovers modules, compiles AIO
+│   ├── dev-watch.ts                  # File watcher: auto-rebuild + sync to SavedVariables
 │   ├── dev.ini                       # Local dev config (gitignored)
 │   ├── tmw-template.lua              # TMW profile template (icons, groups, bars)
 │   └── package.json
@@ -238,14 +238,13 @@ GG Rotations/
 
 ## Build System
 
-The build system (`rotation/build.js`) auto-discovers class modules and compiles them into a single TMW profile:
+The build system (`rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile:
 
 ```bash
-cd rotation
-node build.js              # Build output/TellMeWhen.lua
-node build.js --sync       # Sync to SavedVariables (requires dev.ini)
-node build.js --all        # Build + sync
-node dev-watch.js          # Watch for changes, auto-rebuild + sync
+corepack pnpm --filter @flux/rotation build        # Build output/TellMeWhen.lua
+corepack pnpm --filter @flux/rotation build:sync   # Sync to SavedVariables (requires dev.ini)
+corepack pnpm --filter @flux/rotation build:all    # Build + sync
+corepack pnpm --filter @flux/rotation watch        # Watch for changes, auto-rebuild + sync
 ```
 
 Or via pnpm scripts: `pnpm --filter @flux/rotation build`, `pnpm --filter @flux/rotation watch`
@@ -256,7 +255,7 @@ Or via pnpm scripts: `pnpm --filter @flux/rotation build`, `pnpm --filter @flux/
 
 ## Module Load Order
 
-Load order is managed by `build.js` ORDER_MAP. Shared modules and class modules interleave:
+Load order is managed by `build.ts` ORDER_MAP. Shared modules and class modules interleave:
 
 1. **schema.lua** (class) → Settings schema, `ProfileEnabled`
 2. **ui.lua** (shared) → ProfileUI generator
@@ -449,12 +448,12 @@ All magic numbers are in the `Constants` table (defined in Core):
 
 ## Development Notes
 
-- **Build system**: `cd rotation && node build.js` compiles modules → `output/TellMeWhen.lua`. Use `node dev-watch.js` for auto-rebuild on save
+- **Build system**: `corepack pnpm --filter @flux/rotation build` compiles modules → `output/TellMeWhen.lua`. Use `corepack pnpm --filter @flux/rotation watch` for auto-rebuild on save
 - **Lua 5.1** syntax (WoW's embedded interpreter)
 - **200 local variable limit** per function scope (Lua constraint)
 - **Frame rate sensitive** - Rotation runs every frame; avoid allocations in hot paths
 - **Modular architecture** - Each module validates its dependencies before loading; class modules gate on `A.PlayerClass`
-- **File naming**: Lowercase single words only (no underscores/hyphens/spaces) — enforced by build.js
+- **File naming**: Lowercase single words only (no underscores/hyphens/spaces) — enforced by build.ts
 - Referenced libraries in `TBC-main/` and `Addon Libraries/` are external dependencies (gitignored)
 - `docs/api/` contains Lua type stubs for IDE IntelliSense
 - `docs/reference/` contains API reference documentation
@@ -470,7 +469,7 @@ When the user says "review PR ##, merge, and tag a release" (or similar), perfor
 3. **Bump versions** (semver: patch for bugfix, minor for new feature / new setting, major for breaking change):
    - `rotation/package.json` `"version"` field
    - The per-class file the PR actually touched, e.g. `rotation/source/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
-   - Verify the build: `node rotation/build.js`
+   - Verify the build: `corepack pnpm --filter @flux/rotation build`
 
 4. **Update the website changelog** at `website/src/pages/changelog.astro`. Insert a new `<section class="section changelog-entry">` at the **top** (above the existing topmost entry), mirroring its format: `<h2>vX.Y.Z</h2>`, the appropriate `<span class="changelog-tag tag-feature">Feature</span>` or `tag-fix`, one `<h3>` per class touched, `<ul class="features">` with `<li><strong>Title</strong> &mdash; description</li>`.
 

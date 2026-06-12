@@ -76,7 +76,9 @@ header "[5/6] Installing dependencies & rebuilding"
 corepack enable
 pnpm install --frozen-lockfile
 cd "$NEW_DIR/rotation"
-node build.js
+pnpm run build
+cd "$NEW_DIR/discord-bot"
+pnpm run build
 ok "Dependencies installed, rotation built"
 
 # ─── 6. Install new service & start ───
@@ -95,7 +97,7 @@ Wants=network-online.target
 Type=simple
 User=$(whoami)
 WorkingDirectory=$BOT_DIR
-ExecStart=$NODE_PATH src/index.js
+ExecStart=$NODE_PATH dist/index.js
 Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production

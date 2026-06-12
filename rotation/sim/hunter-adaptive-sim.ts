@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @ts-nocheck
+
 /*
  * Offline harness for the Hunter adaptive rotation.
  *
@@ -197,7 +199,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node rotation/sim/hunter-adaptive-sim.js [options]
+  console.log(`Usage: corepack pnpm --filter @flux/rotation sim:hunter -- [options]
 
 Options:
   --list                 List built-in scenarios
@@ -230,11 +232,11 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  node rotation/sim/hunter-adaptive-sim.js
-  node rotation/sim/hunter-adaptive-sim.js --trace ultra-15
-  node rotation/sim/hunter-adaptive-sim.js --speed 1.05 --duration 20
-  node rotation/sim/hunter-adaptive-sim.js --trace ultra-15 --no-arcane --multi-start-cd 4
-  node rotation/sim/hunter-adaptive-sim.js --timer-matrix ultra-15 --drop-autos 3 --action-delay 0.20 --no-asserts
+  corepack pnpm --filter @flux/rotation sim:hunter
+  corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15
+  corepack pnpm --filter @flux/rotation sim:hunter -- --speed 1.05 --duration 20
+  corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15 --no-arcane --multi-start-cd 4
+  corepack pnpm --filter @flux/rotation sim:hunter -- --timer-matrix ultra-15 --drop-autos 3 --action-delay 0.20 --no-asserts
 `);
 }
 

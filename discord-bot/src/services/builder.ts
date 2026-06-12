@@ -19,7 +19,7 @@ export async function createWorkspace() {
     { recursive: true },
   );
   await fs.copyFile(
-    path.join(rotRoot, 'build.js'),
+    path.join(rotRoot, 'dist', 'build.js'),
     path.join(tempDir, 'build.js'),
   );
   await fs.copyFile(

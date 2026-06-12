@@ -1,7 +1,7 @@
 /**
  * Dev Watcher — Watches for .lua changes and rebuilds on change
  *
- * Thin file watcher that delegates all build logic to build.js.
+ * Thin file watcher that delegates all build logic to build.ts.
  * Detects .lua file changes, determines affected classes, and triggers
  * a sync to TellMeWhen SavedVariables.
  *
@@ -11,7 +11,7 @@
  * Also watches the SavedVariables file(s). When the game overwrites
  * them (e.g. on /reload), re-syncs our code immediately.
  *
- * Usage: node dev-watch.js
+ * Usage: corepack pnpm --filter @flux/rotation watch
  *
  * Requires dev.ini in project root (see dev.ini.example).
  */
@@ -92,10 +92,10 @@ syncAndMark(classes);
 // ---------------------------------------------------------------------------
 
 let debounceTimer = null;
-let pendingChanges = new Set();
+let pendingChanges = new Set<string>();
 
 function handleChange(_eventType, filename) {
-  if (!filename || !filename.endsWith('.lua')) return;
+  if (typeof filename !== 'string' || !filename.endsWith('.lua')) return;
 
   pendingChanges.add(filename);
 

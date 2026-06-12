@@ -44,8 +44,13 @@ ok "Dependencies up to date"
 # ─── 3. Rebuild rotation (so the bot has fresh source to copy) ───
 header "[3/4] Rebuilding rotation"
 cd "$ROTATION_DIR"
-node build.js
+pnpm run build
 ok "Rotation built"
+
+header "[3b/4] Building bot"
+cd "$BOT_DIR"
+pnpm run build
+ok "Bot built"
 
 # ─── 4. Restart service ───
 header "[4/4] Restarting bot"

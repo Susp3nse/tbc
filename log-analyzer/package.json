@@ -7,10 +7,11 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "cli": "node src/cli.js",
-    "discover": "node src/cli.js discover --expansion tbc",
-    "hunter-review": "node src/hunter-review.js",
-    "test": "node test/process-fight.test.js && node test/compare.test.js"
+    "cli": "tsx src/cli.ts",
+    "discover": "tsx src/cli.ts discover --expansion tbc",
+    "hunter-review": "tsx src/hunter-review.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx test/process-fight.test.ts && tsx test/compare.test.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.0"

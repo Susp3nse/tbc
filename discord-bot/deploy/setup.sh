@@ -171,7 +171,8 @@ ok "Dependencies installed"
 header "[4/6] Registering Discord slash commands"
 info "Running register-commands..."
 cd "$BOT_DIR"
-"$NODE_PATH" src/register-commands.js
+pnpm run build
+pnpm run register
 ok "Slash commands registered"
 
 # ─── 5. Install systemd service ───
@@ -189,7 +190,7 @@ Wants=network-online.target
 Type=simple
 User=$(whoami)
 WorkingDirectory=$BOT_DIR
-ExecStart=$NODE_PATH src/index.js
+ExecStart=$NODE_PATH dist/index.js
 Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production

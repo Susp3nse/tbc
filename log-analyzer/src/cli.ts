@@ -121,11 +121,11 @@ async function main() {
 WCL Log Analyzer — Fetch and analyze top parser combat logs
 
 Usage:
-  node src/cli.js discover --expansion tbc
-  node src/cli.js fetch --boss <encounterID> --class Druid --spec Feral --count 10
-  node src/cli.js fetch --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
-  node src/cli.js fetch --report <code> --trash
-  node src/cli.js compare --baseline <file> --yours <file>
+  corepack pnpm --filter @flux/log-analyzer cli -- discover --expansion tbc
+  corepack pnpm --filter @flux/log-analyzer cli -- fetch --boss <encounterID> --class Druid --spec Feral --count 10
+  corepack pnpm --filter @flux/log-analyzer cli -- fetch --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
+  corepack pnpm --filter @flux/log-analyzer cli -- fetch --report <code> --trash
+  corepack pnpm --filter @flux/log-analyzer cli -- compare --baseline <file> --yours <file>
 
 Options:
   --expansion    Expansion name: classic, tbc, wotlk (default: tbc)

@@ -11,27 +11,27 @@ test the failure modes that are painful to isolate in raid:
 Run all built-in scenarios:
 
 ```powershell
-node rotation\sim\hunter-adaptive-sim.js
+corepack pnpm --filter @flux/rotation sim:hunter
 ```
 
 Trace one scenario:
 
 ```powershell
-node rotation\sim\hunter-adaptive-sim.js --trace ultra-15
+corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15
 ```
 
 Run an ad-hoc speed:
 
 ```powershell
-node rotation\sim\hunter-adaptive-sim.js --speed 1.05 --duration 20
+corepack pnpm --filter @flux/rotation sim:hunter -- --speed 1.05 --duration 20
 ```
 
 Disable spells or start them on cooldown:
 
 ```powershell
-node rotation\sim\hunter-adaptive-sim.js --trace ultra-15 --no-arcane
-node rotation\sim\hunter-adaptive-sim.js --trace ultra-15 --no-multi --no-arcane
-node rotation\sim\hunter-adaptive-sim.js --trace ultra-15 --multi-start-cd 4
+corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15 --no-arcane
+corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15 --no-multi --no-arcane
+corepack pnpm --filter @flux/rotation sim:hunter -- --trace ultra-15 --multi-start-cd 4
 ```
 
 The simulator reads clip budgets directly from `adaptive.lua`, so bucket budget

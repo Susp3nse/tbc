@@ -147,17 +147,17 @@ You should see `OK` and a formatted embed in your Discord channel.
 ```
 discord-bot/
 ├── src/
-│   ├── index.js                 # Bot startup, event routing, webhook init
-│   ├── config.js                # Environment config loader
-│   ├── register-commands.js     # One-time slash command registration
+│   ├── index.ts                 # Bot startup, event routing, webhook init
+│   ├── config.ts                # Environment config loader
+│   ├── register-commands.ts     # One-time slash command registration
 │   ├── commands/
-│   │   ├── request.js           # /request command handler
-│   │   └── status.js            # /status command handler
+│   │   ├── request.ts           # /request command handler
+│   │   └── status.ts            # /status command handler
 │   └── services/
-│       ├── claude.js            # Claude API integration (agentic loop)
-│       ├── builder.js           # Temp workspace creation & build execution
-│       ├── guardrails.js        # Input validation & safety checks
-│       └── webhook.js           # GitHub release webhook HTTP server
+│       ├── claude.ts            # Claude API integration (agentic loop)
+│       ├── builder.ts           # Temp workspace creation & build execution
+│       ├── guardrails.ts        # Input validation & safety checks
+│       └── webhook.ts           # GitHub release webhook HTTP server
 ├── deploy/
 │   ├── setup.sh                 # First-time VPS setup (interactive)
 │   ├── update.sh                # Pull & restart

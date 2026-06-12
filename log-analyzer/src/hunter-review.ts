@@ -51,10 +51,10 @@ function usage() {
   console.log(`Hunter WCL Review
 
 Usage:
-  node src/hunter-review.js <reportUrlOrCode> --player <name> [--top 3]
-  node src/hunter-review.js <reportUrlOrCode> --player <name> --spec Survival
-  node src/hunter-review.js --report <reportUrlOrCode> --player <name> --max-fights 4
-  node src/hunter-review.js <reportUrlOrCode> --player <name> --no-top
+  corepack pnpm --filter @flux/log-analyzer hunter-review -- <reportUrlOrCode> --player <name> [--top 3]
+  corepack pnpm --filter @flux/log-analyzer hunter-review -- <reportUrlOrCode> --player <name> --spec Survival
+  corepack pnpm --filter @flux/log-analyzer hunter-review -- --report <reportUrlOrCode> --player <name> --max-fights 4
+  corepack pnpm --filter @flux/log-analyzer hunter-review -- <reportUrlOrCode> --player <name> --no-top
 
 Requires WCL_CLIENT_ID and WCL_CLIENT_SECRET in the repo root .env file.`);
 }
