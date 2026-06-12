@@ -20,11 +20,14 @@ jobs:
         with:
           node-version: 20
 
+      - name: Enable pnpm
+        run: corepack enable
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build rotation
-        run: node rotation/build.js
+        run: pnpm --filter @flux/rotation build
 
       - name: Get tag annotation
         id: tag_msg

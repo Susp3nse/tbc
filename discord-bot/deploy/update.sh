@@ -37,7 +37,8 @@ ok "Code updated"
 
 # ─── 2. Install deps ───
 header "[2/4] Installing dependencies"
-npm install
+corepack enable
+pnpm install --frozen-lockfile
 ok "Dependencies up to date"
 
 # ─── 3. Rebuild rotation (so the bot has fresh source to copy) ───

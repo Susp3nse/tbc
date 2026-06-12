@@ -248,7 +248,7 @@ node build.js --all        # Build + sync
 node dev-watch.js          # Watch for changes, auto-rebuild + sync
 ```
 
-Or via npm scripts: `npm run build -w rotation`, `npm run watch -w rotation`
+Or via pnpm scripts: `pnpm --filter @flux/rotation build`, `pnpm --filter @flux/rotation watch`
 
 **File naming convention**: Lowercase single words only — no underscores, hyphens, or spaces (e.g. `cat.lua`, `cliptracker.lua`).
 

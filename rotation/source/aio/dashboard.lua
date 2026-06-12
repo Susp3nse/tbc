@@ -9,6 +9,7 @@ local tostring = tostring
 local select = select
 local math_min = math.min
 local math_max = math.max
+local math_abs = math.abs
 local CreateFrame = _G.CreateFrame
 local UIParent = _G.UIParent
 local GameTooltip = _G.GameTooltip
@@ -346,10 +347,10 @@ local function create_dashboard()
         -- Capture position immediately after stop, before any other calls
         local cx, cy = self:GetCenter()
         if cx and cy then
-            local A = NS.A
-            if A and A.SetToggle then
-                A.SetToggle({2, "_dash_x", nil, true}, floor(cx + 0.5))
-                A.SetToggle({2, "_dash_y", nil, true}, floor(cy + 0.5))
+            local SetToggle = NS.SetToggle
+            if SetToggle then
+                SetToggle({2, "_dash_x", nil, true}, floor(cx + 0.5))
+                SetToggle({2, "_dash_y", nil, true}, floor(cy + 0.5))
             end
         end
     end)
@@ -360,15 +361,20 @@ local function create_dashboard()
     f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -200)
 
     -- Poll until pActionDB is initialized, then restore saved position
-    local A = NS.A
+    local GetToggle = NS.GetToggle
     local dash_restorer = CreateFrame("Frame")
     dash_restorer:SetScript("OnUpdate", function(self)
-        local sx = A and A.GetToggle(2, "_dash_x")
+        if not GetToggle then
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
+            return
+        end
+        local sx = GetToggle(2, "_dash_x")
         if sx == nil then return end
         self:SetScript("OnUpdate", nil)
         self:Hide()
         if sx > 0 then
-            local sy = A.GetToggle(2, "_dash_y") or -1
+            local sy = GetToggle(2, "_dash_y") or -1
             if sy > 0 then
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", UIParent, "BOTTOMLEFT", sx, sy)
@@ -667,10 +673,17 @@ local function update_dashboard()
     local dash_config = cc.dashboard
     if not dash_config then return end
 
-    -- Build context for playstyle detection + custom_lines
-    dash_context.settings = NS.cached_settings
-    if cc.extend_context then
-        cc.extend_context(dash_context)
+    -- Reuse the full rotation context when it is fresh; fall back to a lightweight
+    -- dashboard context only when the rotation has not run recently.
+    local source_context = NS.last_rotation_context
+    local source_time = NS.last_rotation_context_time or 0
+    if source_context and (GetTime() - source_time) <= 0.25 then
+        dash_context = source_context
+    else
+        dash_context.settings = NS.cached_settings
+        if cc.extend_context then
+            cc.extend_context(dash_context)
+        end
     end
 
     -- Header: class name + playstyle in one line
@@ -1305,7 +1318,7 @@ update_frame.elapsed = 0
 update_frame:SetScript("OnUpdate", function(self, elapsed)
     self.elapsed = self.elapsed + elapsed
     if self.elapsed >= UPDATE_INTERVAL then
-        self.elapsed = 0
+        self.elapsed = self.elapsed - UPDATE_INTERVAL
         update_dashboard()
     end
 end)
@@ -1326,13 +1339,16 @@ fr_frame:SetScript("OnUpdate", function()
         local elapsed = GetTime() - ett.last_tick_time
         local frac = (elapsed % ENERGY_TICK_INTERVAL) / ENERGY_TICK_INTERVAL
         local dot_x = 1 + fr_sweep_max * frac
-        if ui.sweep_dot and ui.sweep_dot:IsShown() then
-            ui.sweep_dot:ClearAllPoints()
-            ui.sweep_dot:SetPoint("TOPLEFT", ui.sweep_dot:GetParent(), "TOPLEFT", dot_x, -1)
-        end
-        if ui.sweep_dot2 and ui.sweep_dot2:IsShown() then
-            ui.sweep_dot2:ClearAllPoints()
-            ui.sweep_dot2:SetPoint("TOPLEFT", ui.sweep_dot2:GetParent(), "TOPLEFT", dot_x, -1)
+        if ui._last_sweep_dot_x == nil or math_abs(dot_x - ui._last_sweep_dot_x) >= 0.5 then
+            ui._last_sweep_dot_x = dot_x
+            if ui.sweep_dot and ui.sweep_dot:IsShown() then
+                ui.sweep_dot:ClearAllPoints()
+                ui.sweep_dot:SetPoint("TOPLEFT", ui.sweep_dot:GetParent(), "TOPLEFT", dot_x, -1)
+            end
+            if ui.sweep_dot2 and ui.sweep_dot2:IsShown() then
+                ui.sweep_dot2:ClearAllPoints()
+                ui.sweep_dot2:SetPoint("TOPLEFT", ui.sweep_dot2:GetParent(), "TOPLEFT", dot_x, -1)
+            end
         end
     end
 

@@ -17,30 +17,31 @@ This is a monorepo with three packages:
 ## Getting Started
 
 ```bash
-npm install
+corepack enable
+pnpm install
 ```
 
 ### Building the Rotation
 
 ```bash
-npm run build -w rotation          # Compile to rotation/output/TellMeWhen.lua
-npm run build:sync -w rotation     # Build + sync to SavedVariables (requires dev.ini)
-npm run build:all -w rotation      # Build + sync
-npm run watch -w rotation          # Watch mode: auto-rebuild + sync on save
+pnpm --filter @flux/rotation build        # Compile to rotation/output/TellMeWhen.lua
+pnpm --filter @flux/rotation build:sync   # Build + sync to SavedVariables (requires dev.ini)
+pnpm --filter @flux/rotation build:all    # Build + sync
+pnpm --filter @flux/rotation watch        # Watch mode: auto-rebuild + sync on save
 ```
 
 ### Running the Website
 
 ```bash
-npm run dev -w website
-npm run build -w website
+pnpm --filter @flux/website dev
+pnpm --filter @flux/website build
 ```
 
 ### Running the Discord Bot
 
 ```bash
-npm run register -w discord-bot    # Register slash commands
-npm run start -w discord-bot       # Start the bot
+pnpm --filter @flux/bot register   # Register slash commands
+pnpm --filter @flux/bot start      # Start the bot
 ```
 
 ## Architecture

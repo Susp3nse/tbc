@@ -67,6 +67,7 @@ fi
 # Ensure nvm node is in PATH for systemd later
 NODE_PATH="$(which node)"
 info "Using node at: $NODE_PATH"
+corepack enable
 
 # ─── 2. Environment variables ───
 header "[2/6] Configuring environment"
@@ -161,9 +162,9 @@ fi
 
 # ─── 3. Install dependencies ───
 header "[3/6] Installing dependencies"
-info "Running npm install from repo root..."
+info "Running pnpm install from repo root..."
 cd "$REPO_DIR"
-npm install
+pnpm install --frozen-lockfile
 ok "Dependencies installed"
 
 # ─── 4. Register Discord commands ───

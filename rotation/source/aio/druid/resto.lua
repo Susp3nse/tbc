@@ -96,6 +96,10 @@ local function get_resto_state(context)
    resto_state.cursed_target = nil
    resto_state.poisoned_target = nil
 
+   if not NS.is_in_party() and not NS.is_in_raid() and not context.has_valid_enemy_target then
+      return resto_state
+   end
+
    for i = 1, count do
       local entry = targets[i]
       if entry then

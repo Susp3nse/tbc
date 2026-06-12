@@ -24,7 +24,8 @@ if not A then
     return
 end
 
-local GetToggle = A.GetToggle
+local GetToggle = NS.GetToggle
+local SetToggle = NS.SetToggle
 local rotation_registry = NS.rotation_registry
 local cc = rotation_registry and rotation_registry.class_config
 
@@ -83,13 +84,18 @@ local active_dropdown_popup = nil
 -- ============================================================================
 -- SETTINGS READ / WRITE
 -- ============================================================================
-local SetToggle = A.SetToggle
+local refresh_settings = NS.refresh_settings
+local mark_settings_dirty = NS.mark_settings_dirty
 
 local function write_setting(key, value)
+    if not SetToggle then return end
     SetToggle({2, key, nil, true}, value)
+    if mark_settings_dirty then mark_settings_dirty() end
+    if refresh_settings then refresh_settings(true) end
 end
 
 local function read_setting(key, default)
+    if not GetToggle then return default end
     local val = GetToggle(2, key)
     if val ~= nil then return val end
     return default
@@ -827,6 +833,11 @@ local function create_settings_button()
     -- Poll until pActionDB is initialized, then restore saved position
     local restorer = CreateFrame("Frame")
     restorer:SetScript("OnUpdate", function(self)
+        if not GetToggle then
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
+            return
+        end
         local sx = GetToggle(2, "_btn_x")
         if sx == nil then return end
         self:SetScript("OnUpdate", nil)

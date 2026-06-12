@@ -6,7 +6,7 @@
 -- FRAMEWORK VALIDATION
 -- ============================================================================
 local _G, setmetatable, pairs, ipairs, tostring, type = _G, setmetatable, pairs, ipairs, tostring, type
-local tinsert, tremove, tconcat, tsort = table.insert, table.remove, table.concat, table.sort
+local tinsert, tconcat, tsort = table.insert, table.concat, table.sort
 local floor = math.floor
 local format = string.format
 local GetTime = _G.GetTime
@@ -16,6 +16,25 @@ local A = _G.Action
 if not A then
    print("|cFFFF0000[Flux AIO]|r Action/Textfiles framework not loaded!")
    return
+end
+
+local function compat_get_spell_info(spell)
+   if _G.GetSpellInfo then
+      return _G.GetSpellInfo(spell)
+   end
+   if _G.C_Spell and _G.C_Spell.GetSpellInfo then
+      local info = _G.C_Spell.GetSpellInfo(spell)
+      if info then
+         return info.name, nil, info.iconID, info.castTime, info.minRange, info.maxRange, info.spellID
+      end
+   end
+end
+
+if not A.GetSpellInfo then
+   A.GetSpellInfo = compat_get_spell_info
+end
+if not _G.GetSpellInfo then
+   _G.GetSpellInfo = compat_get_spell_info
 end
 
 if not A.Data.ProfileEnabled[A.CurrentProfile] then
@@ -33,11 +52,22 @@ local NS = _G.FluxAIO
 -- Base framework references (available before class Actions are defined)
 local Player = A.Player
 local Unit = A.Unit
-local GetToggle = A.GetToggle
+local function GetToggle(...)
+   if A.GetToggle then
+      return A.GetToggle(...)
+   end
+   return nil
+end
 
 NS.Player = Player
 NS.Unit = Unit
 NS.GetToggle = GetToggle
+NS.SetToggle = function(...)
+   if A.SetToggle then
+      return A.SetToggle(...)
+   end
+   return nil
+end
 
 -- Stub: overridden by dashboard.lua with real implementation
 if not NS.set_last_action then
@@ -123,9 +153,10 @@ notif_frame:Hide()
 
 local function show_notification(text, duration, color)
    duration = duration or 1.5
-   color = color or { 1, 1, 1 }
+   local r, g, b = 1, 1, 1
+   if color then r, g, b = color[1], color[2], color[3] end
    notif_text:SetText(text)
-   notif_text:SetTextColor(color[1], color[2], color[3], 1)
+   notif_text:SetTextColor(r, g, b, 1)
    notif_visible_until = GetTime() + duration
    notif_frame:Show()
 end
@@ -248,9 +279,9 @@ NS.ARCANE_IMMUNE = {
 -- SETTINGS SYSTEM
 -- ============================================================================
 local cached_settings = {}
-local last_settings_update = 0
-local SETTINGS_CACHE_DURATION = 0.05
 local settings_changed_list = {}
+local settings_dirty = true
+local settings_list = {}
 
 NS.cached_settings = cached_settings
 
@@ -317,31 +348,54 @@ NS.is_spell_available = is_spell_available
 -- ============================================================================
 local SETTINGS_SCHEMA = _G.FluxAIO_SETTINGS_SCHEMA
 
-local function refresh_settings()
-   local now = GetTime()
-   if now - last_settings_update < SETTINGS_CACHE_DURATION then return end
+local function build_settings_list()
+   for i = 1, #settings_list do settings_list[i] = nil end
+   if not SETTINGS_SCHEMA then return end
+   for _, tab_def in ipairs(SETTINGS_SCHEMA) do
+      if tab_def.sections then
+         for _, section in ipairs(tab_def.sections) do
+            if section.settings then
+               for _, s in ipairs(section.settings) do
+                  settings_list[#settings_list + 1] = s
+               end
+            end
+         end
+      end
+   end
+end
 
+build_settings_list()
+
+local function mark_settings_dirty()
+   settings_dirty = true
+   NS.settings_dirty = true
+end
+
+NS.mark_settings_dirty = mark_settings_dirty
+NS.settings_dirty = settings_dirty
+
+local function refresh_settings(force)
+   if not force and not settings_dirty then return end
+   if #settings_list == 0 then build_settings_list() end
+
+   local now = GetTime()
    local debug_mode = GetToggle(2, "debug_mode")
    local changed_list = settings_changed_list
    for i = 1, #changed_list do changed_list[i] = nil end
 
-   for _, tab_def in ipairs(SETTINGS_SCHEMA) do
-      for _, section in ipairs(tab_def.sections) do
-         for _, s in ipairs(section.settings) do
-               local raw = GetToggle(2, s.key)
-               local value
-               if s.type == "checkbox" then
-                  if s.default == true then
-                     value = raw ~= false
-                  else
-                     value = raw == true
-                  end
-               else
-                  value = raw or s.default
-               end
-               update_setting(s.key, value, changed_list, debug_mode)
+   for _, s in ipairs(settings_list) do
+      local raw = GetToggle(2, s.key)
+      local value
+      if s.type == "checkbox" then
+         if s.default == true then
+            value = raw ~= false
+         else
+            value = raw == true
          end
+      else
+         value = raw or s.default
       end
+      update_setting(s.key, value, changed_list, debug_mode)
    end
 
    if debug_mode and #changed_list > 0 then
@@ -351,7 +405,8 @@ local function refresh_settings()
       end
    end
 
-   last_settings_update = now
+   settings_dirty = false
+   NS.settings_dirty = false
 end
 
 NS.refresh_settings = refresh_settings
@@ -545,7 +600,7 @@ local function CreateDebugLogFrame()
    end)
 
    clearBtn:SetScript("OnClick", function()
-      debug_log_lines = {}
+      for i = 1, #debug_log_lines do debug_log_lines[i] = nil end
       textDisplay:SetText("")
       contentFrame:SetHeight(1)
    end)
@@ -583,11 +638,20 @@ local function CreateDebugLogFrame()
    return f
 end
 
+local function trim_debug_log()
+   local extra = #debug_log_lines - MAX_LOG_LINES
+   if extra <= 0 then return end
+   for i = 1, MAX_LOG_LINES do
+      debug_log_lines[i] = debug_log_lines[i + extra]
+   end
+   for i = MAX_LOG_LINES + 1, MAX_LOG_LINES + extra do
+      debug_log_lines[i] = nil
+   end
+end
+
 local function AddDebugLogLine(text)
    tinsert(debug_log_lines, text)
-   while #debug_log_lines > MAX_LOG_LINES do
-      tremove(debug_log_lines, 1)
-   end
+   trim_debug_log()
 
    if DebugLogFrame and DebugLogFrame:IsShown() then
       local logText = tconcat(debug_log_lines, "\n")
@@ -636,6 +700,9 @@ end
 
 local debug_print_cache = {}
 local debug_string_args = {}
+local DEBUG_CACHE_TTL = 60
+local DEBUG_CACHE_PRUNE_INTERVAL = 30
+local last_debug_cache_prune = 0
 local select = select
 
 local function debug_print(...)
@@ -649,6 +716,14 @@ local function debug_print(...)
    local key = tconcat(debug_string_args, "|")
 
    local now = GetTime()
+   if (now - last_debug_cache_prune) >= DEBUG_CACHE_PRUNE_INTERVAL then
+      for cache_key, cache_time in pairs(debug_print_cache) do
+         if (now - cache_time) > DEBUG_CACHE_TTL then
+            debug_print_cache[cache_key] = nil
+         end
+      end
+      last_debug_cache_prune = now
+   end
    local last_print = debug_print_cache[key]
 
    if not last_print or (now - last_print) >= 1.5 then

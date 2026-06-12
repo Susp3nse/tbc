@@ -87,28 +87,42 @@ local interrupt_state = {
 
 local INTERRUPT_SEEK_TIMEOUT = 1.0   -- max seconds to tab toward caster
 local INTERRUPT_RETURN_TIMEOUT = 1.0 -- max seconds to tab back to original
+local PRIORITY_SCAN_INTERVAL = 0.10
+local priority_scan_cache = { time = 0, guid = nil, remaining = 0, spell_name = nil }
 
 -- Scan visible nameplates for units casting a priority interrupt spell within 20yds.
 -- Returns the GUID with the longest remaining cast (most time to reach it).
-local function find_priority_caster()
+local function find_priority_caster(now)
+    now = now or GetTime()
+    if (now - priority_scan_cache.time) < PRIORITY_SCAN_INTERVAL then
+        return priority_scan_cache.guid, priority_scan_cache.remaining, priority_scan_cache.spell_name
+    end
+
     local plates = MultiUnits:GetActiveUnitPlates()
     local best_guid = nil
     local best_remaining = 0
     local best_spell_name = nil
 
-    for unitID in pairs(plates) do
-        if Unit(unitID):GetRange() <= 20 then
-            local castLeft, _, spellID, spellName, notKickAble = Unit(unitID):IsCastingRemains()
-            if castLeft and castLeft > 0 and not notKickAble and spellID and PRIORITY_INTERRUPT_SPELLS[spellID] then
-                if castLeft > best_remaining then
-                    best_guid = UnitGUID(unitID)
-                    best_remaining = castLeft
-                    best_spell_name = spellName
+    if plates then
+        for unitID in pairs(plates) do
+            local unit = Unit(unitID)
+            if unit:GetRange() <= 20 then
+                local castLeft, _, spellID, spellName, notKickAble = unit:IsCastingRemains()
+                if castLeft and castLeft > 0 and not notKickAble and spellID and PRIORITY_INTERRUPT_SPELLS[spellID] then
+                    if castLeft > best_remaining then
+                        best_guid = UnitGUID(unitID)
+                        best_remaining = castLeft
+                        best_spell_name = spellName
+                    end
                 end
             end
         end
     end
 
+    priority_scan_cache.time = now
+    priority_scan_cache.guid = best_guid
+    priority_scan_cache.remaining = best_remaining
+    priority_scan_cache.spell_name = best_spell_name
     return best_guid, best_remaining, best_spell_name
 end
 
@@ -166,7 +180,7 @@ rotation_registry:register_middleware({
         if context.settings.use_priority_interrupt then
             local spell = context.settings.interrupt_rank1 and A.EarthShockR1 or A.EarthShock
             if spell:GetCooldown() <= 0 then
-                local caster_guid, _, spell_name = find_priority_caster()
+                local caster_guid, _, spell_name = find_priority_caster(now)
                 if caster_guid then
                     local current_guid = UnitGUID(TARGET_UNIT)
                     if caster_guid == current_guid then

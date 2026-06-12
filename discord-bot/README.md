@@ -18,7 +18,8 @@ A Discord bot that lets users request personalized rotation tweaks via Claude AI
 
 1. **Install dependencies** from the repo root:
    ```bash
-   npm install
+   corepack enable
+   pnpm install
    ```
 
 2. **Create your `.env`** file:
@@ -36,13 +37,13 @@ A Discord bot that lets users request personalized rotation tweaks via Claude AI
 
 4. **Register slash commands** with Discord:
    ```bash
-   npm run register -w discord-bot
+   pnpm --filter @flux/bot register
    ```
    > Guild-scoped commands (with `DISCORD_GUILD_ID` set) appear instantly. Global commands take up to 1 hour to propagate.
 
 5. **Start the bot**:
    ```bash
-   npm start -w discord-bot
+   pnpm --filter @flux/bot start
    ```
 
 ## VPS Deployment
@@ -61,7 +62,7 @@ bash discord-bot/deploy/update.sh
 1. Installing Node.js via nvm (if needed)
 2. Prompting for all environment variables
 3. Writing `.env` with secure permissions (600)
-4. Installing npm dependencies
+4. Installing pnpm dependencies
 5. Registering Discord slash commands
 6. Creating and starting a systemd service
 

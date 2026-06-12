@@ -73,7 +73,8 @@ ok "Code updated"
 
 # ─── 5. Install deps & rebuild ───
 header "[5/6] Installing dependencies & rebuilding"
-npm install
+corepack enable
+pnpm install --frozen-lockfile
 cd "$NEW_DIR/rotation"
 node build.js
 ok "Dependencies installed, rotation built"

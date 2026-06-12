@@ -584,6 +584,7 @@ local function create_faerie_fire_strategy(refresh_window, spell_override, only_
       requires_phys_immune = false,
       spell = ff_spell,
       matches = function(context)
+         if context.target_magic_immune then return false end
          -- Dropdown: "all", "elites", "bosses", "off" (backward compat: true → all)
          local ff_mode = context.settings.maintain_faerie_fire
          if ff_mode == "off" or ff_mode == false or ff_mode == nil then return false end

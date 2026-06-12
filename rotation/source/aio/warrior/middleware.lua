@@ -3,6 +3,7 @@
 
 local _G = _G
 local format = string.format
+local GetTime = _G.GetTime
 local A = _G.Action
 
 if not A then return end
@@ -27,6 +28,9 @@ local LoC = A.LossOfControl
 
 local PLAYER_UNIT = "player"
 local TARGET_UNIT = "target"
+local SCAN_CACHE_INTERVAL = 0.10
+local reflect_scan_cache = { key = nil, time = 0, found = false, cast_left = 0, spell_name = nil }
+local nearby_hp_scan_cache = { time = 0, unit = nil, hp = nil }
 local CONST = A.Const
 
 -- Pre-allocated LoC type arrays (avoid inline table creation in combat)
@@ -303,53 +307,87 @@ local PVP_REFLECTABLE_SPELLS = {
 }
 
 -- PvP: scan enemy nameplates for whitelisted casts targeting us
-local function pvp_find_reflectable_caster()
+local function pvp_find_reflectable_caster(now)
+    now = now or GetTime()
+    if reflect_scan_cache.key == "pvp" and (now - reflect_scan_cache.time) < SCAN_CACHE_INTERVAL then
+        return reflect_scan_cache.found, reflect_scan_cache.cast_left, reflect_scan_cache.spell_name
+    end
+
+    local found, best_cast_left, best_spell_name = false, 0, nil
     local plates = MultiUnits:GetActiveUnitPlates()
-    if not plates then return false end
-    for unitID in pairs(plates) do
-        if unitID and UnitExists(unitID) and not UnitIsDead(unitID) and UnitIsPlayer(unitID) then
-            local castLeft, _, _, spellName, notKickAble, isChannel = Unit(unitID):IsCastingRemains()
-            if castLeft and castLeft > 0 and castLeft < 2.0 and not notKickAble and not isChannel then
-                if spellName and PVP_REFLECTABLE_SPELLS[spellName] then
-                    local targetOfUnit = unitID .. "target"
-                    if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
-                        return true, castLeft, spellName
+    if plates then
+        for unitID in pairs(plates) do
+            if unitID and UnitExists(unitID) and not UnitIsDead(unitID) and UnitIsPlayer(unitID) then
+                local unit = Unit(unitID)
+                local castLeft, _, _, spellName, notKickAble, isChannel = unit:IsCastingRemains()
+                if castLeft and castLeft > 0 and castLeft < 2.0 and not notKickAble and not isChannel then
+                    if spellName and PVP_REFLECTABLE_SPELLS[spellName] then
+                        local targetOfUnit = unitID .. "target"
+                        if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
+                            found, best_cast_left, best_spell_name = true, castLeft, spellName
+                            break
+                        end
                     end
                 end
             end
         end
     end
-    return false
+
+    reflect_scan_cache.key = "pvp"
+    reflect_scan_cache.time = now
+    reflect_scan_cache.found = found
+    reflect_scan_cache.cast_left = best_cast_left
+    reflect_scan_cache.spell_name = best_spell_name
+    return found, best_cast_left, best_spell_name
 end
 
 -- PvE: check if any enemy nameplate or target is casting at us (any interruptible spell)
-local function pve_find_reflectable_caster(has_target)
+local function pve_find_reflectable_caster(has_target, now)
+    now = now or GetTime()
+    if reflect_scan_cache.key == "pve" and (now - reflect_scan_cache.time) < SCAN_CACHE_INTERVAL then
+        return reflect_scan_cache.found, reflect_scan_cache.cast_left, reflect_scan_cache.spell_name
+    end
+
     -- Check target first (most common case)
     if has_target then
         local castLeft, _, _, spellName, notKickAble, isChannel = Unit(TARGET_UNIT):IsCastingRemains()
         if castLeft and castLeft > 0 and not notKickAble and not isChannel then
             local targetOfTarget = TARGET_UNIT .. "target"
             if UnitExists(targetOfTarget) and UnitIsUnit(targetOfTarget, PLAYER_UNIT) then
+                reflect_scan_cache.key = "pve"
+                reflect_scan_cache.time = now
+                reflect_scan_cache.found = true
+                reflect_scan_cache.cast_left = castLeft
+                reflect_scan_cache.spell_name = spellName
                 return true, castLeft, spellName
             end
         end
     end
 
-    -- Scan nameplates for other casters targeting us (e.g. trash packs)
+    local found, best_cast_left, best_spell_name = false, 0, nil
     local plates = MultiUnits:GetActiveUnitPlates()
-    if not plates then return false end
-    for unitID in pairs(plates) do
-        if unitID and UnitExists(unitID) and not UnitIsDead(unitID) then
-            local castLeft, _, _, spellName, notKickAble, isChannel = Unit(unitID):IsCastingRemains()
-            if castLeft and castLeft > 0 and not notKickAble and not isChannel then
-                local targetOfUnit = unitID .. "target"
-                if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
-                    return true, castLeft, spellName
+    if plates then
+        for unitID in pairs(plates) do
+            if unitID and UnitExists(unitID) and not UnitIsDead(unitID) then
+                local unit = Unit(unitID)
+                local castLeft, _, _, spellName, notKickAble, isChannel = unit:IsCastingRemains()
+                if castLeft and castLeft > 0 and not notKickAble and not isChannel then
+                    local targetOfUnit = unitID .. "target"
+                    if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
+                        found, best_cast_left, best_spell_name = true, castLeft, spellName
+                        break
+                    end
                 end
             end
         end
     end
-    return false
+
+    reflect_scan_cache.key = "pve"
+    reflect_scan_cache.time = now
+    reflect_scan_cache.found = found
+    reflect_scan_cache.cast_left = best_cast_left
+    reflect_scan_cache.spell_name = best_spell_name
+    return found, best_cast_left, best_spell_name
 end
 
 rotation_registry:register_middleware({
@@ -366,7 +404,7 @@ rotation_registry:register_middleware({
 
         -- PvP: whitelist-only, scan all enemy nameplates
         if context.is_pvp and context.settings.pvp_enabled then
-            local found, castLeft, spellName = pvp_find_reflectable_caster()
+            local found, castLeft, spellName = pvp_find_reflectable_caster(GetTime())
             if found then
                 context._sr_cast_left = castLeft
                 context._sr_spell_name = spellName
@@ -375,7 +413,7 @@ rotation_registry:register_middleware({
         end
 
         -- PvE: reflect any interruptible non-channel cast targeting us
-        local found, castLeft, spellName = pve_find_reflectable_caster(context.has_valid_enemy_target)
+        local found, castLeft, spellName = pve_find_reflectable_caster(context.has_valid_enemy_target, GetTime())
         if found then
             context._sr_cast_left = castLeft
             context._sr_spell_name = spellName
@@ -1395,29 +1433,38 @@ local tab_state = {
 -- Scan nameplates for the lowest HP enemy within melee range
 -- Returns unitID, hp (or nil if none found)
 local function find_lowest_hp_nearby()
-    local plates = MultiUnits:GetActiveUnitPlates()
-    if not plates then return nil end
+    local now = GetTime()
+    if (now - nearby_hp_scan_cache.time) < SCAN_CACHE_INTERVAL then
+        return nearby_hp_scan_cache.unit, nearby_hp_scan_cache.hp
+    end
 
+    local plates = MultiUnits:GetActiveUnitPlates()
     local best_unit = nil
     local best_hp = 101
 
-    for unitID in pairs(plates) do
-        if unitID
-            and UnitExists(unitID)
-            and not UnitIsDead(unitID)
-            and not UnitIsPlayer(unitID)
-            and not UnitIsUnit(unitID, TARGET_UNIT)
-            and Unit(unitID):CombatTime() > 0
-            and A.Rend:IsInRange(unitID) == true
-        then
-            local hp = Unit(unitID):HealthPercent()
-            if hp and hp > 0 and hp < best_hp then
-                best_hp = hp
-                best_unit = unitID
+    if plates then
+        for unitID in pairs(plates) do
+            if unitID
+                and UnitExists(unitID)
+                and not UnitIsDead(unitID)
+                and not UnitIsPlayer(unitID)
+                and not UnitIsUnit(unitID, TARGET_UNIT)
+            then
+                local unit = Unit(unitID)
+                if unit:CombatTime() > 0 and A.Rend:IsInRange(unitID) == true then
+                    local hp = unit:HealthPercent()
+                    if hp and hp > 0 and hp < best_hp then
+                        best_hp = hp
+                        best_unit = unitID
+                    end
+                end
             end
         end
     end
 
+    nearby_hp_scan_cache.time = now
+    nearby_hp_scan_cache.unit = best_unit
+    nearby_hp_scan_cache.hp = best_hp
     return best_unit, best_hp
 end
 

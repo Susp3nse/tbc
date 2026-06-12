@@ -366,11 +366,13 @@ rotation_registry:register_class({
         -- When our smart Auto Tab is enabled, disable the native one (we manage targeting).
         -- When ours is off, let the framework handle auto-targeting.
         local our_auto_tab = ctx.settings.use_auto_tab
-        local native_auto_target = A.GetToggle(1, "AutoTarget")
-        if our_auto_tab and native_auto_target then
-            A.SetToggle({1, "AutoTarget"}, false)
-        elseif not our_auto_tab and not native_auto_target then
-            A.SetToggle({1, "AutoTarget"}, true)
+        local GetToggle = NS.GetToggle
+        local SetToggle = NS.SetToggle
+        local native_auto_target = GetToggle and GetToggle(1, "AutoTarget")
+        if SetToggle and our_auto_tab and native_auto_target then
+            SetToggle({1, "AutoTarget"}, false)
+        elseif SetToggle and not our_auto_tab and not native_auto_target then
+            SetToggle({1, "AutoTarget"}, true)
         end
 
         -- Cache invalidation flags for per-playstyle context_builders

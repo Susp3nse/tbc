@@ -28,6 +28,7 @@ local cached_settings = NS.cached_settings
 local refresh_settings = NS.refresh_settings
 local get_time_to_die = NS.get_time_to_die
 local has_phys_immunity = NS.has_phys_immunity
+local has_magic_immunity = NS.has_magic_immunity
 local debug_print = NS.debug_print
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -48,6 +49,7 @@ local tostring = tostring
 local table_sort = table.sort
 local table_concat = table.concat
 local IsResting = _G.IsResting
+local UnitAffectingCombat = _G.UnitAffectingCombat
 local GetTime = _G.GetTime
 local AddDebugLogLine = NS.AddDebugLogLine
 
@@ -59,6 +61,7 @@ local ctx_dump_parts = {}
 
 -- Suggestion system for A[1] icon
 local suggestion = { spell = nil }
+local last_validated_active = nil
 
 -- ============================================================================
 -- ROTATION REGISTRY EXECUTION METHODS
@@ -200,34 +203,40 @@ local reusable_context = {}
 --- Creates rotation context (reused table, do not hold references)
 local function create_context(icon)
    local ctx = reusable_context
+   for k in pairs(ctx) do
+      ctx[k] = nil
+   end
+   local player_unit = Unit(PLAYER_UNIT)
+   local target_unit = Unit(TARGET_UNIT)
    local gcd_remaining = Player:GCDRemains()
    local on_gcd = gcd_remaining > 0.1
 
-   local combat_time = Unit(PLAYER_UNIT):CombatTime()
+   local combat_time = player_unit:CombatTime()
    local combat_status = combat_time > 0
 
    local mana_pct = Player:ManaPercentage()
 
    -- GetRange returns (maxRange, minRange) - use minRange for accurate melee detection
-   local max_range, min_range = Unit(TARGET_UNIT):GetRange()
+   local max_range, min_range = target_unit:GetRange()
 
    -- Generic fields (all classes)
    ctx.on_gcd = on_gcd
    ctx.icon = icon
    ctx.in_combat = (combat_status == 1 or combat_status == true)
-   ctx.hp = Unit(PLAYER_UNIT):HealthPercent()
+   ctx.hp = player_unit:HealthPercent()
    ctx.mana_pct = mana_pct
    ctx.mana = Player:Mana()
-   ctx.target_exists = Unit(TARGET_UNIT):IsExists()
-   ctx.target_dead = Unit(TARGET_UNIT):IsDead()
-   ctx.target_enemy = Unit(TARGET_UNIT):IsEnemy()
+   ctx.target_exists = target_unit:IsExists()
+   ctx.target_dead = target_unit:IsDead()
+   ctx.target_enemy = target_unit:IsEnemy()
    ctx.has_valid_enemy_target = ctx.target_exists and not ctx.target_dead and ctx.target_enemy
-   ctx.target_hp = Unit(TARGET_UNIT):HealthPercent()
+   ctx.target_hp = target_unit:HealthPercent()
    ctx.ttd = get_time_to_die(TARGET_UNIT)
    ctx.target_range = max_range or 0
    ctx.in_melee_range = (min_range and min_range <= 5) or false
    ctx.target_phys_immune = has_phys_immunity(TARGET_UNIT)
-   ctx.is_boss = ctx.has_valid_enemy_target and Unit(TARGET_UNIT):IsBoss()
+   ctx.target_magic_immune = has_magic_immunity(TARGET_UNIT)
+   ctx.is_boss = ctx.has_valid_enemy_target and target_unit:IsBoss()
    if ctx.has_valid_enemy_target then
        local c = _G.UnitClassification(TARGET_UNIT)
        ctx.target_is_elite = ctx.is_boss or c == "elite" or c == "worldboss" or c == "rareelite"
@@ -253,19 +262,25 @@ end
 
 -- Main rotation entry point (A[3])
 A[3] = function(icon)
+   local cc = rotation_registry.class_config
+   if not cc then return end
 
    refresh_settings()
-
-   local context = create_context(icon)
 
    -- Reset suggestion each frame
    suggestion.spell = nil
 
-   local cc = rotation_registry.class_config
-   if not cc then return end
+   -- Auto-disable in rested zones (inns/cities) before building full context.
+   if IsResting() and not UnitAffectingCombat(PLAYER_UNIT) then
+      set_last_action(nil, nil)
+      NS.last_rotation_context = nil
+      NS.last_rotation_context_time = 0
+      return
+   end
 
-   -- Auto-disable in rested zones (inns/cities) unless in combat
-   if IsResting() and not context.in_combat then return end
+   local context = create_context(icon)
+   NS.last_rotation_context = context
+   NS.last_rotation_context_time = GetTime()
 
    -- Reset last action each frame
    set_last_action(nil, nil)
@@ -319,7 +334,10 @@ A[3] = function(icon)
 
    -- Run active playstyle strategies (cat, bear, balance, resto, etc.)
    if active then
-      rotation_registry:validate_playstyle_spells(active)
+      if active ~= last_validated_active then
+         rotation_registry:validate_playstyle_spells(active)
+         last_validated_active = active
+      end
       local result = rotation_registry:execute_strategies(active, icon, context)
       if result then
          return result

@@ -1,5 +1,10 @@
 {
   "name": "gg-rotations",
   "private": true,
-  "workspaces": ["rotation", "website", "discord-bot", "log-analyzer"]
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "build:rotation": "pnpm --filter @flux/rotation build",
+    "build:website": "pnpm --filter @flux/website build",
+    "test": "pnpm --filter @flux/log-analyzer test"
+  }
 }

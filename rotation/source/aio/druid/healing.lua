@@ -138,6 +138,7 @@ local function scan_healing_targets()
    healing_targets_count = 0
 
    local in_raid = is_in_raid()
+   local in_group = in_raid or is_in_party()
    local units_to_scan = in_raid and RAID_UNITS or PARTY_UNITS
    local max_units = in_raid and 40 or 5
 
@@ -181,7 +182,7 @@ local function scan_healing_targets()
             entry.effective_hp = max_hp > 0 and (100 - (eff_deficit / max_hp) * 100) or entry.hp
 
             local role = _G.UnitGroupRolesAssigned and _G.UnitGroupRolesAssigned(unit)
-            entry.is_tank = entry.has_aggro or (role == "TANK")
+            entry.is_tank = in_group and (entry.has_aggro or (role == "TANK"))
          end
       end
    end
@@ -250,6 +251,12 @@ local function cast_best_heal_rank(ranks, icon, target, context, context_msg, op
       local raw = Unit(target):HealthDeficit() or 0
       if raw > max_hp * 0.05 then hp_deficit = raw end
    end
+   if hp_deficit <= 0 then
+      if cached_settings.debug_mode and debug_print then
+         debug_print("[HEAL] Skipped", context_msg, "- no health deficit on", target)
+      end
+      return nil, nil
+   end
    local overheal_threshold = options.overheal_threshold or 1.2
    local mana_floor = options.mana_floor or 0
    local cast_fn = options.cast_fn or safe_heal_cast
@@ -288,7 +295,7 @@ local function cast_best_heal_rank(ranks, icon, target, context, context_msg, op
          break
       end
    end
-   if not any_viable then
+   if not any_viable and hp_deficit > 0 then
       return cast_fn(ranks[num_ranks].spell, icon, target), context_msg .. " R1"
    end
 
