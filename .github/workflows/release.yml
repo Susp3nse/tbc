@@ -44,7 +44,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.tag_msg.outputs.body }}
-          files: rotation/output/TellMeWhen.lua
+          files: apps/rotation/output/TellMeWhen.lua
 
       - name: Notify Discord
         if: success()

@@ -6,13 +6,16 @@ A multi-class WoW TBC rotation addon built on the GGL Action/Textfiles framework
 
 ## Project Structure
 
-This is a monorepo with three packages:
+This is a monorepo with four app packages:
 
 | Package | Description |
 |---------|-------------|
-| `rotation/` | Core WoW rotation addon (Lua source + TypeScript build system) |
-| `website/` | Static site for script distribution and documentation (Astro) |
-| `discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
+| `apps/rotation/` | Core WoW rotation addon (expansion source under `src/<expansion>/`) |
+| `apps/website/` | Static site for script distribution and documentation (Astro) |
+| `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
+| `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library and CLI |
+| `packages/tmw-profile-builder/` | Reusable TMW profile build, watch, and SavedVariables sync library |
+| `packages/` | Shared workspace packages |
 
 ## Getting Started
 
@@ -21,14 +24,31 @@ corepack enable
 pnpm install
 ```
 
+### Quality Checks
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+```
+
+### Rotation Log Analysis
+
+```bash
+pnpm --filter @flux/rotation analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
+```
+
 ### Building the Rotation
 
 ```bash
-pnpm --filter @flux/rotation build        # Compile to rotation/output/TellMeWhen.lua
+pnpm --filter @flux/rotation build        # Compile to apps/rotation/output/TellMeWhen.lua
 pnpm --filter @flux/rotation build:sync   # Build + sync to SavedVariables (requires dev.ini)
 pnpm --filter @flux/rotation build:all    # Build + sync
 pnpm --filter @flux/rotation watch        # Watch mode: auto-rebuild + sync on save
+pnpm --filter @flux/rotation watch:log    # Watch mode with logs in apps/rotation/.logs/
 ```
+
+Rotation source is organized by expansion: `apps/rotation/src/tbc/{aio,sim}` and `apps/rotation/src/mop/{aio,sim}`. TBC is the default build expansion.
 
 ### Running the Website
 
@@ -51,7 +71,7 @@ The rotation uses a **Strategy Registry** pattern:
 1. **Middleware** — shared logic (recovery, cooldowns, buffs, dispels) that runs first, priority-ordered
 2. **Strategies** — playstyle-specific rotations registered per form/spec
 
-Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile.
+Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`apps/rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 

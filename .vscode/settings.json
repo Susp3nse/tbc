@@ -40,7 +40,7 @@
     "**/node_modules": true,
     "**/TBC-main": true,
     "**/Addon Libraries": true,
-    "rotation/output": true,
+    "apps/rotation/output": true,
     "**/dist": true
   },
   "files.exclude": {

@@ -1,0 +1,37 @@
+{
+  "name": "@flux/log-analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.ts"
+    },
+    "./compare": {
+      "types": "./src/index.d.ts",
+      "import": "./src/compare.ts"
+    },
+    "./process-fight": {
+      "types": "./src/index.d.ts",
+      "import": "./src/process-fight.ts"
+    },
+    "./specs/*": {
+      "types": "./src/index.d.ts",
+      "import": "./src/specs/*.ts"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "discover": "tsx src/cli.ts discover --expansion tbc",
+    "hunter-review": "tsx src/hunter-review.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx test/process-fight.test.ts && tsx test/compare.test.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0"
+  }
+}

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'website/**'
+      - 'apps/website/**'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website/dist
+          path: apps/website/dist
 
   deploy:
     needs: build

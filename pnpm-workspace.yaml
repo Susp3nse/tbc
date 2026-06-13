@@ -1,8 +1,6 @@
 packages:
-  - rotation
-  - website
-  - discord-bot
-  - log-analyzer
+  - apps/*
+  - packages/*
 
 onlyBuiltDependencies:
   - esbuild

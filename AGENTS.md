@@ -4,10 +4,12 @@
 
 This is a pnpm workspace for Flux AIO TBC.
 
-- `rotation/`: Lua addon source in `rotation/source/aio/`, plus TypeScript build/watch tooling. Builds emit `rotation/output/TellMeWhen.lua`.
-- `website/`: Astro documentation site. Pages live in `website/src/pages/`, shared UI in `website/src/layouts/` and `website/src/components/`, data in `website/src/data/`, assets in `website/public/`.
-- `log-analyzer/`: TypeScript CLI and utilities in `log-analyzer/src/`; tests in `log-analyzer/test/`.
-- `discord-bot/`: bot source in `discord-bot/src/`; deployment files in `discord-bot/deploy/`.
+- `apps/rotation/`: expansion-specific Lua addon source in `apps/rotation/src/<expansion>/aio/`, plus TypeScript build/watch tooling. TBC currently lives in `apps/rotation/src/tbc/aio/`. Builds emit `apps/rotation/output/TellMeWhen.lua`.
+- `apps/website/`: Astro documentation site. Pages live in `apps/website/src/pages/`, shared UI in `apps/website/src/layouts/` and `apps/website/src/components/`, data in `apps/website/src/data/`, assets in `apps/website/public/`.
+- `apps/discord-bot/`: bot source in `apps/discord-bot/src/`; deployment files in `apps/discord-bot/deploy/`.
+- `packages/log-analyzer/`: reusable TypeScript Warcraft Logs analyzer library and CLI; tests in `packages/log-analyzer/test/`.
+- `packages/tmw-profile-builder/`: reusable TypeScript build/watch system for compiling rotation source into TMW profiles and syncing SavedVariables.
+- `packages/`: shared workspace packages for reusable code.
 - `docs/`: research, plans, and API references for class logic and site content.
 
 ## Build, Test, and Development Commands
@@ -15,21 +17,23 @@ This is a pnpm workspace for Flux AIO TBC.
 Run `corepack enable` once, then `pnpm install`.
 
 - `pnpm build:rotation`: compile the rotation package and generate TMW output.
-- `pnpm --filter @flux/rotation build:sync`: build and sync to a local WoW SavedVariables target; requires `rotation/dev.ini`.
+- `pnpm --filter @flux/rotation build:sync`: build and sync to a local WoW SavedVariables target; requires `apps/rotation/dev.ini`.
 - `pnpm --filter @flux/rotation watch`: rebuild and sync on source changes.
+- `pnpm --filter @flux/rotation watch:log`: run watch mode with stdout/stderr written under `apps/rotation/.logs/`.
 - `pnpm build:website`: build the site.
 - `pnpm --filter @flux/website dev`: run the local website dev server.
 - `pnpm build:bot`: compile the Discord bot.
+- `pnpm lint`: run Oxlint across TypeScript files in `apps/` and `packages/`.
 - `pnpm typecheck`: run available TypeScript checks across workspace packages.
 - `pnpm test`: run the log analyzer tests.
 
 ## Coding Style & Naming Conventions
 
-Use the existing style in nearby files. TypeScript targets ES modules where package `type` is `module`; prefer named exports, explicit domain names, and focused modules. Lua rotation files are organized by class/spec, for example `rotation/source/aio/paladin/retribution.lua`; keep class logic in the matching folder and shared behavior in middleware or common modules. Use kebab-case for scripts and docs, and lowercase class/spec file names.
+Use the existing style in nearby files. TypeScript targets ES modules where package `type` is `module`; prefer named exports, explicit domain names, and focused modules. Lua rotation files are organized by expansion/class/spec, for example `apps/rotation/src/tbc/aio/paladin/retribution.lua`; keep class logic in the matching folder and shared behavior in middleware or common modules. Use kebab-case for scripts and docs, and lowercase class/spec file names.
 
 ## Testing Guidelines
 
-Automated tests cover `@flux/log-analyzer` with direct `tsx` files such as `process-fight.test.ts`. Add tests under `log-analyzer/test/` for analyzer behavior changes and run `pnpm test`. For rotation changes, run `pnpm build:rotation` at minimum; use `pnpm --filter @flux/rotation sim:hunter` when touching supported sim paths.
+Automated tests cover `@flux/log-analyzer` with direct `tsx` files such as `process-fight.test.ts`. Add tests under `packages/log-analyzer/test/` for analyzer behavior changes and run `pnpm test`. For rotation changes, run `pnpm build:rotation` at minimum; use `pnpm --filter @flux/rotation sim:hunter` when touching supported sim paths.
 
 ## Commit & Pull Request Guidelines
 

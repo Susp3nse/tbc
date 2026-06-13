@@ -185,45 +185,50 @@ You have unlimited stamina. The human does not. Use your persistence wisely—lo
 
 **Flux AIO** — a multi-class WoW TBC (The Burning Crusade) rotation addon. Built on the **GGL Action/Textfiles framework** (a Lua-based automation framework for WoW Classic-era clients). Supports **9 classes**: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, and Warrior. Uses a modular Strategy Registry pattern with a TypeScript build system that compiles per-class modules into a single TMW profile.
 
-This is a monorepo with three packages:
-- **rotation/** — The core WoW rotation addon (Lua source + TypeScript build system)
-- **website/** — Static site for distributing scripts and documentation (Astro)
-- **discord-bot/** — Discord bot that lets users request personalized rotation tweaks via Claude AI
+This is a monorepo with four app packages:
+- **apps/rotation/** — The core WoW rotation addon (Lua source + TypeScript build system)
+- **apps/website/** — Static site for distributing scripts and documentation (Astro)
+- **apps/discord-bot/** — Discord bot that lets users request personalized rotation tweaks via Claude AI
+- **packages/log-analyzer/** — Reusable Warcraft Logs analyzer library and CLI
+- **packages/tmw-profile-builder/** — Reusable TMW profile build, watch, and SavedVariables sync library
+- **packages/** — Shared workspace packages
 
 ## Project Structure
 
 ```
 GG Rotations/
-├── rotation/                         # Core rotation addon
-│   ├── source/
-│   │   └── aio/                      # Active modular source (compiled by build.ts)
-│   │       ├── core.lua              # Namespace, settings, registry, force flags, burst context
-│   │       ├── main.lua              # Context creation, rotation dispatcher, force-bypass (LOAD LAST)
-│   │       ├── settings.lua          # Custom tabbed settings UI, movable button, /flux commands
-│   │       ├── ui.lua                # ProfileUI schema generator (framework backing store)
-│   │       ├── dashboard.lua         # Shared combat dashboard overlay (data-driven)
-│   │       ├── druid/                # Druid: caster, cat, bear, balance, resto
-│   │       ├── hunter/               # Hunter: ranged
-│   │       ├── mage/                 # Mage: fire, frost, arcane
-│   │       ├── paladin/              # Paladin: retribution, protection, holy
-│   │       ├── priest/               # Priest: shadow, smite, holy
-│   │       ├── rogue/                # Rogue: combat, assassination, subtlety
-│   │       ├── shaman/               # Shaman: elemental, enhancement, restoration
-│   │       ├── warlock/              # Warlock: affliction, demonology, destruction
-│   │       └── warrior/              # Warrior: arms, fury, protection
-│   ├── output/                       # Compiled output (gitignored)
-│   │   └── TellMeWhen.lua
-│   ├── build.ts                      # Build script: discovers modules, compiles AIO
-│   ├── dev-watch.ts                  # File watcher: auto-rebuild + sync to SavedVariables
-│   ├── dev.ini                       # Local dev config (gitignored)
-│   ├── tmw-template.lua              # TMW profile template (icons, groups, bars)
-│   └── package.json
+├── apps/
+│   ├── rotation/                     # Core rotation addon
+│   │   ├── src/
+│   │   │   └── tbc/
+│   │   │       ├── aio/              # Active modular source (compiled by build.ts)
+│   │   │       ├── core.lua          # Namespace, settings, registry, force flags, burst context
+│   │   │       ├── main.lua          # Context creation, rotation dispatcher, force-bypass (LOAD LAST)
+│   │   │       ├── settings.lua      # Custom tabbed settings UI, movable button, /flux commands
+│   │   │       ├── ui.lua            # ProfileUI schema generator (framework backing store)
+│   │   │       ├── dashboard.lua     # Shared combat dashboard overlay (data-driven)
+│   │   │       ├── druid/            # Druid: caster, cat, bear, balance, resto
+│   │   │       ├── hunter/           # Hunter: ranged
+│   │   │       ├── mage/             # Mage: fire, frost, arcane
+│   │   │       ├── paladin/          # Paladin: retribution, protection, holy
+│   │   │       ├── priest/           # Priest: shadow, smite, holy
+│   │   │       ├── rogue/            # Rogue: combat, assassination, subtlety
+│   │   │       ├── shaman/           # Shaman: elemental, enhancement, restoration
+│   │   │       ├── warlock/          # Warlock: affliction, demonology, destruction
+│   │   │       └── warrior/          # Warrior: arms, fury, protection
+│   │   ├── output/                   # Compiled output (gitignored)
+│   │   │   └── TellMeWhen.lua
+│   │   ├── build.ts                  # Thin wrapper around @flux/tmw-profile-builder build CLI
+│   │   ├── dev-watch.ts              # Thin wrapper around @flux/tmw-profile-builder dev watch
+│   │   ├── dev.ini                   # Local dev config (gitignored)
+│   │   ├── tmw-template.lua          # TMW profile template (icons, groups, bars)
+│   │   └── package.json
 │
-├── website/                          # Static distribution site (Astro)
-│   └── (see website/package.json)
+│   ├── website/                      # Static distribution site (Astro)
+│   │   └── (see apps/website/package.json)
 │
-├── discord-bot/                      # Discord bot for personalized rotations
-│   └── (see discord-bot/package.json)
+│   ├── discord-bot/                  # Discord bot for personalized rotations
+│       └── (see apps/discord-bot/package.json)
 │
 ├── docs/                             # API docs, type stubs, reference, class research
 │   ├── api/                          # Lua type stubs for IDE IntelliSense
@@ -232,19 +237,25 @@ GG Rotations/
 │   └── *_RESEARCH.md                 # Per-class implementation research (spell IDs, rotation theory)
 │
 ├── package.json                      # Root workspace config
+├── packages/                         # Shared workspace packages
+│   ├── log-analyzer/                 # Warcraft Logs analyzer library and CLI
+│   │   └── (see packages/log-analyzer/package.json)
+│   └── tmw-profile-builder/          # TMW profile build/watch/sync library
+│       └── (see packages/tmw-profile-builder/package.json)
 ├── TBC-main/, Addon Libraries/       # External dependencies (gitignored)
 └── CLAUDE.md
 ```
 
 ## Build System
 
-The build system (`rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile:
+The build system (`apps/rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile:
 
 ```bash
 corepack pnpm --filter @flux/rotation build        # Build output/TellMeWhen.lua
 corepack pnpm --filter @flux/rotation build:sync   # Sync to SavedVariables (requires dev.ini)
 corepack pnpm --filter @flux/rotation build:all    # Build + sync
 corepack pnpm --filter @flux/rotation watch        # Watch for changes, auto-rebuild + sync
+corepack pnpm --filter @flux/rotation watch:log    # Watch with logs in apps/rotation/.logs/
 ```
 
 Or via pnpm scripts: `pnpm --filter @flux/rotation build`, `pnpm --filter @flux/rotation watch`
@@ -467,11 +478,11 @@ When the user says "review PR ##, merge, and tag a release" (or similar), perfor
 2. **Merge** — `gh pr merge <#> --merge --delete-branch`. Always `--merge` (not `--squash` or `--rebase`) so commit attribution is preserved on main. Then `git checkout main && git pull origin main`.
 
 3. **Bump versions** (semver: patch for bugfix, minor for new feature / new setting, major for breaking change):
-   - `rotation/package.json` `"version"` field
-   - The per-class file the PR actually touched, e.g. `rotation/source/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
+   - `apps/rotation/package.json` `"version"` field
+   - The per-class file the PR actually touched, e.g. `apps/rotation/src/tbc/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
    - Verify the build: `corepack pnpm --filter @flux/rotation build`
 
-4. **Update the website changelog** at `website/src/pages/changelog.astro`. Insert a new `<section class="section changelog-entry">` at the **top** (above the existing topmost entry), mirroring its format: `<h2>vX.Y.Z</h2>`, the appropriate `<span class="changelog-tag tag-feature">Feature</span>` or `tag-fix`, one `<h3>` per class touched, `<ul class="features">` with `<li><strong>Title</strong> &mdash; description</li>`.
+4. **Update the website changelog** at `apps/website/src/pages/changelog.astro`. Insert a new `<section class="section changelog-entry">` at the **top** (above the existing topmost entry), mirroring its format: `<h2>vX.Y.Z</h2>`, the appropriate `<span class="changelog-tag tag-feature">Feature</span>` or `tag-fix`, one `<h3>` per class touched, `<ul class="features">` with `<li><strong>Title</strong> &mdash; description</li>`.
 
 5. **Commit and push** — `chore: bump <class> to vX.Y.Z, package to vP.Q.R, update changelog` mentioning the PR number in the body. Push to main.
 
@@ -482,5 +493,5 @@ When the user says "review PR ##, merge, and tag a release" (or similar), perfor
 - **Never tag without explicit user approval.** "Tag a release" in the request counts; absence of that phrase means stop after step 5 and ask.
 - **Annotated tags only** (`-a` + `-m`). Never lightweight tags.
 - **Tags are immutable releases** — never force-push or move an existing tag. If something needs fixing, ship a new patch version.
-- **Website-only or `discord-bot/`-only changes don't need a tag/release.** They get deployed by their own workflows (`deploy-website.yml`, `deploy-bot.yml`).
+- **Website-only or `apps/discord-bot/`-only changes don't need a tag/release.** They get deployed by their own workflows (`deploy-website.yml`, `deploy-bot.yml`).
 - **Only bump rotation versions when rotation code changes.** Doc-only PRs that touch the rotation tree (e.g. comment-only edits to a class file) don't need version bumps.
