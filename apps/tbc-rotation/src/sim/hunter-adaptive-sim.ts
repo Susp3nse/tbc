@@ -21,7 +21,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = process.cwd();
-const ADAPTIVE_LUA = path.join(ROOT, 'src', 'tbc', 'aio', 'hunter', 'adaptive.lua');
+const ADAPTIVE_LUA = path.join(ROOT, 'src', 'aio', 'hunter', 'adaptive.lua');
 
 const GCD_DEFAULT = 1.5;
 const NEG = -1e9;
