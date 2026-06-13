@@ -34,9 +34,8 @@ export function startWebhookServer(client) {
       return;
     }
 
-    const expected = 'sha256=' + createHmac('sha256', config.webhookSecret)
-      .update(body)
-      .digest('hex');
+    const expected =
+      'sha256=' + createHmac('sha256', config.webhookSecret).update(body).digest('hex');
 
     if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
       console.warn('Webhook signature verification failed');
@@ -88,19 +87,23 @@ export function startWebhookServer(client) {
 
     try {
       await channel.send({
-        embeds: [{
-          title: `📦 ${release.name || release.tag_name}`,
-          url: release.html_url,
-          description: releaseBody,
-          color: 0x5865f2,
-          author: release.author ? {
-            name: release.author.login,
-            icon_url: release.author.avatar_url,
-            url: release.author.html_url,
-          } : undefined,
-          footer: { text: 'GitHub Release' },
-          timestamp: release.published_at || new Date().toISOString(),
-        }],
+        embeds: [
+          {
+            title: `📦 ${release.name || release.tag_name}`,
+            url: release.html_url,
+            description: releaseBody,
+            color: 0x5865f2,
+            author: release.author
+              ? {
+                  name: release.author.login,
+                  icon_url: release.author.avatar_url,
+                  url: release.author.html_url,
+                }
+              : undefined,
+            footer: { text: 'GitHub Release' },
+            timestamp: release.published_at || new Date().toISOString(),
+          },
+        ],
       });
 
       console.log(`Posted release ${release.tag_name} to #${channel.name}`);

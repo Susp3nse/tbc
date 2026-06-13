@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import { buildBuffTimeline, computeUptimes, computeTransitions, computeRefreshPatterns } from '../src/process-fight.js';
+import {
+  buildBuffTimeline,
+  computeUptimes,
+  computeTransitions,
+  computeRefreshPatterns,
+} from '../src/process-fight.js';
 
 // Test buff timeline building
 {
@@ -47,11 +52,16 @@ import { buildBuffTimeline, computeUptimes, computeTransitions, computeRefreshPa
 {
   const debuffWindows = [
     { abilityGameID: 200, start: 0, end: 12000 },
-    { abilityGameID: 200, start: 10800, end: 22800 },  // refreshed at 1.2s remaining
+    { abilityGameID: 200, start: 10800, end: 22800 }, // refreshed at 1.2s remaining
   ];
-  const patterns = computeRefreshPatterns(debuffWindows, { 200: { name: 'Lacerate', duration: 12 } });
+  const patterns = computeRefreshPatterns(debuffWindows, {
+    200: { name: 'Lacerate', duration: 12 },
+  });
   assert.equal(patterns['Lacerate'].clips, 1, 'Should detect 1 clip');
-  assert.ok(Math.abs(patterns['Lacerate'].avg_remaining_on_refresh - 1.2) < 0.01, 'Avg remaining should be ~1.2s');
+  assert.ok(
+    Math.abs(patterns['Lacerate'].avg_remaining_on_refresh - 1.2) < 0.01,
+    'Avg remaining should be ~1.2s',
+  );
   console.log('PASS: computeRefreshPatterns');
 }
 

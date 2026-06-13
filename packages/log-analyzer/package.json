@@ -21,9 +21,6 @@
       "import": "./src/specs/*.ts"
     }
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "scripts": {
     "cli": "tsx src/cli.ts",
     "discover": "tsx src/cli.ts discover --expansion tbc",
@@ -33,5 +30,8 @@
   },
   "dependencies": {
     "dotenv": "^16.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

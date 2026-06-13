@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import type { BuildContext, IniConfig, SavedVariablesTarget, WatchOptions } from './types.js';
-import { RotationBuilder } from './tmw-profile-builder.js';
+import { ProfileBuilder } from './tmw-profile-builder.js';
 
 const DEFAULT_SOURCE_DEBOUNCE_MS = 300;
 const DEFAULT_SAVED_VARIABLES_DEBOUNCE_MS = 500;
@@ -10,7 +10,7 @@ export class DevWatcher {
   private readonly sourceDebounceMs: number;
   private readonly savedVariablesDebounceMs: number;
   private readonly ourWriteCooldownMs: number;
-  private readonly builder: RotationBuilder;
+  private readonly builder: ProfileBuilder;
   private readonly lastOurWriteTime = new Map<string, number>();
   private readonly pendingChanges = new Set<string>();
   private sourceDebounceTimer: NodeJS.Timeout | null = null;
@@ -20,9 +20,10 @@ export class DevWatcher {
     private readonly context: BuildContext,
     options: WatchOptions = {},
   ) {
-    this.builder = new RotationBuilder(context);
+    this.builder = new ProfileBuilder(context);
     this.sourceDebounceMs = options.sourceDebounceMs ?? DEFAULT_SOURCE_DEBOUNCE_MS;
-    this.savedVariablesDebounceMs = options.savedVariablesDebounceMs ?? DEFAULT_SAVED_VARIABLES_DEBOUNCE_MS;
+    this.savedVariablesDebounceMs =
+      options.savedVariablesDebounceMs ?? DEFAULT_SAVED_VARIABLES_DEBOUNCE_MS;
     this.ourWriteCooldownMs = options.ourWriteCooldownMs ?? DEFAULT_OUR_WRITE_COOLDOWN_MS;
   }
 
@@ -46,7 +47,9 @@ export class DevWatcher {
     console.log(`[${this.builder.timestamp()}] Watching for changes... (Ctrl+C to stop)`);
     for (const { name } of savedVariablesTargets) {
       const label = savedVariablesTargets.length > 1 ? ` [${name}]` : '';
-      console.log(`[${this.builder.timestamp()}] Watching SavedVariables${label} for external changes (e.g. /reload)`);
+      console.log(
+        `[${this.builder.timestamp()}] Watching SavedVariables${label} for external changes (e.g. /reload)`,
+      );
     }
   }
 
@@ -83,17 +86,27 @@ export class DevWatcher {
   }
 
   private logStartup(aioDir: string, targets: SavedVariablesTarget[]): void {
-    const classSummary = this.classes.map((className) => {
-      const modules = this.builder.discoverModules(className, aioDir);
-      return `${className}: ${modules.length} modules`;
-    }).join(', ');
+    const classSummary = this.classes
+      .map((className) => {
+        const modules = this.builder.discoverModules(className, aioDir);
+        return `${className}: ${modules.length} modules`;
+      })
+      .join(', ');
 
     const accountSummary = targets.map((target) => target.name).join(', ');
-    console.log(`[${this.builder.timestamp()}] Watching ${aioDir} - ${this.classes.length} class(es) (${classSummary})`);
-    console.log(`[${this.builder.timestamp()}] Syncing to ${targets.length} account(s): ${accountSummary}`);
+    console.log(
+      `[${this.builder.timestamp()}] Watching ${aioDir} - ${this.classes.length} class(es) (${classSummary})`,
+    );
+    console.log(
+      `[${this.builder.timestamp()}] Syncing to ${targets.length} account(s): ${accountSummary}`,
+    );
   }
 
-  private syncAndMark(config: IniConfig, targets: SavedVariablesTarget[], classNames: string[]): void {
+  private syncAndMark(
+    config: IniConfig,
+    targets: SavedVariablesTarget[],
+    classNames: string[],
+  ): void {
     for (const { name, svPath } of targets) {
       if (targets.length > 1) {
         console.log(`[${this.builder.timestamp()}] Syncing account: ${name}`);
@@ -119,7 +132,11 @@ export class DevWatcher {
     }, this.sourceDebounceMs);
   }
 
-  private flushSourceChanges(config: IniConfig, targets: SavedVariablesTarget[], aioDir: string): void {
+  private flushSourceChanges(
+    config: IniConfig,
+    targets: SavedVariablesTarget[],
+    aioDir: string,
+  ): void {
     const changes = [...this.pendingChanges];
     this.pendingChanges.clear();
     this.sourceDebounceTimer = null;
@@ -145,7 +162,9 @@ export class DevWatcher {
       if (!this.classes.includes(className)) {
         this.classes.push(className);
         affectedClasses.add(className);
-        console.log(`[${this.builder.timestamp()}] [NEW CLASS] Detected ${className}/ - creating profile`);
+        console.log(
+          `[${this.builder.timestamp()}] [NEW CLASS] Detected ${className}/ - creating profile`,
+        );
       }
     }
 
@@ -154,21 +173,29 @@ export class DevWatcher {
     }
   }
 
-  private watchSavedVariables(config: IniConfig, target: SavedVariablesTarget, targetCount: number): void {
+  private watchSavedVariables(
+    config: IniConfig,
+    target: SavedVariablesTarget,
+    targetCount: number,
+  ): void {
     let savedVariablesDebounceTimer: NodeJS.Timeout | null = null;
 
     const handleSavedVariablesChange = () => {
-      if (Date.now() - (this.lastOurWriteTime.get(target.svPath) || 0) < this.ourWriteCooldownMs) return;
+      if (Date.now() - (this.lastOurWriteTime.get(target.svPath) || 0) < this.ourWriteCooldownMs)
+        return;
 
       if (savedVariablesDebounceTimer) clearTimeout(savedVariablesDebounceTimer);
       savedVariablesDebounceTimer = setTimeout(() => {
         savedVariablesDebounceTimer = null;
 
-        if (Date.now() - (this.lastOurWriteTime.get(target.svPath) || 0) < this.ourWriteCooldownMs) return;
+        if (Date.now() - (this.lastOurWriteTime.get(target.svPath) || 0) < this.ourWriteCooldownMs)
+          return;
         if (!fs.existsSync(target.svPath)) return;
 
         const label = targetCount > 1 ? ` (${target.name})` : '';
-        console.log(`[${this.builder.timestamp()}] [RELOAD] SavedVariables overwritten externally${label} - re-syncing all classes`);
+        console.log(
+          `[${this.builder.timestamp()}] [RELOAD] SavedVariables overwritten externally${label} - re-syncing all classes`,
+        );
         this.builder.syncToSavedVariables(config, this.classes, target.svPath);
         this.lastOurWriteTime.set(target.svPath, Date.now());
       }, this.savedVariablesDebounceMs);

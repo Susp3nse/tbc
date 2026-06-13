@@ -19,9 +19,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   try {
     switch (interaction.commandName) {
-      case 'request': return await handleRequest(interaction);
-      case 'status': return await handleStatus(interaction);
-      case 'admin': return await handleAdmin(interaction);
+      case 'request':
+        return await handleRequest(interaction);
+      case 'status':
+        return await handleStatus(interaction);
+      case 'admin':
+        return await handleAdmin(interaction);
     }
   } catch (err) {
     console.error(`Command ${interaction.commandName} failed:`, err);

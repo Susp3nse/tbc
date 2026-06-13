@@ -30,11 +30,17 @@ async function processChancityFights() {
   for (const fight of CAT_FIGHTS) {
     console.log(`\n--- ${fight.boss} (Fight ${fight.fightID}) ---`);
     try {
-      const raw = await fetchFightEvents(CHANCITY_REPORT, fight.fightID, { playerName: CHANCITY_NAME });
+      const raw = await fetchFightEvents(CHANCITY_REPORT, fight.fightID, {
+        playerName: CHANCITY_NAME,
+      });
       const result = await processFight(raw, catDruid, { player: CHANCITY_NAME });
       results.push(result);
       console.log(`  ${result.cast_sequence.length} casts tracked`);
-      console.log(`  Casts: ${Object.entries(result.cast_summary).map(([s, i]) => s + ':' + i.count).join(', ')}`);
+      console.log(
+        `  Casts: ${Object.entries(result.cast_summary)
+          .map(([s, i]) => s + ':' + i.count)
+          .join(', ')}`,
+      );
     } catch (err) {
       console.error(`  Error: ${err.message}`);
     }
@@ -68,9 +74,10 @@ async function fetchTopCatParsers() {
 
     const data = await graphql(query);
     const encounter = data.worldData.encounter;
-    const rankings = typeof encounter.characterRankings === 'string'
-      ? JSON.parse(encounter.characterRankings)
-      : encounter.characterRankings;
+    const rankings =
+      typeof encounter.characterRankings === 'string'
+        ? JSON.parse(encounter.characterRankings)
+        : encounter.characterRankings;
     const entries = rankings.rankings || rankings;
 
     console.log(`  ${entries.length} ranked players found`);
@@ -95,9 +102,12 @@ async function fetchTopCatParsers() {
         const raw = await fetchFightEvents(reportCode, fightID, { playerName });
 
         // Verify it's a cat (not bear) by checking first 30s of casts
-        const catSpells = new Set([33983, 33982, 33876, 27002, 5221, 27008, 1079, 31018, 22568, 27003, 1822, 768]);
+        const catSpells = new Set([
+          33983, 33982, 33876, 27002, 5221, 27008, 1079, 31018, 22568, 27003, 1822, 768,
+        ]);
         const bearSpells = new Set([33987, 33986, 33878, 26996, 6807, 26997, 779, 33745, 9634]);
-        let catCount = 0, bearCount = 0;
+        let catCount = 0,
+          bearCount = 0;
 
         for (const c of raw.casts.slice(0, 100)) {
           if (catSpells.has(c.abilityGameID)) catCount++;
@@ -112,7 +122,9 @@ async function fetchTopCatParsers() {
         const result = await processFight(raw, catDruid, { player: playerName, server, dps });
         results.push(result);
         processed++;
-        console.log(`    [CAT] ${playerName}-${server}: ${dps} DPS, ${result.cast_sequence.length} casts`);
+        console.log(
+          `    [CAT] ${playerName}-${server}: ${dps} DPS, ${result.cast_sequence.length} casts`,
+        );
       } catch (err) {
         console.error(`    Error: ${err.message}`);
       }
@@ -139,14 +151,14 @@ async function compareAll() {
     const bossSlug = fight.boss.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
     // Find Chancity's file
-    const chancityFile = files.find(f => f.includes(bossSlug) && f.includes('chancity'));
+    const chancityFile = files.find((f) => f.includes(bossSlug) && f.includes('chancity'));
     if (!chancityFile) {
       console.log(`No Chancity data for ${fight.boss}, skipping.`);
       continue;
     }
 
     // Find top parser files for same boss
-    const topFiles = files.filter(f => f.includes(bossSlug) && !f.includes('chancity'));
+    const topFiles = files.filter((f) => f.includes(bossSlug) && !f.includes('chancity'));
     if (topFiles.length === 0) {
       console.log(`No top parser data for ${fight.boss}, skipping.`);
       continue;
@@ -155,27 +167,35 @@ async function compareAll() {
     const chancityData = JSON.parse(await fs.readFile(path.join(fightsDir, chancityFile), 'utf-8'));
 
     console.log(`\n${'='.repeat(70)}`);
-    console.log(`  ${fight.boss}: Chancity (${chancityData.meta.dps || '?'} DPS, ${chancityData.meta.duration_sec}s)`);
+    console.log(
+      `  ${fight.boss}: Chancity (${chancityData.meta.dps || '?'} DPS, ${chancityData.meta.duration_sec}s)`,
+    );
     console.log(`${'='.repeat(70)}`);
 
     for (const topFile of topFiles) {
       const topData = JSON.parse(await fs.readFile(path.join(fightsDir, topFile), 'utf-8'));
 
-      console.log(`\n  vs ${topData.meta.player}-${topData.meta.server} (${topData.meta.dps} DPS, ${topData.meta.duration_sec}s)`);
+      console.log(
+        `\n  vs ${topData.meta.player}-${topData.meta.server} (${topData.meta.dps} DPS, ${topData.meta.duration_sec}s)`,
+      );
       console.log(`  ${'-'.repeat(50)}`);
 
       const comparison = compareFights(topData, chancityData);
 
       // DPS gap
       if (comparison.dps_gap) {
-        console.log(`\n  DPS: You ${comparison.dps_gap.yours || '?'} vs Top ${comparison.dps_gap.top} (${comparison.dps_gap.pct_of_top}% of top)`);
+        console.log(
+          `\n  DPS: You ${comparison.dps_gap.yours || '?'} vs Top ${comparison.dps_gap.top} (${comparison.dps_gap.pct_of_top}% of top)`,
+        );
       }
 
       // CPM differences
       console.log('\n  Cast-per-minute comparison:');
       for (const [spell, info] of Object.entries(comparison.cast_diffs || {})) {
         const dir = info.delta > 0 ? '+' : '';
-        console.log(`    ${spell.padEnd(25)} Top: ${info.top_cpm.toFixed(1).padStart(5)}   You: ${info.yours_cpm.toFixed(1).padStart(5)}   (${dir}${info.delta.toFixed(1)})`);
+        console.log(
+          `    ${spell.padEnd(25)} Top: ${info.top_cpm.toFixed(1).padStart(5)}   You: ${info.yours_cpm.toFixed(1).padStart(5)}   (${dir}${info.delta.toFixed(1)})`,
+        );
       }
 
       // Uptimes
@@ -183,7 +203,9 @@ async function compareAll() {
         console.log('\n  Uptime comparison:');
         for (const [buff, info] of Object.entries(comparison.uptime_diffs)) {
           const dir = info.delta > 0 ? '+' : '';
-          console.log(`    ${buff.padEnd(25)} Top: ${info.top.toFixed(1).padStart(5)}%  You: ${info.yours.toFixed(1).padStart(5)}%  (${dir}${info.delta.toFixed(1)}%)`);
+          console.log(
+            `    ${buff.padEnd(25)} Top: ${info.top.toFixed(1).padStart(5)}%  You: ${info.yours.toFixed(1).padStart(5)}%  (${dir}${info.delta.toFixed(1)}%)`,
+          );
         }
       }
 
@@ -191,8 +213,12 @@ async function compareAll() {
       const topIdle = topData.idle_analysis?.idle_pct || 0;
       const yoursIdle = chancityData.idle_analysis?.idle_pct || 0;
       console.log('\n  Activity:');
-      console.log(`    GCD Efficiency:    Top: ${(100 - topIdle).toFixed(0)}%   You: ${(100 - yoursIdle).toFixed(0)}%`);
-      console.log(`    Idle Time:         Top: ${topIdle.toFixed(1)}%   You: ${yoursIdle.toFixed(1)}%`);
+      console.log(
+        `    GCD Efficiency:    Top: ${(100 - topIdle).toFixed(0)}%   You: ${(100 - yoursIdle).toFixed(0)}%`,
+      );
+      console.log(
+        `    Idle Time:         Top: ${topIdle.toFixed(1)}%   You: ${yoursIdle.toFixed(1)}%`,
+      );
 
       // Insights
       if (comparison.actionable_insights?.length > 0) {

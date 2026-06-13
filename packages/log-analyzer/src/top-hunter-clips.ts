@@ -18,17 +18,32 @@
 import { graphql } from './api.js';
 
 const argv = process.argv.slice(2);
-const getArg = (flag, def) => { const i = argv.indexOf(flag); return i >= 0 && argv[i + 1] ? argv[i + 1] : def; };
+const getArg = (flag, def) => {
+  const i = argv.indexOf(flag);
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : def;
+};
 const SPEC = getArg('--spec', 'BeastMastery');
 const MAX_HUNTERS = parseInt(getArg('--max', '14'), 10);
 const REF_REPORT = getArg('--report', 'zYJPGyHZbhV6WTMK');
-const PER_BOSS = 6;          // top parses to consider per boss before dedupe
+const PER_BOSS = 6; // top parses to consider per boss before dedupe
 const AUTO = 75;
 
-function bucketFor(s){ if(!s||s<=0)return'BASE'; if(s>=2.35)return'BASE'; if(s>=2.00)return'LIGHT'; if(s>=1.70)return'MAJOR'; if(s>=1.40)return'DOUBLE'; if(s>=1.15)return'PEAK'; return'ULTRA'; }
-const ORDER = ['BASE','LIGHT','MAJOR','DOUBLE','PEAK','ULTRA'];
-const pctl = (a,p) => { if(!a.length) return 0; const s=[...a].sort((x,y)=>x-y); return s[Math.min(s.length-1, Math.floor(s.length*p))]; };
-const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+function bucketFor(s) {
+  if (!s || s <= 0) return 'BASE';
+  if (s >= 2.35) return 'BASE';
+  if (s >= 2.0) return 'LIGHT';
+  if (s >= 1.7) return 'MAJOR';
+  if (s >= 1.4) return 'DOUBLE';
+  if (s >= 1.15) return 'PEAK';
+  return 'ULTRA';
+}
+const ORDER = ['BASE', 'LIGHT', 'MAJOR', 'DOUBLE', 'PEAK', 'ULTRA'];
+const pctl = (a, p) => {
+  if (!a.length) return 0;
+  const s = [...a].sort((x, y) => x - y);
+  return s[Math.min(s.length - 1, Math.floor(s.length * p))];
+};
+const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
 
 async function discoverEncounters(reportCode) {
   const meta = await graphql(`query { reportData { report(code: "${reportCode}") {
@@ -54,7 +69,13 @@ async function collectTopHunters(encounters) {
     for (const x of (parsed.rankings || []).slice(0, PER_BOSS)) {
       if (picks.size >= MAX_HUNTERS) break;
       if (!picks.has(x.name) && x.report?.code) {
-        picks.set(x.name, { report: x.report.code, fightID: x.report.fightID, name: x.name, boss, dps: Math.round(x.amount) });
+        picks.set(x.name, {
+          report: x.report.code,
+          fightID: x.report.fightID,
+          name: x.name,
+          boss,
+          dps: Math.round(x.amount),
+        });
       }
     }
   }
@@ -67,19 +88,30 @@ async function clipSamplesFor(p) {
     masterData { actors(type: "Player") { id name subType } }
   } } }`);
   const f = meta.reportData.report.fights[0];
-  const actor = meta.reportData.report.masterData.actors.find(a => a.name === p.name && a.subType === 'Hunter');
+  const actor = meta.reportData.report.masterData.actors.find(
+    (a) => a.name === p.name && a.subType === 'Hunter',
+  );
   if (!f || !actor) return null;
-  const evs = (await graphql(`query { reportData { report(code: "${p.report}") {
+  const evs =
+    (
+      await graphql(`query { reportData { report(code: "${p.report}") {
     events(fightIDs: [${p.fightID}], dataType: Casts, sourceID: ${actor.id}, startTime: ${f.startTime}, endTime: ${f.endTime}, limit: 20000) { data }
-  } } }`)).reportData.report.events.data || [];
-  const auto = evs.filter(e => e.abilityGameID === AUTO).sort((a,b)=>a.timestamp-b.timestamp);
-  const samples = []; let lastCast = null;
+  } } }`)
+    ).reportData.report.events.data || [];
+  const auto = evs
+    .filter((e) => e.abilityGameID === AUTO)
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const samples = [];
+  let lastCast = null;
   for (let i = 0; i < auto.length - 1; i++) {
-    if (auto[i].type === 'begincast' && auto[i+1].type === 'cast') {
-      const windup = (auto[i+1].timestamp - auto[i].timestamp)/1000;
-      if (windup > 0.10 && windup < 1.5) {
-        const t = auto[i+1].timestamp;
-        if (lastCast != null) { const itv = (t - lastCast)/1000; if (itv > 0.3 && itv < 8) samples.push({ windup, itv }); }
+    if (auto[i].type === 'begincast' && auto[i + 1].type === 'cast') {
+      const windup = (auto[i + 1].timestamp - auto[i].timestamp) / 1000;
+      if (windup > 0.1 && windup < 1.5) {
+        const t = auto[i + 1].timestamp;
+        if (lastCast != null) {
+          const itv = (t - lastCast) / 1000;
+          if (itv > 0.3 && itv < 8) samples.push({ windup, itv });
+        }
         lastCast = t;
       }
     }
@@ -89,33 +121,56 @@ async function clipSamplesFor(p) {
 
 async function main() {
   const encounters = await discoverEncounters(REF_REPORT);
-  console.log(`Bosses: ${encounters.map(e => e[1]).join(', ')}`);
+  console.log(`Bosses: ${encounters.map((e) => e[1]).join(', ')}`);
   const hunters = await collectTopHunters(encounters);
   console.log(`Collected ${hunters.length} distinct top ${SPEC} hunters\n`);
 
-  const global = {}; for (const b of ORDER) global[b] = [];
+  const global = {};
+  for (const b of ORDER) global[b] = [];
   for (const p of hunters) {
     try {
       const samples = await clipSamplesFor(p);
-      if (!samples || samples.length < 10) { console.log(`  skip ${p.name} (${samples ? samples.length : 0} samples)`); continue; }
-      const base = pctl(samples.map(s => s.itv * (0.5 / s.windup)), 0.10);
-      const counts = {}; for (const b of ORDER) counts[b] = 0;
+      if (!samples || samples.length < 10) {
+        console.log(`  skip ${p.name} (${samples ? samples.length : 0} samples)`);
+        continue;
+      }
+      const base = pctl(
+        samples.map((s) => s.itv * (0.5 / s.windup)),
+        0.1,
+      );
+      const counts = {};
+      for (const b of ORDER) counts[b] = 0;
       for (const s of samples) {
         const expected = base / (0.5 / s.windup);
         const clip = Math.max(0, s.itv - expected);
         const bk = bucketFor(expected);
-        global[bk].push(clip); counts[bk]++;
+        global[bk].push(clip);
+        counts[bk]++;
       }
-      console.log(`  ${p.name.padEnd(22)} base~${base.toFixed(2)}  ${samples.length} autos  [${ORDER.map(b => counts[b] ? `${b}:${counts[b]}` : '').filter(Boolean).join(' ')}]`);
-    } catch (e) { console.log(`  err ${p.name}: ${String(e.message).slice(0,60)}`); }
+      console.log(
+        `  ${p.name.padEnd(22)} base~${base.toFixed(2)}  ${samples.length} autos  [${ORDER.map(
+          (b) => (counts[b] ? `${b}:${counts[b]}` : ''),
+        )
+          .filter(Boolean)
+          .join(' ')}]`,
+      );
+    } catch (e) {
+      console.log(`  err ${p.name}: ${String(e.message).slice(0, 60)}`);
+    }
   }
 
   console.log(`\n================= TOP ${SPEC} HUNTERS — clip per haste bucket =================`);
   console.log('bucket   nAutos  %clipped>0.10  meanClip  p50    p90    p99');
   for (const b of ORDER) {
-    const a = global[b]; if (!a.length) continue;
-    const clipped = a.filter(c => c > 0.10).length;
-    console.log(`${b.padEnd(8)} ${String(a.length).padStart(5)}   ${(100*clipped/a.length).toFixed(0).padStart(3)}%          ${mean(a).toFixed(3)}    ${pctl(a,0.5).toFixed(3)}  ${pctl(a,0.9).toFixed(3)}  ${pctl(a,0.99).toFixed(3)}`);
+    const a = global[b];
+    if (!a.length) continue;
+    const clipped = a.filter((c) => c > 0.1).length;
+    console.log(
+      `${b.padEnd(8)} ${String(a.length).padStart(5)}   ${((100 * clipped) / a.length).toFixed(0).padStart(3)}%          ${mean(a).toFixed(3)}    ${pctl(a, 0.5).toFixed(3)}  ${pctl(a, 0.9).toFixed(3)}  ${pctl(a, 0.99).toFixed(3)}`,
+    );
   }
 }
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

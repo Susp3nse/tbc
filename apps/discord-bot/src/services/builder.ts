@@ -16,29 +16,16 @@ export async function createWorkspace() {
   const profileBuilderRoot = path.join(repoRoot, 'packages', 'tmw-profile-builder');
   const tempProfileBuilderRoot = path.join(tempDir, 'node_modules', '@flux', 'tmw-profile-builder');
 
-  await fs.cp(
-    path.join(rotRoot, 'src', 'tbc', 'aio'),
-    path.join(tempDir, 'src', 'tbc', 'aio'),
-    { recursive: true },
-  );
-  await fs.copyFile(
-    path.join(rotRoot, 'dist', 'build.js'),
-    path.join(tempDir, 'build.js'),
-  );
-  await fs.copyFile(
-    path.join(rotRoot, 'tmw-template.lua'),
-    path.join(tempDir, 'tmw-template.lua'),
-  );
-  await fs.copyFile(
-    path.join(rotRoot, 'package.json'),
-    path.join(tempDir, 'package.json'),
-  );
+  await fs.cp(path.join(rotRoot, 'src', 'aio'), path.join(tempDir, 'src', 'aio'), {
+    recursive: true,
+  });
+  await fs.copyFile(path.join(rotRoot, 'dist', 'build.js'), path.join(tempDir, 'build.js'));
+  await fs.copyFile(path.join(rotRoot, 'tmw-template.lua'), path.join(tempDir, 'tmw-template.lua'));
+  await fs.copyFile(path.join(rotRoot, 'package.json'), path.join(tempDir, 'package.json'));
   await fs.mkdir(tempProfileBuilderRoot, { recursive: true });
-  await fs.cp(
-    path.join(profileBuilderRoot, 'dist'),
-    path.join(tempProfileBuilderRoot, 'dist'),
-    { recursive: true },
-  );
+  await fs.cp(path.join(profileBuilderRoot, 'dist'), path.join(tempProfileBuilderRoot, 'dist'), {
+    recursive: true,
+  });
   await fs.copyFile(
     path.join(profileBuilderRoot, 'package.json'),
     path.join(tempProfileBuilderRoot, 'package.json'),
@@ -69,7 +56,10 @@ export async function runBuild(workDir) {
 
     return { success: true, outputPath };
   } catch (err) {
-    return { success: false, error: `Build failed: ${err.message}${err.stderr ? '\n' + err.stderr : ''}` };
+    return {
+      success: false,
+      error: `Build failed: ${err.message}${err.stderr ? '\n' + err.stderr : ''}`,
+    };
   }
 }
 
@@ -85,7 +75,7 @@ export async function cleanupStaleWorkspaces() {
   const tmpDir = os.tmpdir();
   try {
     const entries = await fs.readdir(tmpDir);
-    const stale = entries.filter(e => e.startsWith(TEMP_PREFIX));
+    const stale = entries.filter((e) => e.startsWith(TEMP_PREFIX));
     const oneHourAgo = Date.now() - 3_600_000;
 
     for (const entry of stale) {
@@ -96,7 +86,11 @@ export async function cleanupStaleWorkspaces() {
           await fs.rm(fullPath, { recursive: true, force: true });
           console.log(`Cleaned up stale workspace: ${entry}`);
         }
-      } catch { /* already gone */ }
+      } catch {
+        /* already gone */
+      }
     }
-  } catch { /* tmpdir read failed, not critical */ }
+  } catch {
+    /* tmpdir read failed, not critical */
+  }
 }

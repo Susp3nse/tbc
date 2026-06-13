@@ -44,10 +44,12 @@ export async function handleAdmin(interaction) {
         .setTitle('Admin Complete')
         .setDescription(result.summary || 'Session completed.')
         .setColor(0x57f287)
-        .setFooter({ text: `Completed in ${formatDuration(Date.now() - currentSession.startTime)}` });
+        .setFooter({
+          text: `Completed in ${formatDuration(Date.now() - currentSession.startTime)}`,
+        });
 
       if (result.actions.length > 0) {
-        const actionsText = result.actions.map(a => `- ${a}`).join('\n');
+        const actionsText = result.actions.map((a) => `- ${a}`).join('\n');
         embed.addFields({ name: 'Actions Taken', value: actionsText.slice(0, 1024) });
       }
 
@@ -64,14 +66,16 @@ export async function handleAdmin(interaction) {
     }
   } catch (err) {
     console.error('Admin session failed:', err);
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('Admin Error')
-          .setDescription('An unexpected error occurred.')
-          .setColor(0xed4245),
-      ],
-    }).catch(() => {});
+    await interaction
+      .editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('Admin Error')
+            .setDescription('An unexpected error occurred.')
+            .setColor(0xed4245),
+        ],
+      })
+      .catch(() => {});
   } finally {
     currentSession = null;
   }

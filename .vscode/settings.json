@@ -40,7 +40,7 @@
     "**/node_modules": true,
     "**/TBC-main": true,
     "**/Addon Libraries": true,
-    "apps/rotation/output": true,
+    "apps/tbc-rotation/output": true,
     "**/dist": true
   },
   "files.exclude": {

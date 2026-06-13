@@ -30,7 +30,9 @@ export type AnalyzeReportFightResult = {
   };
 };
 
-export function analyzeReportFight(options: AnalyzeReportFightOptions): Promise<AnalyzeReportFightResult>;
+export function analyzeReportFight(
+  options: AnalyzeReportFightOptions,
+): Promise<AnalyzeReportFightResult>;
 export function resolveSpec(className: string, specName?: string): AnalyzerSpec;
 
 export const bearDruid: AnalyzerSpec;

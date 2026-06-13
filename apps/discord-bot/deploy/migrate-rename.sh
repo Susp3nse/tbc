@@ -75,7 +75,7 @@ ok "Code updated"
 header "[5/6] Installing dependencies & rebuilding"
 corepack enable
 pnpm install --frozen-lockfile
-cd "$NEW_DIR/apps/rotation"
+cd "$NEW_DIR/apps/tbc-rotation"
 pnpm run build
 cd "$NEW_DIR/apps/discord-bot"
 pnpm run build

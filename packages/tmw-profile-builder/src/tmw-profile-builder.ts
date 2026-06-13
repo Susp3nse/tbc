@@ -5,10 +5,16 @@ import { discoverClasses, discoverModules, getProfileName } from './discovery.js
 import { getAIODir, getSavedVariablesPaths, parseINI } from './ini.js';
 import { bumpBuildMetadata, readBuildMetadata } from './metadata.js';
 import { buildValidProfileNames, purgeStaleProfiles } from './profile-sync.js';
-import { ensureProfileKey, findBracedSection, removeProfile, removeProfileKey, syncProfile } from './tmw-profile.js';
+import {
+  ensureProfileKey,
+  findBracedSection,
+  removeProfile,
+  removeProfileKey,
+  syncProfile,
+} from './tmw-profile.js';
 import { timestamp, writeWithRetry } from './io.js';
 
-export class RotationBuilder {
+export class ProfileBuilder {
   constructor(private readonly context: BuildContext) {}
 
   get projectRoot(): string {
@@ -36,11 +42,11 @@ export class RotationBuilder {
   }
 
   discoverModules(className: string, aioDir: string) {
-    return discoverModules(className, aioDir);
+    return discoverModules(className, aioDir, this.context.conventions);
   }
 
   getProfileName(className: string, config?: IniConfig | null): string {
-    return getProfileName(className, config);
+    return getProfileName(className, this.context.conventions, config);
   }
 
   readBuildMetadata() {
@@ -68,8 +74,8 @@ export class RotationBuilder {
     const hasWindows = template.includes('\r\n');
     let lines = template.split(/\r?\n/);
 
-    lines = removeProfile(lines, '__template__');
-    lines = removeProfileKey(lines, '__template__');
+    lines = removeProfile(lines, this.context.conventions.templateProfileKey);
+    lines = removeProfileKey(lines, this.context.conventions.templateProfileKey);
 
     for (const className of classes) {
       const profileName = this.getProfileName(className, config);
@@ -78,7 +84,14 @@ export class RotationBuilder {
         console.log(`  Skipping ${className}: no modules found`);
         continue;
       }
-      lines = syncProfile(this.context, lines, profileName, modules, this.context.templatePath, metadata);
+      lines = syncProfile(
+        this.context,
+        lines,
+        profileName,
+        modules,
+        this.context.templatePath,
+        metadata,
+      );
       console.log(`  Built: ${profileName} (${modules.length} modules)`);
     }
 
@@ -125,10 +138,10 @@ export class RotationBuilder {
     const hasWindows = content.includes('\r\n');
     let lines = content.split(/\r?\n/);
 
-    lines = removeProfile(lines, '__template__');
-    lines = removeProfileKey(lines, '__template__');
+    lines = removeProfile(lines, this.context.conventions.templateProfileKey);
+    lines = removeProfileKey(lines, this.context.conventions.templateProfileKey);
 
-    const validNames = buildValidProfileNames(classNames, config);
+    const validNames = buildValidProfileNames(classNames, this.context.conventions, config);
     for (const className of classNames) {
       const profileName = this.getProfileName(className, config);
       const modules = this.discoverModules(className, aioDir);
@@ -139,10 +152,12 @@ export class RotationBuilder {
       }
 
       lines = syncProfile(this.context, lines, profileName, modules, templatePath, metadata);
-      console.log(`[${timestamp()}] Synced: ${profileName} (${modules.length} modules, ${Date.now() - start}ms)`);
+      console.log(
+        `[${timestamp()}] Synced: ${profileName} (${modules.length} modules, ${Date.now() - start}ms)`,
+      );
     }
 
-    lines = purgeStaleProfiles(lines, validNames, config);
+    lines = purgeStaleProfiles(lines, validNames, this.context.conventions, config);
 
     const output = lines.join(hasWindows ? '\r\n' : '\n');
     writeWithRetry(svPath, output);
@@ -167,29 +182,9 @@ export class RotationBuilder {
     ];
     const profilesSection = findBracedSection(lines, /^\["profiles"\]\s*=\s*\{/);
     if (!profilesSection) return lines;
-    return ensureProfileKey([
-      ...lines.slice(0, profilesSection.end),
-      ...newProfile,
-      ...lines.slice(profilesSection.end),
-    ], profileName);
+    return ensureProfileKey(
+      [...lines.slice(0, profilesSection.end), ...newProfile, ...lines.slice(profilesSection.end)],
+      profileName,
+    );
   }
-}
-
-export function createRotationBuildApi(context: BuildContext) {
-  const builder = new RotationBuilder(context);
-  return {
-    discoverClasses: builder.discoverClasses.bind(builder),
-    discoverModules: builder.discoverModules.bind(builder),
-    getProfileName: builder.getProfileName.bind(builder),
-    getAIODir: builder.getAIODir.bind(builder),
-    getSavedVariablesPaths: builder.getSavedVariablesPaths.bind(builder),
-    syncToSavedVariables: builder.syncToSavedVariables.bind(builder),
-    buildOutput: builder.buildOutput.bind(builder),
-    readBuildMetadata: builder.readBuildMetadata.bind(builder),
-    bumpBuildMetadata: builder.bumpBuildMetadata.bind(builder),
-    parseINI: builder.parseINI.bind(builder),
-    timestamp: builder.timestamp.bind(builder),
-    INI_PATH: context.iniPath,
-    PROJECT_ROOT: context.projectRoot,
-  };
 }

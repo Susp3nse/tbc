@@ -17,17 +17,20 @@ A Discord bot that lets users request personalized rotation tweaks via Claude AI
 ## Quick Start (Local)
 
 1. **Install dependencies** from the repo root:
+
    ```bash
    corepack enable
    pnpm install
    ```
 
 2. **Create your `.env`** file:
+
    ```bash
    cp apps/discord-bot/.env.example apps/discord-bot/.env
    ```
 
 3. **Fill in the required values** in `apps/discord-bot/.env`:
+
    ```env
    DISCORD_TOKEN=your-bot-token
    DISCORD_CLIENT_ID=your-application-id
@@ -36,9 +39,11 @@ A Discord bot that lets users request personalized rotation tweaks via Claude AI
    ```
 
 4. **Register slash commands** with Discord:
+
    ```bash
    pnpm --filter @flux/bot register
    ```
+
    > Guild-scoped commands (with `DISCORD_GUILD_ID` set) appear instantly. Global commands take up to 1 hour to propagate.
 
 5. **Start the bot**:
@@ -59,6 +64,7 @@ bash apps/discord-bot/deploy/update.sh
 ```
 
 `setup.sh` handles:
+
 1. Installing Node.js via nvm (if needed)
 2. Prompting for all environment variables
 3. Writing `.env` with secure permissions (600)
@@ -132,15 +138,15 @@ You should see `OK` and a formatted embed in your Discord channel.
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DISCORD_TOKEN` | Yes | — | Bot token from Discord Developer Portal |
-| `DISCORD_CLIENT_ID` | Yes | — | Application ID (numeric snowflake) |
-| `DISCORD_GUILD_ID` | No | — | Guild ID for guild-scoped command registration |
-| `ANTHROPIC_API_KEY` | Yes | — | Claude API key |
-| `WEBHOOK_PORT` | No | `3000` | Port for the GitHub webhook HTTP server |
-| `WEBHOOK_SECRET` | No | — | Shared secret for webhook signature verification |
-| `RELEASE_CHANNEL` | No | — | Discord channel ID for release announcements |
+| Variable            | Required | Default | Description                                      |
+| ------------------- | -------- | ------- | ------------------------------------------------ |
+| `DISCORD_TOKEN`     | Yes      | —       | Bot token from Discord Developer Portal          |
+| `DISCORD_CLIENT_ID` | Yes      | —       | Application ID (numeric snowflake)               |
+| `DISCORD_GUILD_ID`  | No       | —       | Guild ID for guild-scoped command registration   |
+| `ANTHROPIC_API_KEY` | Yes      | —       | Claude API key                                   |
+| `WEBHOOK_PORT`      | No       | `3000`  | Port for the GitHub webhook HTTP server          |
+| `WEBHOOK_SECRET`    | No       | —       | Shared secret for webhook signature verification |
+| `RELEASE_CHANNEL`   | No       | —       | Discord channel ID for release announcements     |
 
 ## Project Structure
 

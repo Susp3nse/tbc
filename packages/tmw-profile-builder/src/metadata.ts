@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import type { BuildContext, BuildMetadata } from './types.js';
+import type { BuildContext, BuildMetadata, MetadataInjection } from './types.js';
 
 export function readBuildMetadata(context: BuildContext): BuildMetadata {
   const fallback = { build: 0 };
@@ -11,7 +11,10 @@ export function readBuildMetadata(context: BuildContext): BuildMetadata {
       build: Number.isInteger(parsed.build) ? parsed.build : fallback.build,
     };
   } catch (err) {
-    console.warn(`  WARNING: Could not read build-version.json (${err.message}); using build ${fallback.build}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `  WARNING: Could not read build-version.json (${message}); using build ${fallback.build}`,
+    );
     return fallback;
   }
 }
@@ -27,11 +30,12 @@ export function bumpBuildMetadata(context: BuildContext): BuildMetadata {
   return next;
 }
 
-export function injectBuildMetadata(code: string, metadata?: BuildMetadata | null): string {
-  if (!metadata || !code.startsWith('-- Flux AIO - Core Module')) return code;
-  const generated = [
-    `NS.BUILD_NUMBER = ${metadata.build}`,
-    `NS.BUILD_LABEL = "#${metadata.build}"`,
-  ].join('\n');
-  return code.replace('local NS = _G.FluxAIO', `local NS = _G.FluxAIO\n${generated}`);
+export function injectBuildMetadata(
+  code: string,
+  metadata: BuildMetadata | null | undefined,
+  injection: MetadataInjection | undefined,
+): string {
+  if (!metadata || !injection || !code.startsWith(injection.marker)) return code;
+  const generated = injection.render(metadata.build);
+  return code.replace(injection.anchor, `${injection.anchor}\n${generated}`);
 }

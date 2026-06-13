@@ -15,7 +15,7 @@ export async function graphql(query, variables = {}) {
   const res = await fetch(config.wcl.apiUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query, variables }),

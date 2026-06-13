@@ -35,13 +35,15 @@ export async function fetchFightEvents(reportCode, fightID, opts = {}) {
   let sourceID = null;
   if (opts.playerName) {
     const actor = (report.masterData?.actors || []).find(
-      (a) => a.name.toLowerCase() === opts.playerName.toLowerCase()
+      (a) => a.name.toLowerCase() === opts.playerName.toLowerCase(),
     );
     if (actor) {
       sourceID = actor.id;
       console.log(`  Player "${actor.name}" = actor ID ${sourceID} (${actor.subType})`);
     } else {
-      console.warn(`  Player "${opts.playerName}" not found in report actors. Fetching all events.`);
+      console.warn(
+        `  Player "${opts.playerName}" not found in report actors. Fetching all events.`,
+      );
     }
   }
 
@@ -68,7 +70,9 @@ export async function fetchFightEvents(reportCode, fightID, opts = {}) {
   await delay(config.requestDelayMs);
 
   console.log('  Fetching resources (energize/drain)...');
-  const resources = await fetchAllEvents(reportCode, fightID, 'Resources', start, end, { sourceID });
+  const resources = await fetchAllEvents(reportCode, fightID, 'Resources', start, end, {
+    sourceID,
+  });
 
   const result = {
     meta: {
@@ -95,7 +99,9 @@ export async function fetchFightEvents(reportCode, fightID, opts = {}) {
   const filename = `${reportCode}-fight${fightID}-raw.json`;
   await fs.writeFile(path.join(rawDir, filename), JSON.stringify(result, null, 2));
   console.log(`  Saved raw data: data/raw/${filename}`);
-  console.log(`  Events: ${casts.length} casts, ${buffs.length} buffs, ${debuffs.length} debuffs, ${resources.length} resources`);
+  console.log(
+    `  Events: ${casts.length} casts, ${buffs.length} buffs, ${debuffs.length} debuffs, ${resources.length} resources`,
+  );
 
   return result;
 }

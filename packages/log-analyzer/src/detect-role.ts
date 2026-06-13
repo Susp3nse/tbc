@@ -7,11 +7,14 @@ const playerName = process.argv[3] || 'Chancity';
 const data = await graphql(reportFightsQuery(reportCode));
 const report = data.reportData.report;
 
-const actor = report.masterData.actors.find(a => a.name === playerName);
-if (!actor) { console.error('Player not found'); process.exit(1); }
+const actor = report.masterData.actors.find((a) => a.name === playerName);
+if (!actor) {
+  console.error('Player not found');
+  process.exit(1);
+}
 const sourceID = actor.id;
 
-const bossFights = report.fights.filter(f => f.kill && f.encounterID > 0);
+const bossFights = report.fights.filter((f) => f.kill && f.encounterID > 0);
 
 const bearSpells = new Set([33878, 6807, 779, 33745, 99, 6795, 5209, 9634]);
 const catSpells = new Set([33876, 1822, 1079, 5221, 22568, 768]);
@@ -48,5 +51,7 @@ for (const fight of bossFights) {
 
   const role = bearCount > catCount ? 'BEAR' : catCount > bearCount ? 'CAT' : 'UNKNOWN';
   const dur = ((fight.endTime - fight.startTime) / 1000).toFixed(0);
-  console.log(`Fight ${fight.id}: ${fight.name} (${dur}s) — ${role} (bear:${bearCount} cat:${catCount})`);
+  console.log(
+    `Fight ${fight.id}: ${fight.name} (${dur}s) — ${role} (bear:${bearCount} cat:${catCount})`,
+  );
 }

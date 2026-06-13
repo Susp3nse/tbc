@@ -24,7 +24,7 @@ export NVM_DIR="${HOME}/.nvm"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_DIR="$(cd "$BOT_DIR/../.." && pwd)"
-ROTATION_DIR="$REPO_DIR/apps/rotation"
+ROTATION_DIR="$REPO_DIR/apps/tbc-rotation"
 
 header "Flux AIO Discord Bot — Update"
 

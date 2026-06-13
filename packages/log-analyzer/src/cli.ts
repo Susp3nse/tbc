@@ -52,7 +52,9 @@ async function main() {
           const spec = args.class && args.spec ? resolveSpec(args.class, args.spec) : bearDruid;
           const raw = await fetchFightEvents(reportCode, fightID, { playerName });
           const result = await processFight(raw, spec, { player: playerName || 'You' });
-          console.log(`\nProcessed ${result.cast_sequence.length} casts, ${Object.keys(result.uptimes).length} uptimes tracked`);
+          console.log(
+            `\nProcessed ${result.cast_sequence.length} casts, ${Object.keys(result.uptimes).length} uptimes tracked`,
+          );
         } else {
           console.error('--report requires --fight <id> or --trash');
           process.exit(1);
@@ -79,7 +81,9 @@ async function main() {
           }
           try {
             console.log(`\nFetching ${entry.player}'s fight...`);
-            const raw = await fetchFightEvents(entry.reportCode, entry.fightID, { playerName: entry.player });
+            const raw = await fetchFightEvents(entry.reportCode, entry.fightID, {
+              playerName: entry.player,
+            });
             await processFight(raw, spec, entry);
           } catch (err) {
             console.error(`  Error processing ${entry.player}: ${err.message}`);

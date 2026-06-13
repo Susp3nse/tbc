@@ -10,7 +10,7 @@ This is a monorepo with four app packages:
 
 | Package | Description |
 |---------|-------------|
-| `apps/rotation/` | Core WoW rotation addon (expansion source under `src/<expansion>/`) |
+| `apps/tbc-rotation/` | TBC rotation addon (Lua source under `src/aio/`; one app per game version) |
 | `apps/website/` | Static site for script distribution and documentation (Astro) |
 | `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
 | `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library and CLI |
@@ -35,20 +35,20 @@ pnpm test
 ### Rotation Log Analysis
 
 ```bash
-pnpm --filter @flux/rotation analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
+pnpm --filter @flux/tbc-rotation analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
 ```
 
 ### Building the Rotation
 
 ```bash
-pnpm --filter @flux/rotation build        # Compile to apps/rotation/output/TellMeWhen.lua
-pnpm --filter @flux/rotation build:sync   # Build + sync to SavedVariables (requires dev.ini)
-pnpm --filter @flux/rotation build:all    # Build + sync
-pnpm --filter @flux/rotation watch        # Watch mode: auto-rebuild + sync on save
-pnpm --filter @flux/rotation watch:log    # Watch mode with logs in apps/rotation/.logs/
+pnpm --filter @flux/tbc-rotation build        # Compile to apps/tbc-rotation/output/TellMeWhen.lua
+pnpm --filter @flux/tbc-rotation build:sync   # Build + sync to SavedVariables (requires dev.ini)
+pnpm --filter @flux/tbc-rotation build:all    # Build + sync
+pnpm --filter @flux/tbc-rotation watch        # Watch mode: auto-rebuild + sync on save
+pnpm --filter @flux/tbc-rotation watch:log    # Watch mode with logs in apps/tbc-rotation/.logs/
 ```
 
-Rotation source is organized by expansion: `apps/rotation/src/tbc/{aio,sim}` and `apps/rotation/src/mop/{aio,sim}`. TBC is the default build expansion.
+Each game version is its own app. The TBC app holds its compiled rotation tree under `apps/tbc-rotation/src/aio/` and its simulation harness under `apps/tbc-rotation/src/sim/`. Future expansions get their own app (e.g. `apps/mop-rotation`), each with its own template, build, and output.
 
 ### Running the Website
 
@@ -71,7 +71,7 @@ The rotation uses a **Strategy Registry** pattern:
 1. **Middleware** — shared logic (recovery, cooldowns, buffs, dispels) that runs first, priority-ordered
 2. **Strategies** — playstyle-specific rotations registered per form/spec
 
-Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`apps/rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile.
+Each class registers itself via `rotation_registry:register_class()` and gates its modules on `A.PlayerClass`. The build system (`apps/tbc-rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 

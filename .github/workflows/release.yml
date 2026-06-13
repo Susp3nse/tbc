@@ -27,7 +27,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build rotation
-        run: pnpm --filter @flux/rotation build
+        run: pnpm --filter @flux/tbc-rotation build
 
       - name: Get tag annotation
         id: tag_msg
@@ -44,7 +44,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.tag_msg.outputs.body }}
-          files: apps/rotation/output/TellMeWhen.lua
+          files: apps/tbc-rotation/output/TellMeWhen.lua
 
       - name: Notify Discord
         if: success()

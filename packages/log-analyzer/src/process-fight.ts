@@ -11,22 +11,37 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @returns {Array} Windows: [{ abilityGameID, name, start, end }]
  */
 export function buildBuffTimeline(events, tracked) {
-  const active = {};  // abilityGameID → start timestamp
+  const active = {}; // abilityGameID → start timestamp
   const windows = [];
 
   for (const e of events) {
     const id = e.abilityGameID;
     if (!tracked[id]) continue;
 
-    if (e.type === 'applybuff' || e.type === 'applydebuff' || e.type === 'refreshbuff' || e.type === 'refreshdebuff') {
+    if (
+      e.type === 'applybuff' ||
+      e.type === 'applydebuff' ||
+      e.type === 'refreshbuff' ||
+      e.type === 'refreshdebuff'
+    ) {
       if (active[id] != null) {
         // Close previous window on refresh
-        windows.push({ abilityGameID: id, name: tracked[id].name, start: active[id], end: e.timestamp });
+        windows.push({
+          abilityGameID: id,
+          name: tracked[id].name,
+          start: active[id],
+          end: e.timestamp,
+        });
       }
       active[id] = e.timestamp;
     } else if (e.type === 'removebuff' || e.type === 'removedebuff') {
       if (active[id] != null) {
-        windows.push({ abilityGameID: id, name: tracked[id].name, start: active[id], end: e.timestamp });
+        windows.push({
+          abilityGameID: id,
+          name: tracked[id].name,
+          start: active[id],
+          end: e.timestamp,
+        });
         active[id] = null;
       }
     }
@@ -39,9 +54,7 @@ export function buildBuffTimeline(events, tracked) {
  * Given a timestamp, return which tracked buffs are active.
  */
 export function sampleBuffsAtTime(buffWindows, timestamp) {
-  return buffWindows
-    .filter((w) => w.start <= timestamp && w.end > timestamp)
-    .map((w) => w.name);
+  return buffWindows.filter((w) => w.start <= timestamp && w.end > timestamp).map((w) => w.name);
 }
 
 /**
@@ -114,14 +127,17 @@ export function computeRefreshPatterns(debuffWindows, tracked) {
       }
     }
 
-    const avg = remainingOnRefresh.length > 0
-      ? remainingOnRefresh.reduce((a, b) => a + b, 0) / remainingOnRefresh.length
-      : 0;
+    const avg =
+      remainingOnRefresh.length > 0
+        ? remainingOnRefresh.reduce((a, b) => a + b, 0) / remainingOnRefresh.length
+        : 0;
 
     patterns[info.name] = {
       avg_remaining_on_refresh: Math.round(avg * 100) / 100,
-      min_remaining: remainingOnRefresh.length > 0 ? Math.round(Math.min(...remainingOnRefresh) * 100) / 100 : 0,
-      max_remaining: remainingOnRefresh.length > 0 ? Math.round(Math.max(...remainingOnRefresh) * 100) / 100 : 0,
+      min_remaining:
+        remainingOnRefresh.length > 0 ? Math.round(Math.min(...remainingOnRefresh) * 100) / 100 : 0,
+      max_remaining:
+        remainingOnRefresh.length > 0 ? Math.round(Math.max(...remainingOnRefresh) * 100) / 100 : 0,
       clips: remainingOnRefresh.filter((r) => r > 0).length,
       drops: dropDurations.length,
       drop_durations: dropDurations.map((d) => Math.round(d * 100) / 100),
@@ -186,7 +202,12 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
 
   // 4. Uptimes
   const buffUptimes = computeUptimes(buffWindows, specConfig.trackedBuffs, fightStart, fightEnd);
-  const debuffUptimes = computeUptimes(debuffWindows, specConfig.trackedDebuffs, fightStart, fightEnd);
+  const debuffUptimes = computeUptimes(
+    debuffWindows,
+    specConfig.trackedDebuffs,
+    fightStart,
+    fightEnd,
+  );
   const uptimes = { ...debuffUptimes, ...buffUptimes };
 
   // 5. Transitions
@@ -219,10 +240,10 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
     const cdCasts = castSequence.filter((c) => c.spell === cdName);
     const timestamps = cdCasts.map((c) => c.time);
     const duringBL = cdCasts.filter((c) =>
-      c.buffs_active.some((b) => b === 'Bloodlust' || b === 'Heroism')
+      c.buffs_active.some((b) => b === 'Bloodlust' || b === 'Heroism'),
     ).length;
-    const duringExecute = cdCasts.filter((c) =>
-      c.target_hp_pct != null && c.target_hp_pct <= (specConfig.executeThreshold || 25)
+    const duringExecute = cdCasts.filter(
+      (c) => c.target_hp_pct != null && c.target_hp_pct <= (specConfig.executeThreshold || 25),
     ).length;
 
     cooldownAlignment[cdName] = {
@@ -263,7 +284,9 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
   const dataDir = path.resolve(__dirname, '..', 'data');
   const fightsDir = path.join(dataDir, 'fights');
   await fs.mkdir(fightsDir, { recursive: true });
-  const slug = `${meta.fightName || 'unknown'}-${output.meta.player}-${specConfig.spec}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const slug = `${meta.fightName || 'unknown'}-${output.meta.player}-${specConfig.spec}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-');
   const filename = `${slug}.json`;
   await fs.writeFile(path.join(fightsDir, filename), JSON.stringify(output, null, 2));
   console.log(`  Saved: data/fights/${filename}`);

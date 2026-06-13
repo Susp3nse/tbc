@@ -5,19 +5,18 @@ const commands = [
   new SlashCommandBuilder()
     .setName('request')
     .setDescription('Request a personalized rotation tweak')
-    .addStringOption(opt =>
-      opt.setName('prompt')
+    .addStringOption((opt) =>
+      opt
+        .setName('prompt')
         .setDescription('Describe what you want changed')
         .setRequired(true)
-        .setMaxLength(config.maxRequestLength)
+        .setMaxLength(config.maxRequestLength),
     )
-    .addStringOption(opt =>
-      opt.setName('class')
+    .addStringOption((opt) =>
+      opt
+        .setName('class')
         .setDescription('Restrict edits to a specific class')
-        .addChoices(
-          { name: 'Druid', value: 'druid' },
-          { name: 'Hunter', value: 'hunter' },
-        )
+        .addChoices({ name: 'Druid', value: 'druid' }, { name: 'Hunter', value: 'hunter' }),
     ),
   new SlashCommandBuilder()
     .setName('status')
@@ -26,11 +25,12 @@ const commands = [
     .setName('admin')
     .setDescription('AI-assisted server management (Administrator only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addStringOption(opt =>
-      opt.setName('prompt')
+    .addStringOption((opt) =>
+      opt
+        .setName('prompt')
         .setDescription('What do you want to do? (natural language)')
         .setRequired(true)
-        .setMaxLength(1000)
+        .setMaxLength(1000),
     ),
 ];
 
@@ -42,7 +42,7 @@ const route = config.guildId
 
 try {
   console.log(`Registering ${commands.length} commands...`);
-  await rest.put(route, { body: commands.map(c => c.toJSON()) });
+  await rest.put(route, { body: commands.map((c) => c.toJSON()) });
   console.log('Commands registered successfully.');
 } catch (err) {
   console.error('Failed to register commands:', err);

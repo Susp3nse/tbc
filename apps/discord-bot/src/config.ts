@@ -18,7 +18,7 @@ export const config = {
   clientId: process.env.DISCORD_CLIENT_ID,
   guildId: process.env.DISCORD_GUILD_ID || null,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  rotationRoot: path.resolve(__dirname, '..', '..', 'rotation'),
+  rotationRoot: path.resolve(__dirname, '..', '..', 'tbc-rotation'),
   maxRequestLength: 500,
   rateLimitMs: 60_000,
   claudeModel: 'claude-haiku-4-5-20251001',

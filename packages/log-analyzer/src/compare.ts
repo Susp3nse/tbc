@@ -18,9 +18,8 @@ export function compareFights(baseline, yours) {
     yours: yours.meta.dps,
     top: baseline.meta.dps,
     delta: yours.meta.dps - baseline.meta.dps,
-    pct_of_top: baseline.meta.dps > 0
-      ? Math.round((yours.meta.dps / baseline.meta.dps) * 1000) / 10
-      : 0,
+    pct_of_top:
+      baseline.meta.dps > 0 ? Math.round((yours.meta.dps / baseline.meta.dps) * 1000) / 10 : 0,
   };
 
   // Cast CPM diffs
@@ -38,9 +37,13 @@ export function compareFights(baseline, yours) {
     if (topCpm > 0 && Math.abs(delta) / topCpm > 0.2) {
       const pctDiff = Math.round((delta / topCpm) * 100);
       if (delta < 0) {
-        insights.push(`${spell} CPM ${Math.abs(pctDiff)}% lower (${yourCpm} vs ${topCpm}) — under-using this ability`);
+        insights.push(
+          `${spell} CPM ${Math.abs(pctDiff)}% lower (${yourCpm} vs ${topCpm}) — under-using this ability`,
+        );
       } else {
-        insights.push(`${spell} CPM ${pctDiff}% higher (${yourCpm} vs ${topCpm}) — possibly over-using this ability`);
+        insights.push(
+          `${spell} CPM ${pctDiff}% higher (${yourCpm} vs ${topCpm}) — possibly over-using this ability`,
+        );
       }
     }
   }
@@ -95,9 +98,11 @@ export function compareFights(baseline, yours) {
       };
       if (Math.abs(diff) > 0.5) {
         if (diff > 0) {
-          refreshDiffs[name].insight = `Refreshing ${name} ${diff.toFixed(1)}s too early — wasting resources on overlapping ticks`;
+          refreshDiffs[name].insight =
+            `Refreshing ${name} ${diff.toFixed(1)}s too early — wasting resources on overlapping ticks`;
         } else {
-          refreshDiffs[name].insight = `Refreshing ${name} ${Math.abs(diff).toFixed(1)}s later than top — risk of dropping`;
+          refreshDiffs[name].insight =
+            `Refreshing ${name} ${Math.abs(diff).toFixed(1)}s later than top — risk of dropping`;
         }
         insights.push(refreshDiffs[name].insight);
       }
@@ -107,7 +112,11 @@ export function compareFights(baseline, yours) {
   return {
     meta: {
       boss: baseline.meta.boss,
-      baseline: { player: baseline.meta.player, dps: baseline.meta.dps, duration: baseline.meta.duration_sec },
+      baseline: {
+        player: baseline.meta.player,
+        dps: baseline.meta.dps,
+        duration: baseline.meta.duration_sec,
+      },
       yours: { player: yours.meta.player, dps: yours.meta.dps, duration: yours.meta.duration_sec },
     },
     dps_gap: dpsGap,
@@ -132,7 +141,9 @@ export async function compareFromFiles(baselinePath, yoursPath) {
   const dataDir = path.resolve(__dirname, '..', 'data');
   const compDir = path.join(dataDir, 'comparisons');
   await fs.mkdir(compDir, { recursive: true });
-  const slug = `${result.meta.boss || 'unknown'}-comparison`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const slug = `${result.meta.boss || 'unknown'}-comparison`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-');
   const filename = `${slug}.json`;
   await fs.writeFile(path.join(compDir, filename), JSON.stringify(result, null, 2));
 
@@ -140,7 +151,9 @@ export async function compareFromFiles(baselinePath, yoursPath) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`COMPARISON: ${result.meta.yours.player} vs ${result.meta.baseline.player}`);
   console.log(`Boss: ${result.meta.boss}`);
-  console.log(`DPS: ${result.dps_gap.yours} vs ${result.dps_gap.top} (${result.dps_gap.pct_of_top}% of top)`);
+  console.log(
+    `DPS: ${result.dps_gap.yours} vs ${result.dps_gap.top} (${result.dps_gap.pct_of_top}% of top)`,
+  );
   console.log(`${'='.repeat(60)}\n`);
 
   if (result.actionable_insights.length > 0) {

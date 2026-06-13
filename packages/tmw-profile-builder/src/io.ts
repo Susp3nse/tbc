@@ -6,14 +6,15 @@ export function writeWithRetry(filePath: string, content: string, attempts = 3, 
       fs.writeFileSync(filePath, content, 'utf8');
       return;
     } catch (err) {
-      if (i < attempts - 1 && (err.code === 'EBUSY' || err.code === 'EPERM')) {
+      const e = err as NodeJS.ErrnoException;
+      if (i < attempts - 1 && (e.code === 'EBUSY' || e.code === 'EPERM')) {
         console.log(`  File locked, retrying in ${delay}ms...`);
         const waitUntil = Date.now() + delay;
         while (Date.now() < waitUntil) {
           // busy wait to preserve existing sync behavior
         }
       } else {
-        console.error(`  ERROR writing ${filePath}: ${err.message}`);
+        console.error(`  ERROR writing ${filePath}: ${e.message}`);
         return;
       }
     }

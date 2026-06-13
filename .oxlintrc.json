@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "off",
+    "perf": "off",
+    "style": "off"
+  },
+  "rules": {
+    "no-unused-vars": "error",
+    "prefer-const": "error",
+    "no-throw-literal": "error",
+    "no-debugger": "error"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/output/**",
+    "apps/website/src/env.d.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["packages/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@flux/bot", "@flux/tbc-rotation", "@flux/website", "**/apps/**"],
+                "message": "packages/* must stay self-contained: no imports from apps/*. Dependency flow is one-way (apps -> packages)."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

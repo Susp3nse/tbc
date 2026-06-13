@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "singleQuote": true,
+  "semi": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/output/**",
+    "**/.logs/**",
+    "**/reports/**",
+    "apps/website/src/env.d.ts"
+  ]
+}

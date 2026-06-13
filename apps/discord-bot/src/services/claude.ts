@@ -8,7 +8,7 @@ const SYSTEM_PROMPT = `You are a WoW TBC rotation customization assistant for th
 Your job is to edit Lua source files to implement the user's requested rotation tweak.
 
 ## CONSTRAINTS (CRITICAL)
-- You may ONLY edit files under: src/tbc/aio/**/*.lua
+- You may ONLY edit files under: src/aio/**/*.lua
 - Do NOT create new files
 - Do NOT delete files
 - Do NOT edit shared framework files (core.lua, main.lua, settings.lua, ui.lua) unless the change absolutely requires it
@@ -17,9 +17,9 @@ Your job is to edit Lua source files to implement the user's requested rotation 
 
 ## TOOLS
 You have these tools:
-- read_file(path): Read a Lua source file. Path relative to workspace root (e.g. "src/tbc/aio/druid/cat.lua")
+- read_file(path): Read a Lua source file. Path relative to workspace root (e.g. "src/aio/druid/cat.lua")
 - edit_file(path, old_string, new_string): Replace exact text in a file. old_string must match exactly. Always read a file before editing.
-- list_files(pattern): List files matching a glob pattern (e.g. "src/tbc/aio/**/*.lua")
+- list_files(pattern): List files matching a glob pattern (e.g. "src/aio/**/*.lua")
 
 ## ARCHITECTURE
 
@@ -31,8 +31,8 @@ All modules share the \`_G.FluxAIO\` namespace (aliased as \`NS\`).
 - \`NS.cached_settings\` = Runtime settings cache
 
 ### Class Modules
-- Druid: src/tbc/aio/druid/ — balance.lua, bear.lua, caster.lua, cat.lua, class.lua, healing.lua, middleware.lua, resto.lua, schema.lua
-- Hunter: src/tbc/aio/hunter/ — class.lua, cliptracker.lua, debugui.lua, middleware.lua, rotation.lua, schema.lua
+- Druid: src/aio/druid/ — balance.lua, bear.lua, caster.lua, cat.lua, class.lua, healing.lua, middleware.lua, resto.lua, schema.lua
+- Hunter: src/aio/hunter/ — class.lua, cliptracker.lua, debugui.lua, middleware.lua, rotation.lua, schema.lua
 
 ## STRATEGY PATTERN
 
@@ -116,14 +116,15 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Relative path, e.g. "src/tbc/aio/druid/cat.lua"' },
+        path: { type: 'string', description: 'Relative path, e.g. "src/aio/druid/cat.lua"' },
       },
       required: ['path'],
     },
   },
   {
     name: 'edit_file',
-    description: 'Replace exact text in a file. old_string must match exactly. Read the file first.',
+    description:
+      'Replace exact text in a file. old_string must match exactly. Read the file first.',
     input_schema: {
       type: 'object',
       properties: {
@@ -140,7 +141,7 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        pattern: { type: 'string', description: 'Glob pattern, e.g. "src/tbc/aio/**/*.lua"' },
+        pattern: { type: 'string', description: 'Glob pattern, e.g. "src/aio/**/*.lua"' },
       },
       required: ['pattern'],
     },
@@ -149,7 +150,7 @@ const TOOLS = [
 
 // Add cache_control to last tool for prompt caching (90% discount on repeated input tokens)
 const TOOLS_CACHED = TOOLS.map((tool, i) =>
-  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool
+  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool,
 );
 
 async function handleToolCall(workDir, toolName, input) {
@@ -204,7 +205,7 @@ async function walkDir(dir) {
       const rel = path.relative(dir, fullPath).replace(/\\/g, '/');
       if (entry.isDirectory()) {
         await walk(fullPath, depth + 1);
-      } else if (rel.endsWith('.lua') && rel.startsWith('src/tbc/aio/')) {
+      } else if (rel.endsWith('.lua') && rel.startsWith('src/aio/')) {
         results.push(rel);
       }
     }
@@ -218,7 +219,7 @@ export async function editRotation(workDir, userPrompt, classHint) {
   const client = new Anthropic({ apiKey: config.anthropicApiKey });
 
   const classConstraint = classHint
-    ? `\n\nFocus ONLY on the ${classHint} class files in src/tbc/aio/${classHint}/.`
+    ? `\n\nFocus ONLY on the ${classHint} class files in src/aio/${classHint}/.`
     : '';
 
   const filesChanged = new Set();
@@ -240,8 +241,8 @@ export async function editRotation(workDir, userPrompt, classHint) {
 
       // If no tool use, we're done
       if (response.stop_reason === 'end_turn') {
-        const textBlocks = assistantContent.filter(b => b.type === 'text');
-        const summary = textBlocks.map(b => b.text).join('\n');
+        const textBlocks = assistantContent.filter((b) => b.type === 'text');
+        const summary = textBlocks.map((b) => b.text).join('\n');
         return { success: true, summary, filesChanged: [...filesChanged] };
       }
 
@@ -271,7 +272,11 @@ export async function editRotation(workDir, userPrompt, classHint) {
     }
 
     // Ran out of turns
-    return { success: false, error: `Reached max turns (${config.maxTurns})`, filesChanged: [...filesChanged] };
+    return {
+      success: false,
+      error: `Reached max turns (${config.maxTurns})`,
+      filesChanged: [...filesChanged],
+    };
   } catch (err) {
     return { success: false, error: err.message, filesChanged: [...filesChanged] };
   }

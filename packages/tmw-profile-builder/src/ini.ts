@@ -29,7 +29,7 @@ export function getAIODir(context: BuildContext, config?: IniConfig | null): str
   if (config?.paths?.watchdir) {
     return path.resolve(context.projectRoot, config.paths.watchdir);
   }
-  return context.defaultAioDir;
+  return context.aioDir;
 }
 
 export function getSavedVariablesPaths(config?: IniConfig | null): SavedVariablesTarget[] {

@@ -1,0 +1,21 @@
+; dev.ini — local-only config for build:sync / build:all / watch.
+; A plain `build` does NOT need this file; it is read only when syncing
+; the compiled profile into a WoW SavedVariables target.
+
+[accounts]
+; REQUIRED for sync/watch. Each entry is a SavedVariables target.
+; Format: ACCOUNTNAME = full path to TellMeWhen.lua
+; Every account is synced on each change and watched for /reload — list more
+; than one only if you multi-box and want them all kept in lockstep.
+YOURNAME = C:\Path\To\WoW\WTF\Account\YOURNAME\SavedVariables\TellMeWhen.lua
+; ALTNAME = C:\Path\To\WoW\WTF\Account\ALTNAME\SavedVariables\TellMeWhen.lua
+
+[profiles]
+; OPTIONAL. Override the generated profile name per class (applies to both
+; build and sync). Default: "Flux <ClassName>" (e.g. "Flux Druid").
+; druid = Chancity Druid
+
+; Advanced overrides (rarely needed) — uncomment under a [paths] section:
+;   watchdir = src/aio          ; source dir (default: src/aio)
+;   template = tmw-template.lua  ; profile template (default: tmw-template.lua)
+;   savedvariables = ...         ; single sync target instead of [accounts]

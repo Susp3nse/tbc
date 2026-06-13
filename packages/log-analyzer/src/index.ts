@@ -36,7 +36,9 @@ const SPECS = {
 
 export function resolveSpec(className, specName = '') {
   const normalizedClass = String(className || '').toLowerCase();
-  const normalizedSpec = String(specName || '').toLowerCase().replace(/\s+/g, '-');
+  const normalizedSpec = String(specName || '')
+    .toLowerCase()
+    .replace(/\s+/g, '-');
   const key = normalizedSpec ? `${normalizedClass}-${normalizedSpec}` : normalizedClass;
   const spec = SPECS[key];
 

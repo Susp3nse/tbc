@@ -102,8 +102,10 @@ export const hunter = {
 };
 
 export function hunterSpellName(spellId) {
-  return hunter.trackedSpells[spellId]?.name
-    || hunter.trackedBuffs[spellId]?.name
-    || hunter.trackedDebuffs[spellId]?.name
-    || `Spell ${spellId}`;
+  return (
+    hunter.trackedSpells[spellId]?.name ||
+    hunter.trackedBuffs[spellId]?.name ||
+    hunter.trackedDebuffs[spellId]?.name ||
+    `Spell ${spellId}`
+  );
 }

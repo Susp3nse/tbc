@@ -3,15 +3,20 @@
   "private": true,
   "packageManager": "pnpm@11.6.0",
   "scripts": {
-    "build:rotation": "corepack pnpm --filter @flux/rotation build",
+    "build:rotation": "corepack pnpm --filter @flux/tbc-rotation build",
     "build:website": "corepack pnpm --filter @flux/website build",
     "build:bot": "corepack pnpm --filter @flux/bot build",
-    "lint": "corepack pnpm exec oxlint apps packages --ignore-pattern apps/website/src/env.d.ts --deny-warnings",
+    "lint": "corepack pnpm exec oxlint apps packages --deny-warnings",
+    "lint:fix": "corepack pnpm exec oxlint apps packages --fix",
+    "format": "corepack pnpm exec oxfmt apps packages",
+    "format:check": "corepack pnpm exec oxfmt --check apps packages",
     "typecheck": "corepack pnpm -r --if-present typecheck",
-    "test": "corepack pnpm --filter @flux/rotation test && corepack pnpm --filter @flux/log-analyzer test"
+    "check": "corepack pnpm run lint && corepack pnpm run format:check && corepack pnpm run typecheck",
+    "test": "corepack pnpm --filter @flux/tbc-rotation test && corepack pnpm --filter @flux/log-analyzer test"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "oxfmt": "0.54.0",
     "oxlint": "^1.69.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"

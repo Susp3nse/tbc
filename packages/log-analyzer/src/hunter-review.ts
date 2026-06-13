@@ -60,7 +60,10 @@ Requires WCL_CLIENT_ID and WCL_CLIENT_SECRET in the repo root .env file.`);
 }
 
 function slugify(value) {
-  return String(value || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return String(value || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function round(value, digits = 1) {
@@ -238,9 +241,11 @@ function buildOpener(casts, damage, fightStart, maxEvents = 16) {
 }
 
 function deathForActor(deaths, sourceID) {
-  return (deaths || [])
-    .filter((event) => event.targetID === sourceID || event.sourceID === sourceID)
-    .sort((a, b) => a.timestamp - b.timestamp)[0] || null;
+  return (
+    (deaths || [])
+      .filter((event) => event.targetID === sourceID || event.sourceID === sourceID)
+      .sort((a, b) => a.timestamp - b.timestamp)[0] || null
+  );
 }
 
 function eventsUntil(events, endTime) {
@@ -267,7 +272,12 @@ function processHunterFight(raw, rankingInfo = {}) {
   });
 
   const castSummary = summarizeByName(casts, durationSec, hunter.trackedSpells);
-  const damageSummary = summarizeByName(damage, durationSec, hunter.trackedSpells, amountFromDamage);
+  const damageSummary = summarizeByName(
+    damage,
+    durationSec,
+    hunter.trackedSpells,
+    amountFromDamage,
+  );
   const autoShot = summarizeAutoShot(damage, fightStart, durationSec);
 
   const actionSummary = { ...castSummary };
@@ -287,7 +297,9 @@ function processHunterFight(raw, rankingInfo = {}) {
       duration_sec: round(durationSec, 1),
       fight_duration_sec: round(meta.duration, 1),
       died_at_sec: death ? round((death.timestamp - fightStart) / 1000, 1) : null,
-      death_pct: death ? round(((death.timestamp - fightStart) / (fightEnd - fightStart)) * 100, 1) : null,
+      death_pct: death
+        ? round(((death.timestamp - fightStart) / (fightEnd - fightStart)) * 100, 1)
+        : null,
       dps: rankingInfo.dps || null,
       report_code: meta.reportCode,
       fight_id: meta.fightID,
@@ -326,9 +338,10 @@ function hunterRankingsQuery(encounterID, page = 1, specName = null) {
 }
 
 function parseRankingsResponse(encounter, count) {
-  const rankings = typeof encounter.characterRankings === 'string'
-    ? JSON.parse(encounter.characterRankings)
-    : encounter.characterRankings;
+  const rankings =
+    typeof encounter.characterRankings === 'string'
+      ? JSON.parse(encounter.characterRankings)
+      : encounter.characterRankings;
   const entries = rankings.rankings || rankings;
   if (!Array.isArray(entries)) return [];
 
@@ -363,7 +376,9 @@ function findPlayerActor(report, playerName) {
   const hunters = actors.filter((actor) => actor.subType === 'Hunter');
   if (hunters.length === 1) return hunters[0];
   const names = hunters.map((actor) => actor.name).join(', ') || 'none';
-  throw new Error(`Report has ${hunters.length} Hunter players (${names}). Re-run with --player <name>.`);
+  throw new Error(
+    `Report has ${hunters.length} Hunter players (${names}). Re-run with --player <name>.`,
+  );
 }
 
 async function fetchReport(reportCode) {
@@ -378,10 +393,16 @@ async function fetchHunterFight(reportCode, fight, actor, reportTitle) {
   const end = fight.endTime;
   const duration = (end - start) / 1000;
 
-  console.log(`  Fetching ${fight.name} fight ${fight.id} for ${actor.name} (${round(duration, 1)}s)`);
+  console.log(
+    `  Fetching ${fight.name} fight ${fight.id} for ${actor.name} (${round(duration, 1)}s)`,
+  );
 
-  const casts = await fetchAllEvents(reportCode, fight.id, 'Casts', start, end, { sourceID: actor.id });
-  const damage = await fetchAllEvents(reportCode, fight.id, 'DamageDone', start, end, { sourceID: actor.id });
+  const casts = await fetchAllEvents(reportCode, fight.id, 'Casts', start, end, {
+    sourceID: actor.id,
+  });
+  const damage = await fetchAllEvents(reportCode, fight.id, 'DamageDone', start, end, {
+    sourceID: actor.id,
+  });
   const buffs = await fetchAllEvents(reportCode, fight.id, 'Buffs', start, end);
   const debuffs = await fetchAllEvents(reportCode, fight.id, 'Debuffs', start, end);
   const deaths = await fetchAllEvents(reportCode, fight.id, 'Deaths', start, end);
@@ -460,24 +481,39 @@ function compareFight(yours, topAgg) {
     const delta = round(yoursCpm - topCpm, 2);
     spellRows.push({ spell, yoursCpm, topCpm, delta });
 
-    if (topCpm > 0 && yoursCpm < topCpm * 0.9 && ['Auto Shot', 'Steady Shot', 'Aimed Shot', 'Multi-Shot', 'Kill Command'].includes(spell)) {
+    if (
+      topCpm > 0 &&
+      yoursCpm < topCpm * 0.9 &&
+      ['Auto Shot', 'Steady Shot', 'Aimed Shot', 'Multi-Shot', 'Kill Command'].includes(spell)
+    ) {
       const pct = Math.round((1 - yoursCpm / topCpm) * 100);
-      notes.push(`${spell} usage is ${pct}% below the top sample (${yoursCpm}/min vs ${topCpm}/min).`);
+      notes.push(
+        `${spell} usage is ${pct}% below the top sample (${yoursCpm}/min vs ${topCpm}/min).`,
+      );
     }
   }
 
   if (topAgg.auto_shot.cpm > 0 && yours.auto_shot.cpm < topAgg.auto_shot.cpm * 0.92) {
-    notes.push(`Auto Shot throughput is low (${yours.auto_shot.cpm}/min vs ${topAgg.auto_shot.cpm}/min top avg). This is the clearest clipping/movement/not-shooting signal.`);
+    notes.push(
+      `Auto Shot throughput is low (${yours.auto_shot.cpm}/min vs ${topAgg.auto_shot.cpm}/min top avg). This is the clearest clipping/movement/not-shooting signal.`,
+    );
   }
-  if (topAgg.auto_shot.long_gap_pct > 0 && yours.auto_shot.long_gap_pct > topAgg.auto_shot.long_gap_pct + 8) {
-    notes.push(`Auto Shot long-gap rate is higher than top sample (${yours.auto_shot.long_gap_pct}% vs ${topAgg.auto_shot.long_gap_pct}%). Review movement and shot timing around those gaps.`);
+  if (
+    topAgg.auto_shot.long_gap_pct > 0 &&
+    yours.auto_shot.long_gap_pct > topAgg.auto_shot.long_gap_pct + 8
+  ) {
+    notes.push(
+      `Auto Shot long-gap rate is higher than top sample (${yours.auto_shot.long_gap_pct}% vs ${topAgg.auto_shot.long_gap_pct}%). Review movement and shot timing around those gaps.`,
+    );
   }
 
   for (const debuff of ["Hunter's Mark", 'Serpent Sting']) {
     const yoursUp = yours.uptimes[debuff] || 0;
     const topUp = topAgg.uptimes[debuff] || 0;
     if (topUp >= 40 && yoursUp < topUp - 15) {
-      notes.push(`${debuff} uptime trails top sample (${yoursUp}% vs ${topUp}%). Treat Hunter's Mark as assignment-sensitive.`);
+      notes.push(
+        `${debuff} uptime trails top sample (${yoursUp}% vs ${topUp}%). Treat Hunter's Mark as assignment-sensitive.`,
+      );
     }
   }
 
@@ -513,7 +549,9 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
       lines.push(`- ${note}`);
     }
   } else {
-    lines.push('- No top-sample comparison findings were generated. This can mean the run used --no-top or the fetched sample was unavailable.');
+    lines.push(
+      '- No top-sample comparison findings were generated. This can mean the run used --no-top or the fetched sample was unavailable.',
+    );
   }
   lines.push('');
   lines.push('## Boss Summary');
@@ -522,10 +560,13 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
   for (const fight of fights) {
     const topAuto = fight.topAggregate?.auto_shot?.cpm || 0;
     const notes = fight.comparison?.notes?.slice(0, 2).join(' ') || '';
-    const durationText = fight.yours.meta.died_at_sec == null
-      ? `${fight.yours.meta.duration_sec}s`
-      : `${fight.yours.meta.duration_sec}s alive, died ${fight.yours.meta.died_at_sec}s`;
-    lines.push(`| ${fight.yours.meta.boss} | ${durationText} | ${fight.yours.auto_shot.cpm} | ${topAuto || 'n/a'} | ${fight.yours.auto_shot.long_gap_pct}% | ${notes.replace(/\|/g, '/')} |`);
+    const durationText =
+      fight.yours.meta.died_at_sec == null
+        ? `${fight.yours.meta.duration_sec}s`
+        : `${fight.yours.meta.duration_sec}s alive, died ${fight.yours.meta.died_at_sec}s`;
+    lines.push(
+      `| ${fight.yours.meta.boss} | ${durationText} | ${fight.yours.auto_shot.cpm} | ${topAuto || 'n/a'} | ${fight.yours.auto_shot.long_gap_pct}% | ${notes.replace(/\|/g, '/')} |`,
+    );
   }
   lines.push('');
 
@@ -533,9 +574,13 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
     lines.push(`## ${fight.yours.meta.boss}`);
     lines.push('');
     lines.push(`Player: ${fight.yours.meta.player}`);
-    lines.push(`Fight: ${fight.yours.meta.fight_duration_sec}s, ${fight.yours.meta.kill ? 'kill' : 'wipe'}`);
+    lines.push(
+      `Fight: ${fight.yours.meta.fight_duration_sec}s, ${fight.yours.meta.kill ? 'kill' : 'wipe'}`,
+    );
     if (fight.yours.meta.died_at_sec != null) {
-      lines.push(`Death: ${fight.yours.meta.died_at_sec}s (${fight.yours.meta.death_pct}% of fight). Metrics below are normalized to time alive.`);
+      lines.push(
+        `Death: ${fight.yours.meta.died_at_sec}s (${fight.yours.meta.death_pct}% of fight). Metrics below are normalized to time alive.`,
+      );
     }
     lines.push('');
     lines.push('### Shot CPM');
@@ -546,9 +591,13 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
     }
     lines.push('');
     lines.push('### Auto Shot Timing');
-    lines.push(`- Yours: median ${fight.yours.auto_shot.median_interval}s, p90 ${fight.yours.auto_shot.p90_interval}s, max ${fight.yours.auto_shot.max_interval}s, long gaps ${fight.yours.auto_shot.long_gap_pct}%`);
+    lines.push(
+      `- Yours: median ${fight.yours.auto_shot.median_interval}s, p90 ${fight.yours.auto_shot.p90_interval}s, max ${fight.yours.auto_shot.max_interval}s, long gaps ${fight.yours.auto_shot.long_gap_pct}%`,
+    );
     if (fight.topAggregate?.sample_count) {
-      lines.push(`- Top sample (${fight.topAggregate.sample_count}): median ${fight.topAggregate.auto_shot.median_interval}s, p90 ${fight.topAggregate.auto_shot.p90_interval}s, long gaps ${fight.topAggregate.auto_shot.long_gap_pct}%`);
+      lines.push(
+        `- Top sample (${fight.topAggregate.sample_count}): median ${fight.topAggregate.auto_shot.median_interval}s, p90 ${fight.topAggregate.auto_shot.p90_interval}s, long gaps ${fight.topAggregate.auto_shot.long_gap_pct}%`,
+      );
     }
     lines.push('');
     lines.push('### Uptimes');
@@ -559,7 +608,9 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
       ...Object.keys(fight.topAggregate?.uptimes || {}),
     ]);
     for (const name of [...uptimeNames].sort()) {
-      lines.push(`| ${name} | ${fight.yours.uptimes[name] ?? 0}% | ${fight.topAggregate?.uptimes?.[name] ?? 'n/a'}% |`);
+      lines.push(
+        `| ${name} | ${fight.yours.uptimes[name] ?? 0}% | ${fight.topAggregate?.uptimes?.[name] ?? 'n/a'}% |`,
+      );
     }
     lines.push('');
     lines.push('### Cooldowns');
@@ -569,7 +620,9 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
       const yoursCd = fight.yours.cooldowns[cd] || { count: 0, first: null };
       const topCd = fight.topAggregate?.cooldowns?.[cd] || { avg_count: 0, avg_first: null };
       if (!yoursCd.count && !topCd.avg_count) continue;
-      lines.push(`| ${cd} | ${yoursCd.count} | ${yoursCd.first ?? 'n/a'} | ${topCd.avg_count || 'n/a'} | ${topCd.avg_first ?? 'n/a'} |`);
+      lines.push(
+        `| ${cd} | ${yoursCd.count} | ${yoursCd.first ?? 'n/a'} | ${topCd.avg_count || 'n/a'} | ${topCd.avg_first ?? 'n/a'} |`,
+      );
     }
     lines.push('');
     lines.push('### Opener');
@@ -583,9 +636,15 @@ function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName 
   }
 
   lines.push('## Caveats');
-  lines.push('- Auto Shot timing here is comparative from WCL damage timestamps. It flags long gaps and low throughput, but exact clip attribution still needs in-game clip tracker CSV.');
-  lines.push('- Pet damage is not owner-attributed in this first pass; this review focuses on hunter casts, Auto Shot, debuffs, and cooldown timing.');
-  lines.push('- Hunter\'s Mark is assignment-sensitive. Low uptime is only a bug if you were responsible for it.');
+  lines.push(
+    '- Auto Shot timing here is comparative from WCL damage timestamps. It flags long gaps and low throughput, but exact clip attribution still needs in-game clip tracker CSV.',
+  );
+  lines.push(
+    '- Pet damage is not owner-attributed in this first pass; this review focuses on hunter casts, Auto Shot, debuffs, and cooldown timing.',
+  );
+  lines.push(
+    "- Hunter's Mark is assignment-sensitive. Low uptime is only a bug if you were responsible for it.",
+  );
   lines.push('');
 
   return `${lines.join('\n')}\n`;
@@ -612,10 +671,16 @@ async function analyzeTopHunters(fight, ownReportCode, ownPlayer, topCount, spec
   for (const entry of rankings.rankings) {
     if (processed.length >= topCount) break;
     if (!entry.reportCode || entry.fightID == null) continue;
-    if (entry.reportCode === ownReportCode && entry.player.toLowerCase() === ownPlayer.toLowerCase()) continue;
+    if (
+      entry.reportCode === ownReportCode &&
+      entry.player.toLowerCase() === ownPlayer.toLowerCase()
+    )
+      continue;
 
     try {
-      console.log(`  Top sample${specName ? ` (${specName})` : ''}: ${entry.player}-${entry.server} on ${rankings.encounterName}`);
+      console.log(
+        `  Top sample${specName ? ` (${specName})` : ''}: ${entry.player}-${entry.server} on ${rankings.encounterName}`,
+      );
       const report = await fetchReport(entry.reportCode);
       const topFight = report.fights.find((candidate) => candidate.id === entry.fightID);
       if (!topFight) continue;
@@ -654,18 +719,23 @@ async function main() {
     console.log(`\n=== ${fight.name} ===`);
     const raw = await fetchHunterFight(reportCode, fight, actor, report.title);
     const yours = processHunterFight(raw, { player: playerName, server: actor.server });
-    const topAnalyses = args.noTop ? [] : await analyzeTopHunters(fight, reportCode, playerName, args.top, args.spec);
+    const topAnalyses = args.noTop
+      ? []
+      : await analyzeTopHunters(fight, reportCode, playerName, args.top, args.spec);
     const topAggregate = aggregateTop(topAnalyses);
     const comparison = compareFight(yours, topAggregate);
 
     reviewFights.push({ yours, topAnalyses, topAggregate, comparison });
     const specPart = args.spec ? `-${slugify(args.spec)}` : '';
-    await saveJson(`hunter-review/${reportCode}-${slugify(playerName)}${specPart}-${slugify(fight.name)}.json`, {
-      yours,
-      topAnalyses,
-      topAggregate,
-      comparison,
-    });
+    await saveJson(
+      `hunter-review/${reportCode}-${slugify(playerName)}${specPart}-${slugify(fight.name)}.json`,
+      {
+        yours,
+        topAnalyses,
+        topAggregate,
+        comparison,
+      },
+    );
   }
 
   const markdown = renderMarkdown({
@@ -677,7 +747,10 @@ async function main() {
   });
 
   const specPart = args.spec ? `-${slugify(args.spec)}` : '';
-  const mdPath = await saveText(`hunter-review/${reportCode}-${slugify(playerName)}${specPart}-review.md`, markdown);
+  const mdPath = await saveText(
+    `hunter-review/${reportCode}-${slugify(playerName)}${specPart}-review.md`,
+    markdown,
+  );
   console.log(`\nSaved hunter review: ${path.relative(path.resolve(__dirname, '..'), mdPath)}`);
 }
 

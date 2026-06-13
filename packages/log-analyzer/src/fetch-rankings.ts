@@ -49,7 +49,9 @@ export async function fetchRankings(encounterID, className, specName, count = 10
 
   console.log(`\nTop ${top.length} ${specName} ${className} on ${encounter.name}:`);
   for (const p of top) {
-    console.log(`  #${p.rank} ${p.player}-${p.server}: ${p.dps} DPS (${p.duration.toFixed(1)}s) — report ${p.reportCode} fight ${p.fightID}`);
+    console.log(
+      `  #${p.rank} ${p.player}-${p.server}: ${p.dps} DPS (${p.duration.toFixed(1)}s) — report ${p.reportCode} fight ${p.fightID}`,
+    );
   }
 
   return { encounter: encounter.name, encounterID, rankings: top };

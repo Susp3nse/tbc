@@ -2,20 +2,23 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { BuildContext, IniConfig } from './types.js';
-import { RotationBuilder } from './tmw-profile-builder.js';
+import { ProfileBuilder } from './tmw-profile-builder.js';
 import { getSavedVariablesPaths } from './ini.js';
 
 function isWowRunning(): boolean {
   if (process.platform !== 'win32') return false;
   try {
-    const output = childProcess.execFileSync('tasklist', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const output = childProcess.execFileSync('tasklist', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
     return /(^|\r?\n)\s*(Wow|WowClassic|World of Warcraft)\.exe\s/i.test(output);
   } catch {
     return false;
   }
 }
 
-function resolveClasses(builder: RotationBuilder, config: IniConfig | null): string[] {
+function resolveClasses(builder: ProfileBuilder, config: IniConfig | null): string[] {
   const aioDir = builder.getAIODir(config);
 
   if (!fs.existsSync(aioDir)) {
@@ -30,9 +33,10 @@ function resolveClasses(builder: RotationBuilder, config: IniConfig | null): str
   const pkgPath = path.join(builder.projectRoot, 'package.json');
   const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : {};
   const excludeClasses = pkg.excludeClasses || [];
-  const classes = excludeClasses.length > 0
-    ? allClasses.filter((className) => !excludeClasses.includes(className))
-    : allClasses;
+  const classes =
+    excludeClasses.length > 0
+      ? allClasses.filter((className) => !excludeClasses.includes(className))
+      : allClasses;
 
   if (excludeClasses.length > 0) {
     const excluded = allClasses.filter((className) => excludeClasses.includes(className));
@@ -45,20 +49,22 @@ function resolveClasses(builder: RotationBuilder, config: IniConfig | null): str
     throw new Error('All discovered classes were excluded');
   }
 
-  const summary = classes.map((className) => {
-    const mods = builder.discoverModules(className, aioDir);
-    return `${className}: ${mods.length} modules`;
-  }).join(', ');
+  const summary = classes
+    .map((className) => {
+      const mods = builder.discoverModules(className, aioDir);
+      return `${className}: ${mods.length} modules`;
+    })
+    .join(', ');
   console.log(`Discovered ${classes.length} class(es): ${summary}\n`);
 
   return classes;
 }
 
 export function runCli(context: BuildContext, argv = process.argv.slice(2)): void {
-  const builder = new RotationBuilder(context);
+  const builder = new ProfileBuilder(context);
   const args = new Set(argv);
   const doSync = args.has('--sync') || args.has('--all');
-  const doBuild = args.has('--build') || args.has('--all') || (!doSync);
+  const doBuild = args.has('--build') || args.has('--all') || !doSync;
 
   let config: IniConfig | null = null;
   if (fs.existsSync(context.iniPath)) {
@@ -69,7 +75,7 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
   try {
     classes = resolveClasses(builder, config);
   } catch (err) {
-    console.error(`Error: ${err.message}`);
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 
@@ -89,7 +95,9 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
     console.log('\n--- Syncing to SavedVariables ---');
     if (isWowRunning()) {
       console.log('  WARNING: World of Warcraft appears to be running.');
-      console.log('  SavedVariables are loaded from disk at startup; /reload may overwrite external sync changes with in-memory addon data.');
+      console.log(
+        '  SavedVariables are loaded from disk at startup; /reload may overwrite external sync changes with in-memory addon data.',
+      );
     }
 
     let syncFailed = false;

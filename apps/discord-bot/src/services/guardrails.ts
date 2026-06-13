@@ -11,7 +11,10 @@ export function validatePrompt(prompt) {
     return { valid: false, error: 'Prompt cannot be empty.' };
   }
   if (prompt.length > config.maxRequestLength) {
-    return { valid: false, error: `Prompt too long (${prompt.length}/${config.maxRequestLength} chars).` };
+    return {
+      valid: false,
+      error: `Prompt too long (${prompt.length}/${config.maxRequestLength} chars).`,
+    };
   }
   return { valid: true };
 }

@@ -13,7 +13,9 @@ const EXPANSION_IDS = {
 export async function discover(expansionName) {
   const expId = EXPANSION_IDS[expansionName.toLowerCase()];
   if (!expId) {
-    throw new Error(`Unknown expansion: "${expansionName}". Valid: ${Object.keys(EXPANSION_IDS).join(', ')}`);
+    throw new Error(
+      `Unknown expansion: "${expansionName}". Valid: ${Object.keys(EXPANSION_IDS).join(', ')}`,
+    );
   }
 
   const data = await graphql(discoverZonesQuery(expId));

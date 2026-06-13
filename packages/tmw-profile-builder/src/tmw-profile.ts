@@ -1,5 +1,11 @@
 import fs from 'node:fs';
-import type { BracedSection, BuildContext, BuildMetadata, RotationModule } from './types.js';
+import type {
+  BracedSection,
+  BuildContext,
+  BuildMetadata,
+  MetadataInjection,
+  RotationModule,
+} from './types.js';
 import { escapeLuaString } from './lua.js';
 import { injectBuildMetadata } from './metadata.js';
 
@@ -28,7 +34,11 @@ export function findBracedSection(lines: string[], startPattern: RegExp): Braced
   return null;
 }
 
-function findCodeSnippets(lines: string[], profileStart: number, profileEnd: number): BracedSection | null {
+function findCodeSnippets(
+  lines: string[],
+  profileStart: number,
+  profileEnd: number,
+): BracedSection | null {
   for (let i = profileStart; i <= profileEnd; i++) {
     if (lines[i].trim() === '["CodeSnippets"] = {') {
       let braceDepth = 1;
@@ -71,7 +81,12 @@ function findNamedBracedSection(
   return null;
 }
 
-function findScalarLine(lines: string[], profileStart: number, profileEnd: number, keyName: string): number {
+function findScalarLine(
+  lines: string[],
+  profileStart: number,
+  profileEnd: number,
+  keyName: string,
+): number {
   const pattern = new RegExp(`^\\["${escapeRegExp(keyName)}"\\]\\s*=`);
   for (let i = profileStart; i <= profileEnd; i++) {
     if (lines[i].trim().match(pattern)) return i;
@@ -79,11 +94,15 @@ function findScalarLine(lines: string[], profileStart: number, profileEnd: numbe
   return -1;
 }
 
-function buildCodeSnippets(modules: RotationModule[], metadata?: BuildMetadata | null): string[] {
+function buildCodeSnippets(
+  modules: RotationModule[],
+  metadata: BuildMetadata | null | undefined,
+  injection: MetadataInjection | undefined,
+): string[] {
   const lines = ['["CodeSnippets"] = {'];
   for (const mod of modules) {
     const rawCode = fs.readFileSync(mod.filePath, 'utf8');
-    const code = injectBuildMetadata(rawCode, metadata);
+    const code = injectBuildMetadata(rawCode, metadata, injection);
     const escaped = escapeLuaString(code);
     lines.push('{');
     lines.push(`["Order"] = ${mod.order},`);
@@ -96,29 +115,39 @@ function buildCodeSnippets(modules: RotationModule[], metadata?: BuildMetadata |
   return lines;
 }
 
-function replaceNamedBracedSection(targetLines: string[], templateProfileLines: string[], sectionName: string): string[] {
-  const src = findNamedBracedSection(templateProfileLines, 0, templateProfileLines.length - 1, sectionName);
+function replaceNamedBracedSection(
+  targetLines: string[],
+  templateProfileLines: string[],
+  sectionName: string,
+): string[] {
+  const src = findNamedBracedSection(
+    templateProfileLines,
+    0,
+    templateProfileLines.length - 1,
+    sectionName,
+  );
   if (!src) return targetLines;
 
   const srcLines = templateProfileLines.slice(src.start, src.end + 1);
   const dst = findNamedBracedSection(targetLines, 0, targetLines.length - 1, sectionName);
   if (dst) {
-    return [
-      ...targetLines.slice(0, dst.start),
-      ...srcLines,
-      ...targetLines.slice(dst.end + 1),
-    ];
+    return [...targetLines.slice(0, dst.start), ...srcLines, ...targetLines.slice(dst.end + 1)];
   }
 
-  return [
-    ...targetLines.slice(0, -1),
-    ...srcLines,
-    targetLines[targetLines.length - 1],
-  ];
+  return [...targetLines.slice(0, -1), ...srcLines, targetLines[targetLines.length - 1]];
 }
 
-function replaceScalarFromTemplate(targetLines: string[], templateProfileLines: string[], keyName: string): string[] {
-  const srcIndex = findScalarLine(templateProfileLines, 0, templateProfileLines.length - 1, keyName);
+function replaceScalarFromTemplate(
+  targetLines: string[],
+  templateProfileLines: string[],
+  keyName: string,
+): string[] {
+  const srcIndex = findScalarLine(
+    templateProfileLines,
+    0,
+    templateProfileLines.length - 1,
+    keyName,
+  );
   if (srcIndex < 0) return targetLines;
 
   const dstIndex = findScalarLine(targetLines, 0, targetLines.length - 1, keyName);
@@ -128,17 +157,19 @@ function replaceScalarFromTemplate(targetLines: string[], templateProfileLines: 
     return result;
   }
 
-  return [
-    targetLines[0],
-    templateProfileLines[srcIndex],
-    ...targetLines.slice(1),
-  ];
+  return [targetLines[0], templateProfileLines[srcIndex], ...targetLines.slice(1)];
 }
 
-function loadTemplateProfileLines(context: BuildContext, templatePath?: string | null): string[] | null {
-  const effectiveTemplatePath = templatePath && fs.existsSync(templatePath)
-    ? templatePath
-    : (fs.existsSync(context.templatePath) ? context.templatePath : null);
+function loadTemplateProfileLines(
+  context: BuildContext,
+  templatePath?: string | null,
+): string[] | null {
+  const effectiveTemplatePath =
+    templatePath && fs.existsSync(templatePath)
+      ? templatePath
+      : fs.existsSync(context.templatePath)
+        ? context.templatePath
+        : null;
   if (!effectiveTemplatePath) return null;
 
   const templateLines = fs.readFileSync(effectiveTemplatePath, 'utf8').split(/\r?\n/);
@@ -166,7 +197,10 @@ function loadTemplateProfileLines(context: BuildContext, templatePath?: string |
   return null;
 }
 
-function refreshManagedProfileScaffold(profileLines: string[], templateProfileLines: string[]): string[] {
+function refreshManagedProfileScaffold(
+  profileLines: string[],
+  templateProfileLines: string[],
+): string[] {
   let result = profileLines;
   result = replaceNamedBracedSection(result, templateProfileLines, 'Groups');
   result = replaceScalarFromTemplate(result, templateProfileLines, 'NumGroups');
@@ -237,7 +271,7 @@ export function syncProfile(
   templatePath?: string | null,
   metadata?: BuildMetadata | null,
 ): string[] {
-  const snippetLines = buildCodeSnippets(modules, metadata);
+  const snippetLines = buildCodeSnippets(modules, metadata, context.conventions.metadata);
   const profile = findProfile(lines, profileName);
   const templateProfileLines = loadTemplateProfileLines(context, templatePath);
 
@@ -246,10 +280,7 @@ export function syncProfile(
     const cs = findCodeSnippets(existingProfileLines, 0, existingProfileLines.length - 1);
     if (!cs) {
       console.log(`  Profile "${profileName}" missing CodeSnippets - rebuilding from template`);
-      lines = [
-        ...lines.slice(0, profile.start),
-        ...lines.slice(profile.end + 1),
-      ];
+      lines = [...lines.slice(0, profile.start), ...lines.slice(profile.end + 1)];
     } else {
       existingProfileLines = [
         ...existingProfileLines.slice(0, cs.start),
@@ -257,7 +288,10 @@ export function syncProfile(
         ...existingProfileLines.slice(cs.end + 1),
       ];
       if (templateProfileLines) {
-        existingProfileLines = refreshManagedProfileScaffold(existingProfileLines, templateProfileLines);
+        existingProfileLines = refreshManagedProfileScaffold(
+          existingProfileLines,
+          templateProfileLines,
+        );
       }
       return [
         ...lines.slice(0, profile.start),
@@ -271,12 +305,7 @@ export function syncProfile(
 
   if (!templateProfileLines) {
     console.log('  WARNING: No template found, creating minimal profile');
-    const newProfile = [
-      `["${profileName}"] = {`,
-      '["Version"] = 12000703,',
-      ...snippetLines,
-      '},',
-    ];
+    const newProfile = [`["${profileName}"] = {`, '["Version"] = 12000703,', ...snippetLines, '},'];
     const profilesSection = findBracedSection(lines, /^\["profiles"\]\s*=\s*\{/);
     if (!profilesSection) {
       console.error('  ERROR: No ["profiles"] section found in TellMeWhen.lua');

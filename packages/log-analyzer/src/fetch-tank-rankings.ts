@@ -23,15 +23,20 @@ const query = `query {
 
 const data = await graphql(query);
 const encounter = data.worldData.encounter;
-const rankings = typeof encounter.characterRankings === 'string'
-  ? JSON.parse(encounter.characterRankings)
-  : encounter.characterRankings;
+const rankings =
+  typeof encounter.characterRankings === 'string'
+    ? JSON.parse(encounter.characterRankings)
+    : encounter.characterRankings;
 const entries = rankings.rankings || rankings;
 
-console.log(`Scanning ${Math.min(count, entries.length)} Feral Druids on ${encounter.name} for BEAR players...\n`);
+console.log(
+  `Scanning ${Math.min(count, entries.length)} Feral Druids on ${encounter.name} for BEAR players...\n`,
+);
 
 const bearSpells = new Set([33987, 33986, 33878, 26996, 6807, 26997, 779, 33745, 26998, 9898, 99]);
-const catSpells = new Set([33876, 33983, 33982, 1822, 27003, 1079, 27008, 5221, 27002, 22568, 27005, 768]);
+const catSpells = new Set([
+  33876, 33983, 33982, 1822, 27003, 1079, 27008, 5221, 27002, 22568, 27005, 768,
+]);
 
 let found = 0;
 
@@ -46,10 +51,10 @@ for (const entry of entries.slice(0, count)) {
     // Get report to find actor ID
     const reportData = await graphql(reportFightsQuery(reportCode));
     const report = reportData.reportData.report;
-    const fight = report.fights.find(f => f.id === fightID);
+    const fight = report.fights.find((f) => f.id === fightID);
     if (!fight) continue;
 
-    const actor = (report.masterData?.actors || []).find(a => a.name === playerName);
+    const actor = (report.masterData?.actors || []).find((a) => a.name === playerName);
     if (!actor) continue;
 
     // Fetch a small sample of casts
@@ -87,14 +92,20 @@ for (const entry of entries.slice(0, count)) {
 
     if (role === 'BEAR') {
       found++;
-      console.log(`  [BEAR] ${playerName}-${server}: ${dps} DPS (${dur}s) — report ${reportCode} fight ${fightID}`);
+      console.log(
+        `  [BEAR] ${playerName}-${server}: ${dps} DPS (${dur}s) — report ${reportCode} fight ${fightID}`,
+      );
 
       // Process this bear's fight
       console.log(`    Processing full fight...`);
       const raw = await fetchAllBearEvents(reportCode, fightID, playerName, actor.id, fight);
       const result = await processFight(raw, bearDruid, { player: playerName, server, dps });
       console.log(`    Saved. ${result.cast_sequence.length} casts tracked.`);
-      console.log(`    Casts: ${Object.entries(result.cast_summary).map(([s,i]) => s + ':' + i.count).join(', ')}`);
+      console.log(
+        `    Casts: ${Object.entries(result.cast_summary)
+          .map(([s, i]) => s + ':' + i.count)
+          .join(', ')}`,
+      );
 
       if (found >= 3) break;
     } else {
@@ -106,8 +117,12 @@ for (const entry of entries.slice(0, count)) {
 }
 
 if (found === 0) {
-  console.log('\nNo bear tanks found in top rankings. This is expected — top DPS Ferals are always cat.');
-  console.log('For bear comparison, consider comparing against your own best fight or known bear guildie logs.');
+  console.log(
+    '\nNo bear tanks found in top rankings. This is expected — top DPS Ferals are always cat.',
+  );
+  console.log(
+    'For bear comparison, consider comparing against your own best fight or known bear guildie logs.',
+  );
 }
 
 async function fetchAllBearEvents(reportCode, fightID, playerName, sourceID, fight) {
@@ -118,13 +133,26 @@ async function fetchAllBearEvents(reportCode, fightID, playerName, sourceID, fig
   const casts = await fetchAllEvents(reportCode, fightID, 'Casts', start, end, { sourceID });
   const buffs = await fetchAllEvents(reportCode, fightID, 'Buffs', start, end, { sourceID });
   const debuffs = await fetchAllEvents(reportCode, fightID, 'Debuffs', start, end);
-  const resources = await fetchAllEvents(reportCode, fightID, 'Resources', start, end, { sourceID });
+  const resources = await fetchAllEvents(reportCode, fightID, 'Resources', start, end, {
+    sourceID,
+  });
 
   return {
     meta: {
-      reportCode, fightID, fightName: fight.name, encounterID: fight.encounterID,
-      startTime: start, endTime: end, duration, kill: fight.kill, actors: [], sourceID,
+      reportCode,
+      fightID,
+      fightName: fight.name,
+      encounterID: fight.encounterID,
+      startTime: start,
+      endTime: end,
+      duration,
+      kill: fight.kill,
+      actors: [],
+      sourceID,
     },
-    casts, buffs, debuffs, resources,
+    casts,
+    buffs,
+    debuffs,
+    resources,
   };
 }

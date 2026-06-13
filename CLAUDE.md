@@ -186,7 +186,7 @@ You have unlimited stamina. The human does not. Use your persistence wisely—lo
 **Flux AIO** — a multi-class WoW TBC (The Burning Crusade) rotation addon. Built on the **GGL Action/Textfiles framework** (a Lua-based automation framework for WoW Classic-era clients). Supports **9 classes**: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, and Warrior. Uses a modular Strategy Registry pattern with a TypeScript build system that compiles per-class modules into a single TMW profile.
 
 This is a monorepo with four app packages:
-- **apps/rotation/** — The core WoW rotation addon (Lua source + TypeScript build system)
+- **apps/tbc-rotation/** — The core WoW rotation addon (Lua source + TypeScript build system)
 - **apps/website/** — Static site for distributing scripts and documentation (Astro)
 - **apps/discord-bot/** — Discord bot that lets users request personalized rotation tweaks via Claude AI
 - **packages/log-analyzer/** — Reusable Warcraft Logs analyzer library and CLI
@@ -198,24 +198,24 @@ This is a monorepo with four app packages:
 ```
 GG Rotations/
 ├── apps/
-│   ├── rotation/                     # Core rotation addon
+│   ├── tbc-rotation/                 # TBC rotation addon (one app per game version)
 │   │   ├── src/
-│   │   │   └── tbc/
-│   │   │       ├── aio/              # Active modular source (compiled by build.ts)
-│   │   │       ├── core.lua          # Namespace, settings, registry, force flags, burst context
-│   │   │       ├── main.lua          # Context creation, rotation dispatcher, force-bypass (LOAD LAST)
-│   │   │       ├── settings.lua      # Custom tabbed settings UI, movable button, /flux commands
-│   │   │       ├── ui.lua            # ProfileUI schema generator (framework backing store)
-│   │   │       ├── dashboard.lua     # Shared combat dashboard overlay (data-driven)
-│   │   │       ├── druid/            # Druid: caster, cat, bear, balance, resto
-│   │   │       ├── hunter/           # Hunter: ranged
-│   │   │       ├── mage/             # Mage: fire, frost, arcane
-│   │   │       ├── paladin/          # Paladin: retribution, protection, holy
-│   │   │       ├── priest/           # Priest: shadow, smite, holy
-│   │   │       ├── rogue/            # Rogue: combat, assassination, subtlety
-│   │   │       ├── shaman/           # Shaman: elemental, enhancement, restoration
-│   │   │       ├── warlock/          # Warlock: affliction, demonology, destruction
-│   │   │       └── warrior/          # Warrior: arms, fury, protection
+│   │   │   ├── aio/                  # Active modular source (compiled by build.ts)
+│   │   │   │   ├── core.lua          # Namespace, settings, registry, force flags, burst context
+│   │   │   │   ├── main.lua          # Context creation, rotation dispatcher, force-bypass (LOAD LAST)
+│   │   │   │   ├── settings.lua      # Custom tabbed settings UI, movable button, /flux commands
+│   │   │   │   ├── ui.lua            # ProfileUI schema generator (framework backing store)
+│   │   │   │   ├── dashboard.lua     # Shared combat dashboard overlay (data-driven)
+│   │   │   │   ├── druid/            # Druid: caster, cat, bear, balance, resto
+│   │   │   │   ├── hunter/           # Hunter: ranged
+│   │   │   │   ├── mage/             # Mage: fire, frost, arcane
+│   │   │   │   ├── paladin/          # Paladin: retribution, protection, holy
+│   │   │   │   ├── priest/           # Priest: shadow, smite, holy
+│   │   │   │   ├── rogue/            # Rogue: combat, assassination, subtlety
+│   │   │   │   ├── shaman/           # Shaman: elemental, enhancement, restoration
+│   │   │   │   ├── warlock/          # Warlock: affliction, demonology, destruction
+│   │   │   │   └── warrior/          # Warrior: arms, fury, protection
+│   │   │   └── sim/                  # Simulation harness (regression-checks rotation logic)
 │   │   ├── output/                   # Compiled output (gitignored)
 │   │   │   └── TellMeWhen.lua
 │   │   ├── build.ts                  # Thin wrapper around @flux/tmw-profile-builder build CLI
@@ -248,17 +248,17 @@ GG Rotations/
 
 ## Build System
 
-The build system (`apps/rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile:
+The build system (`apps/tbc-rotation/build.ts`) auto-discovers class modules and compiles them into a single TMW profile:
 
 ```bash
-corepack pnpm --filter @flux/rotation build        # Build output/TellMeWhen.lua
-corepack pnpm --filter @flux/rotation build:sync   # Sync to SavedVariables (requires dev.ini)
-corepack pnpm --filter @flux/rotation build:all    # Build + sync
-corepack pnpm --filter @flux/rotation watch        # Watch for changes, auto-rebuild + sync
-corepack pnpm --filter @flux/rotation watch:log    # Watch with logs in apps/rotation/.logs/
+corepack pnpm --filter @flux/tbc-rotation build        # Build output/TellMeWhen.lua
+corepack pnpm --filter @flux/tbc-rotation build:sync   # Sync to SavedVariables (requires dev.ini)
+corepack pnpm --filter @flux/tbc-rotation build:all    # Build + sync
+corepack pnpm --filter @flux/tbc-rotation watch        # Watch for changes, auto-rebuild + sync
+corepack pnpm --filter @flux/tbc-rotation watch:log    # Watch with logs in apps/tbc-rotation/.logs/
 ```
 
-Or via pnpm scripts: `pnpm --filter @flux/rotation build`, `pnpm --filter @flux/rotation watch`
+Or via pnpm scripts: `pnpm --filter @flux/tbc-rotation build`, `pnpm --filter @flux/tbc-rotation watch`
 
 **File naming convention**: Lowercase single words only — no underscores, hyphens, or spaces (e.g. `cat.lua`, `cliptracker.lua`).
 
@@ -459,7 +459,7 @@ All magic numbers are in the `Constants` table (defined in Core):
 
 ## Development Notes
 
-- **Build system**: `corepack pnpm --filter @flux/rotation build` compiles modules → `output/TellMeWhen.lua`. Use `corepack pnpm --filter @flux/rotation watch` for auto-rebuild on save
+- **Build system**: `corepack pnpm --filter @flux/tbc-rotation build` compiles modules → `output/TellMeWhen.lua`. Use `corepack pnpm --filter @flux/tbc-rotation watch` for auto-rebuild on save
 - **Lua 5.1** syntax (WoW's embedded interpreter)
 - **200 local variable limit** per function scope (Lua constraint)
 - **Frame rate sensitive** - Rotation runs every frame; avoid allocations in hot paths
@@ -478,9 +478,9 @@ When the user says "review PR ##, merge, and tag a release" (or similar), perfor
 2. **Merge** — `gh pr merge <#> --merge --delete-branch`. Always `--merge` (not `--squash` or `--rebase`) so commit attribution is preserved on main. Then `git checkout main && git pull origin main`.
 
 3. **Bump versions** (semver: patch for bugfix, minor for new feature / new setting, major for breaking change):
-   - `apps/rotation/package.json` `"version"` field
-   - The per-class file the PR actually touched, e.g. `apps/rotation/src/tbc/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
-   - Verify the build: `corepack pnpm --filter @flux/rotation build`
+   - `apps/tbc-rotation/package.json` `"version"` field
+   - The per-class file the PR actually touched, e.g. `apps/tbc-rotation/src/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`. Bump **every** class the PR touched — per-class versions are independent.
+   - Verify the build: `corepack pnpm --filter @flux/tbc-rotation build`
 
 4. **Update the website changelog** at `apps/website/src/pages/changelog.astro`. Insert a new `<section class="section changelog-entry">` at the **top** (above the existing topmost entry), mirroring its format: `<h2>vX.Y.Z</h2>`, the appropriate `<span class="changelog-tag tag-feature">Feature</span>` or `tag-fix`, one `<h3>` per class touched, `<ul class="features">` with `<li><strong>Title</strong> &mdash; description</li>`.
 
