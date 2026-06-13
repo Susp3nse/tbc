@@ -17,13 +17,27 @@ export type MetadataInjection = {
   marker: string;
   /** The injected text is placed immediately after this anchor line. */
   anchor: string;
-  /** Renders the text to inject for a given build number. */
-  render: (build: number) => string;
+  /** Text to inject, with `{build}` substituted for the build number. */
+  template: string;
+};
+
+/** Project root-relative source/output paths. Omitted entries fall back to the historical defaults. */
+export type BuilderPaths = {
+  /** Directory holding the compiled rotation source (class dirs + shared files). Default "src/aio". */
+  aioDir?: string;
+  /** TMW profile template. Default "tmw-template.lua". */
+  template?: string;
+  /** Compiled distributable. Default "output/TellMeWhen.lua". */
+  output?: string;
+  /** Local dev config. Default "dev.ini". */
+  ini?: string;
+  /** Build counter store. Default "build-version.json". */
+  buildVersion?: string;
 };
 
 /**
  * Project-specific naming/layout conventions. The package itself is content-agnostic;
- * everything Flux-specific lives here and is supplied (with defaults) by createBuildContext().
+ * the consuming app supplies these (see apps/tbc-rotation/builder.config.json).
  */
 export type BuildConventions = {
   /** Prefix for generated TMW snippet names, e.g. "Flux_". */

@@ -36,6 +36,6 @@ export function injectBuildMetadata(
   injection: MetadataInjection | undefined,
 ): string {
   if (!metadata || !injection || !code.startsWith(injection.marker)) return code;
-  const generated = injection.render(metadata.build);
+  const generated = injection.template.replace(/\{build\}/g, String(metadata.build));
   return code.replace(injection.anchor, `${injection.anchor}\n${generated}`);
 }

@@ -21,6 +21,10 @@ export async function createWorkspace() {
   });
   await fs.copyFile(path.join(rotRoot, 'dist', 'build.js'), path.join(tempDir, 'build.js'));
   await fs.copyFile(path.join(rotRoot, 'tmw-template.lua'), path.join(tempDir, 'tmw-template.lua'));
+  await fs.copyFile(
+    path.join(rotRoot, 'builder.config.json'),
+    path.join(tempDir, 'builder.config.json'),
+  );
   await fs.copyFile(path.join(rotRoot, 'package.json'), path.join(tempDir, 'package.json'));
   await fs.mkdir(tempProfileBuilderRoot, { recursive: true });
   await fs.cp(path.join(profileBuilderRoot, 'dist'), path.join(tempProfileBuilderRoot, 'dist'), {

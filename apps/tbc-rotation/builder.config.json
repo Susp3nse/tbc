@@ -1,0 +1,32 @@
+{
+  "_comment": "Flux AIO build conventions — owned by the app, loaded by @flux/tmw-profile-builder. The package knows HOW to build; this file says WHAT. Rename a source .lua? update the matching loadOrder.source. Different game version? point paths at a different template/output.",
+  "modulePrefix": "Flux_",
+  "profileNamePrefix": "Flux ",
+  "nameOverrides": { "ui": "UI" },
+  "defaultModuleOrder": 7,
+  "templateProfileKey": "__template__",
+  "paths": {
+    "aioDir": "src/aio",
+    "template": "tmw-template.lua",
+    "output": "output/TellMeWhen.lua",
+    "ini": "dev.ini",
+    "buildVersion": "build-version.json"
+  },
+  "loadOrder": [
+    { "slot": "shared", "source": "common.lua", "order": 1 },
+    { "slot": "class", "source": "schema.lua", "order": 2 },
+    { "slot": "shared", "source": "ui.lua", "order": 3 },
+    { "slot": "shared", "source": "core.lua", "order": 4 },
+    { "slot": "class", "source": "class.lua", "order": 5 },
+    { "slot": "class", "source": "healing.lua", "order": 6 },
+    { "slot": "shared", "source": "settings.lua", "order": 6 },
+    { "slot": "class", "source": "middleware.lua", "order": 7 },
+    { "slot": "shared", "source": "dashboard.lua", "order": 8 },
+    { "slot": "shared", "source": "main.lua", "order": 9 }
+  ],
+  "metadata": {
+    "marker": "-- Flux AIO - Core Module",
+    "anchor": "local NS = _G.FluxAIO",
+    "template": "NS.BUILD_NUMBER = {build}\nNS.BUILD_LABEL = \"#{build}\""
+  }
+}

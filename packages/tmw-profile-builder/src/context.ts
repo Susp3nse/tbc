@@ -1,45 +1,41 @@
+import fs from 'node:fs';
 import path from 'node:path';
-import type { BuildContext, BuildConventions } from './types.js';
+import type { BuildContext, BuildConventions, BuilderPaths } from './types.js';
 
-/** Default conventions. These reproduce the historical Flux AIO build behavior exactly. */
-export const DEFAULT_CONVENTIONS: BuildConventions = {
-  modulePrefix: 'Flux_',
-  profileNamePrefix: 'Flux ',
-  nameOverrides: { ui: 'UI' },
-  defaultModuleOrder: 7,
-  templateProfileKey: '__template__',
-  loadOrder: [
-    { slot: 'shared', source: 'common.lua', order: 1 },
-    { slot: 'class', source: 'schema.lua', order: 2 },
-    { slot: 'shared', source: 'ui.lua', order: 3 },
-    { slot: 'shared', source: 'core.lua', order: 4 },
-    { slot: 'class', source: 'class.lua', order: 5 },
-    { slot: 'class', source: 'healing.lua', order: 6 },
-    { slot: 'shared', source: 'settings.lua', order: 6 },
-    { slot: 'class', source: 'middleware.lua', order: 7 },
-    { slot: 'shared', source: 'dashboard.lua', order: 8 },
-    { slot: 'shared', source: 'main.lua', order: 9 },
-  ],
-  metadata: {
-    marker: '-- Flux AIO - Core Module',
-    anchor: 'local NS = _G.FluxAIO',
-    render: (build) => [`NS.BUILD_NUMBER = ${build}`, `NS.BUILD_LABEL = "#${build}"`].join('\n'),
-  },
-};
+/** The shape of builder.config.json: naming/load-order conventions plus root-relative paths. */
+type BuilderConfigFile = BuildConventions & { paths?: BuilderPaths };
 
+/**
+ * Build a BuildContext by loading the project's builder.config.json.
+ *
+ * This package is content-agnostic: it ships no naming/load-order/path defaults.
+ * The consuming app owns builder.config.json (see apps/tbc-rotation/builder.config.json);
+ * the package only reads it. `configPath` overrides the default <projectRoot>/builder.config.json.
+ */
 export function createBuildContext(options: {
   projectRoot: string;
-  conventions?: Partial<BuildConventions>;
+  configPath?: string;
 }): BuildContext {
   const projectRoot = options.projectRoot;
+  const configPath = options.configPath ?? path.join(projectRoot, 'builder.config.json');
+
+  if (!fs.existsSync(configPath)) {
+    throw new Error(`Builder config not found: ${configPath}`);
+  }
+
+  const { paths = {}, ...conventions } = JSON.parse(
+    fs.readFileSync(configPath, 'utf8'),
+  ) as BuilderConfigFile;
+  const resolve = (rel: string | undefined, fallback: string) =>
+    path.join(projectRoot, rel ?? fallback);
 
   return {
     projectRoot,
-    aioDir: path.join(projectRoot, 'src', 'aio'),
-    templatePath: path.join(projectRoot, 'tmw-template.lua'),
-    outputPath: path.join(projectRoot, 'output', 'TellMeWhen.lua'),
-    iniPath: path.join(projectRoot, 'dev.ini'),
-    buildVersionPath: path.join(projectRoot, 'build-version.json'),
-    conventions: { ...DEFAULT_CONVENTIONS, ...options.conventions },
+    aioDir: resolve(paths.aioDir, 'src/aio'),
+    templatePath: resolve(paths.template, 'tmw-template.lua'),
+    outputPath: resolve(paths.output, 'output/TellMeWhen.lua'),
+    iniPath: resolve(paths.ini, 'dev.ini'),
+    buildVersionPath: resolve(paths.buildVersion, 'build-version.json'),
+    conventions,
   };
 }
