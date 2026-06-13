@@ -30,12 +30,21 @@ This document captures every pattern, contract, and gotcha needed to add a new c
 All files go under `rotation/source/aio/<classname>/`. For a Mage:
 
 ```
-rotation/source/aio/mage/
+apps/tbc-rotation/src/aio/mage/
   schema.lua        # Settings schema (MUST load first)
   class.lua         # Spell definitions, constants, class registration
   middleware.lua     # Recovery items, shared combat middleware
   <playstyle>.lua    # One file per playstyle (e.g. fire.lua, frost.lua, arcane.lua)
+  AGENTS.md         # Per-class context doc (distilled index; see existing classes)
+  CLAUDE.md         # Symlink → AGENTS.md (run `ln -s AGENTS.md CLAUDE.md` in the folder)
 ```
+
+**Also add a per-class context doc.** Every class folder carries an `AGENTS.md` (a distilled index
+of playstyles, key spell IDs, rotation priorities, context extensions, and gotchas — see any
+existing class folder for the template) plus a sibling `CLAUDE.md` **symlink** to it. Author
+`AGENTS.md` last, once the rotation is working, and create the symlink with
+`ln -s AGENTS.md CLAUDE.md` inside the class directory. Link out to `docs/<CLASS>_RESEARCH.md` for
+depth rather than duplicating it.
 
 **File naming rule**: Lowercase single words ONLY. No underscores, hyphens, or spaces. Enforced by `build.js` — build will fail with a hard error on bad names.
 
