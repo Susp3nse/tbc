@@ -1,2 +1,0 @@
-$ corepack pnpm run compile && node dist/dev-watch.js
-$ tsc -p tsconfig.json
