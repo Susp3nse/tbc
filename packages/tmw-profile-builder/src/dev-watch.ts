@@ -1,5 +1,11 @@
 import fs from 'node:fs';
-import type { BuildContext, LocalConfig, SavedVariablesTarget, WatchOptions } from './types.js';
+import type {
+  BuildContext,
+  BuildMetadata,
+  LocalConfig,
+  SavedVariablesTarget,
+  WatchOptions,
+} from './types.js';
 import { ProfileBuilder } from './tmw-profile-builder.js';
 import { readLocalConfig } from './localconfig.js';
 
@@ -16,6 +22,8 @@ export class DevWatcher {
   private readonly pendingChanges = new Set<string>();
   private sourceDebounceTimer: NodeJS.Timeout | null = null;
   private classes: string[] = [];
+  /** Ephemeral per-session build counter — climbs on each sync, resets when the watcher restarts. */
+  private buildNumber = 0;
 
   constructor(
     private readonly context: BuildContext,
@@ -35,7 +43,7 @@ export class DevWatcher {
 
     this.classes = this.resolveInitialClasses(aioDir);
     this.logStartup(aioDir, savedVariablesTargets);
-    this.syncAndMark(config, savedVariablesTargets, this.classes);
+    this.syncAndMark(config, savedVariablesTargets, this.classes, { build: ++this.buildNumber });
 
     fs.watch(aioDir, { recursive: true }, (_eventType, filename) => {
       this.handleSourceChange(config, savedVariablesTargets, aioDir, filename);
@@ -108,12 +116,13 @@ export class DevWatcher {
     config: LocalConfig,
     targets: SavedVariablesTarget[],
     classNames: string[],
+    metadata: BuildMetadata,
   ): void {
     for (const { name, svPath } of targets) {
       if (targets.length > 1) {
         console.log(`[${this.builder.timestamp()}] Syncing account: ${name}`);
       }
-      this.builder.syncToSavedVariables(config, classNames, svPath);
+      this.builder.syncToSavedVariables(config, classNames, svPath, metadata);
       this.lastOurWriteTime.set(svPath, Date.now());
     }
   }
@@ -171,7 +180,7 @@ export class DevWatcher {
     }
 
     if (isShared || affectedClasses.size > 0) {
-      this.syncAndMark(config, targets, this.classes);
+      this.syncAndMark(config, targets, this.classes, { build: ++this.buildNumber });
     }
   }
 
@@ -198,7 +207,10 @@ export class DevWatcher {
         console.log(
           `[${this.builder.timestamp()}] [RELOAD] SavedVariables overwritten externally${label} - re-syncing all classes`,
         );
-        this.builder.syncToSavedVariables(config, this.classes, target.svPath);
+        // External /reload clobbered the file — restore the same build, don't advance it.
+        this.builder.syncToSavedVariables(config, this.classes, target.svPath, {
+          build: this.buildNumber,
+        });
         this.lastOurWriteTime.set(target.svPath, Date.now());
       }, this.savedVariablesDebounceMs);
     };

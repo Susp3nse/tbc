@@ -35,7 +35,6 @@ export function createBuildContext(options: {
     templatePath: resolve(paths.template, 'tmw-template.lua'),
     outputPath: resolve(paths.output, 'output/TellMeWhen.lua'),
     localConfigPath: resolve(paths.local, 'builder.config.local.json'),
-    buildVersionPath: resolve(paths.buildVersion, 'build-version.json'),
     conventions,
   };
 }

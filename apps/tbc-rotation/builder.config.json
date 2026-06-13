@@ -9,8 +9,7 @@
     "aioDir": "src/aio",
     "template": "tmw-template.lua",
     "output": "output/TellMeWhen.lua",
-    "local": "builder.config.local.json",
-    "buildVersion": "build-version.json"
+    "local": "builder.config.local.json"
   },
   "loadOrder": [
     { "slot": "shared", "source": "common.lua", "order": 1 },

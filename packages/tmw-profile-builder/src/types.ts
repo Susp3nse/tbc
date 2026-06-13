@@ -32,8 +32,6 @@ export type BuilderPaths = {
   output?: string;
   /** Machine-local config (gitignored). Default "builder.config.local.json". */
   local?: string;
-  /** Build counter store. Default "build-version.json". */
-  buildVersion?: string;
 };
 
 /**
@@ -64,7 +62,6 @@ export type BuildContext = {
   templatePath: string;
   outputPath: string;
   localConfigPath: string;
-  buildVersionPath: string;
   conventions: BuildConventions;
 };
 

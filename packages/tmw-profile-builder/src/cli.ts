@@ -76,9 +76,13 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
     process.exit(1);
   }
 
+  // A one-shot CLI run is a fresh session with a single build, numbered 1.
+  // (The persistent climbing counter only matters in the long-lived watch loop.)
+  const metadata = { build: 1 };
+
   if (doBuild) {
     console.log('--- Building distributable ---');
-    builder.buildOutput(classes, config);
+    builder.buildOutput(classes, config, metadata);
   }
 
   if (doSync) {
@@ -102,7 +106,7 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
     let syncFailed = false;
     for (const { name, svPath } of svPaths) {
       if (svPaths.length > 1) console.log(`\n  Account: ${name}`);
-      if (!builder.syncToSavedVariables(config || {}, classes, svPath)) {
+      if (!builder.syncToSavedVariables(config || {}, classes, svPath, metadata)) {
         syncFailed = true;
       }
     }

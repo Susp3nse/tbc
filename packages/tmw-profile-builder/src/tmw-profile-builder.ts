@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BuildContext, LocalConfig } from './types.js';
+import type { BuildContext, BuildMetadata, LocalConfig } from './types.js';
 import { discoverClasses, discoverModules, getProfileName } from './discovery.js';
 import { getAIODir, getSavedVariablesPaths } from './localconfig.js';
-import { bumpBuildMetadata, readBuildMetadata } from './metadata.js';
 import { buildValidProfileNames, purgeStaleProfiles } from './profile-sync.js';
 import {
   ensureProfileKey,
@@ -41,27 +40,18 @@ export class ProfileBuilder {
     return getProfileName(className, this.context.conventions, config);
   }
 
-  readBuildMetadata() {
-    return readBuildMetadata(this.context);
-  }
-
-  bumpBuildMetadata() {
-    return bumpBuildMetadata(this.context);
-  }
-
   timestamp(): string {
     return timestamp();
   }
 
-  buildOutput(classes: string[], config?: LocalConfig | null): boolean {
+  buildOutput(classes: string[], config?: LocalConfig | null, metadata?: BuildMetadata): boolean {
     if (!fs.existsSync(this.context.templatePath)) {
       console.error(`Error: Template not found: ${this.context.templatePath}`);
       return false;
     }
 
     const aioDir = this.getAIODir(config);
-    const metadata = this.bumpBuildMetadata();
-    console.log(`  Build: #${metadata.build}`);
+    console.log(`  Build: #${metadata?.build ?? 0}`);
     const template = fs.readFileSync(this.context.templatePath, 'utf8');
     const hasWindows = template.includes('\r\n');
     let lines = template.split(/\r?\n/);
@@ -97,7 +87,12 @@ export class ProfileBuilder {
     return true;
   }
 
-  syncToSavedVariables(config: LocalConfig, classNames: string[], svPathOverride?: string): boolean {
+  syncToSavedVariables(
+    config: LocalConfig,
+    classNames: string[],
+    svPathOverride?: string,
+    metadata?: BuildMetadata,
+  ): boolean {
     const svPath = svPathOverride || config.paths?.savedvariables;
     if (!svPath) {
       console.error(`[${timestamp()}] ERROR: SavedVariables path is required`);
@@ -105,7 +100,6 @@ export class ProfileBuilder {
     }
 
     const aioDir = this.getAIODir(config);
-    const metadata = this.readBuildMetadata();
     const templatePath = config.paths?.template
       ? path.resolve(this.context.projectRoot, config.paths.template)
       : null;
