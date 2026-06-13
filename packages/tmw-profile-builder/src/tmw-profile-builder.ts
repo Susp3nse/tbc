@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BuildContext, IniConfig } from './types.js';
+import type { BuildContext, LocalConfig } from './types.js';
 import { discoverClasses, discoverModules, getProfileName } from './discovery.js';
-import { getAIODir, getSavedVariablesPaths, parseINI } from './ini.js';
+import { getAIODir, getSavedVariablesPaths } from './localconfig.js';
 import { bumpBuildMetadata, readBuildMetadata } from './metadata.js';
 import { buildValidProfileNames, purgeStaleProfiles } from './profile-sync.js';
 import {
@@ -21,19 +21,11 @@ export class ProfileBuilder {
     return this.context.projectRoot;
   }
 
-  get iniPath(): string {
-    return this.context.iniPath;
-  }
-
-  parseINI(text: string): IniConfig {
-    return parseINI(text);
-  }
-
-  getAIODir(config?: IniConfig | null): string {
+  getAIODir(config?: LocalConfig | null): string {
     return getAIODir(this.context, config);
   }
 
-  getSavedVariablesPaths(config?: IniConfig | null) {
+  getSavedVariablesPaths(config?: LocalConfig | null) {
     return getSavedVariablesPaths(config);
   }
 
@@ -45,7 +37,7 @@ export class ProfileBuilder {
     return discoverModules(className, aioDir, this.context.conventions);
   }
 
-  getProfileName(className: string, config?: IniConfig | null): string {
+  getProfileName(className: string, config?: LocalConfig | null): string {
     return getProfileName(className, this.context.conventions, config);
   }
 
@@ -61,7 +53,7 @@ export class ProfileBuilder {
     return timestamp();
   }
 
-  buildOutput(classes: string[], config?: IniConfig | null): boolean {
+  buildOutput(classes: string[], config?: LocalConfig | null): boolean {
     if (!fs.existsSync(this.context.templatePath)) {
       console.error(`Error: Template not found: ${this.context.templatePath}`);
       return false;
@@ -105,7 +97,7 @@ export class ProfileBuilder {
     return true;
   }
 
-  syncToSavedVariables(config: IniConfig, classNames: string[], svPathOverride?: string): boolean {
+  syncToSavedVariables(config: LocalConfig, classNames: string[], svPathOverride?: string): boolean {
     const svPath = svPathOverride || config.paths?.savedvariables;
     if (!svPath) {
       console.error(`[${timestamp()}] ERROR: SavedVariables path is required`);

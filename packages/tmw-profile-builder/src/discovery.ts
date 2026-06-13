@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BuildConventions, IniConfig, RotationModule } from './types.js';
+import type { BuildConventions, LocalConfig, RotationModule } from './types.js';
 
 function toPascalCase(filename: string, nameOverrides: Record<string, string>): string {
   const name = filename.replace('.lua', '');
@@ -85,7 +85,7 @@ export function discoverClasses(aioDir: string): string[] {
 export function getProfileName(
   className: string,
   conventions: BuildConventions,
-  config?: IniConfig | null,
+  config?: LocalConfig | null,
 ): string {
   if (config?.profiles?.[className]) return config.profiles[className];
   return `${conventions.profileNamePrefix}${className.charAt(0).toUpperCase() + className.slice(1)}`;

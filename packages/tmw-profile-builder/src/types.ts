@@ -1,4 +1,5 @@
-export type IniConfig = {
+/** Machine-local config (builder.config.local.json, gitignored): sync targets + overrides. */
+export type LocalConfig = {
   paths?: Record<string, string>;
   accounts?: Record<string, string>;
   profiles?: Record<string, string>;
@@ -29,8 +30,8 @@ export type BuilderPaths = {
   template?: string;
   /** Compiled distributable. Default "output/TellMeWhen.lua". */
   output?: string;
-  /** Local dev config. Default "dev.ini". */
-  ini?: string;
+  /** Machine-local config (gitignored). Default "builder.config.local.json". */
+  local?: string;
   /** Build counter store. Default "build-version.json". */
   buildVersion?: string;
 };
@@ -62,7 +63,7 @@ export type BuildContext = {
   aioDir: string;
   templatePath: string;
   outputPath: string;
-  iniPath: string;
+  localConfigPath: string;
   buildVersionPath: string;
   conventions: BuildConventions;
 };

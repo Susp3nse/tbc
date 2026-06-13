@@ -1,6 +1,6 @@
 export { createBuildContext } from './context.js';
 export { discoverClasses, discoverModules, getProfileName } from './discovery.js';
-export { getAIODir, getSavedVariablesPaths, parseINI } from './ini.js';
+export { getAIODir, getSavedVariablesPaths, readLocalConfig } from './localconfig.js';
 export { ProfileBuilder } from './tmw-profile-builder.js';
 export { runCli } from './cli.js';
 export { DevWatcher, runDevWatch } from './dev-watch.js';
@@ -11,7 +11,7 @@ export type {
   BuildConventions,
   BuilderPaths,
   BuildMetadata,
-  IniConfig,
+  LocalConfig,
   MetadataInjection,
   ModuleSlot,
   RotationModule,

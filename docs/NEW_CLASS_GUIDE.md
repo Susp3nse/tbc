@@ -54,7 +54,7 @@ The build system (`rotation/build.js`) auto-discovers class directories under `s
 3. Each module gets a `Name` (e.g. `Flux_Mage_Schema`) and an `Order` value
 4. Modules are compiled into TMW CodeSnippets in the output `TellMeWhen.lua`
 
-**Profile naming**: By default, `"Flux Mage"` (capitalized class name). Override in `dev.ini` under `[profiles]`.
+**Profile naming**: By default, `"Flux Mage"` (capitalized class name). Override in `builder.config.local.json` under `"profiles"`.
 
 **Build commands**:
 ```bash

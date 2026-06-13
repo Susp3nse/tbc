@@ -9,7 +9,7 @@
     "aioDir": "src/aio",
     "template": "tmw-template.lua",
     "output": "output/TellMeWhen.lua",
-    "ini": "dev.ini",
+    "local": "builder.config.local.json",
     "buildVersion": "build-version.json"
   },
   "loadOrder": [

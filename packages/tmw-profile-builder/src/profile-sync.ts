@@ -1,4 +1,4 @@
-import type { BuildConventions, IniConfig } from './types.js';
+import type { BuildConventions, LocalConfig } from './types.js';
 import { getProfileName } from './discovery.js';
 import { listProfileNames, removeProfile, removeProfileKey } from './tmw-profile.js';
 
@@ -6,7 +6,7 @@ export function purgeStaleProfiles(
   lines: string[],
   validNames: Set<string>,
   conventions: BuildConventions,
-  config?: IniConfig | null,
+  config?: LocalConfig | null,
 ): string[] {
   const allNames = listProfileNames(lines);
   let result = lines;
@@ -32,7 +32,7 @@ export function purgeStaleProfiles(
 export function buildValidProfileNames(
   classNames: string[],
   conventions: BuildConventions,
-  config?: IniConfig | null,
+  config?: LocalConfig | null,
 ): Set<string> {
   const validNames = new Set<string>();
   for (const className of classNames) {

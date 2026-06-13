@@ -1,6 +1,7 @@
 import fs from 'node:fs';
-import type { BuildContext, IniConfig, SavedVariablesTarget, WatchOptions } from './types.js';
+import type { BuildContext, LocalConfig, SavedVariablesTarget, WatchOptions } from './types.js';
 import { ProfileBuilder } from './tmw-profile-builder.js';
+import { readLocalConfig } from './localconfig.js';
 
 const DEFAULT_SOURCE_DEBOUNCE_MS = 300;
 const DEFAULT_SAVED_VARIABLES_DEBOUNCE_MS = 500;
@@ -53,26 +54,27 @@ export class DevWatcher {
     }
   }
 
-  private readConfig(): IniConfig {
-    if (!fs.existsSync(this.context.iniPath)) {
-      console.error('Error: dev.ini not found in project root.');
+  private readConfig(): LocalConfig {
+    const config = readLocalConfig(this.context);
+    if (!config) {
+      console.error('Error: builder.config.local.json not found in project root.');
       console.error('');
-      console.error('Create dev.ini from the example:');
-      console.error('  cp dev.ini.example dev.ini');
+      console.error('Create it from the example:');
+      console.error('  cp builder.config.local.example.json builder.config.local.json');
       console.error('');
       console.error('Then edit it with your SavedVariables path(s).');
       process.exit(1);
     }
 
-    return this.builder.parseINI(fs.readFileSync(this.context.iniPath, 'utf8'));
+    return config;
   }
 
-  private resolveSavedVariablesTargets(config: IniConfig): SavedVariablesTarget[] {
+  private resolveSavedVariablesTargets(config: LocalConfig): SavedVariablesTarget[] {
     const targets = this.builder.getSavedVariablesPaths(config);
     if (targets.length > 0) return targets;
 
-    console.error('Error: dev.ini has no SavedVariables paths.');
-    console.error('Add an [accounts] section or set [paths] savedvariables.');
+    console.error('Error: builder.config.local.json has no SavedVariables paths.');
+    console.error('Add an "accounts" object or set "paths.savedvariables".');
     process.exit(1);
   }
 
@@ -103,7 +105,7 @@ export class DevWatcher {
   }
 
   private syncAndMark(
-    config: IniConfig,
+    config: LocalConfig,
     targets: SavedVariablesTarget[],
     classNames: string[],
   ): void {
@@ -117,7 +119,7 @@ export class DevWatcher {
   }
 
   private handleSourceChange(
-    config: IniConfig,
+    config: LocalConfig,
     targets: SavedVariablesTarget[],
     aioDir: string,
     filename: string | Buffer | null,
@@ -133,7 +135,7 @@ export class DevWatcher {
   }
 
   private flushSourceChanges(
-    config: IniConfig,
+    config: LocalConfig,
     targets: SavedVariablesTarget[],
     aioDir: string,
   ): void {
@@ -174,7 +176,7 @@ export class DevWatcher {
   }
 
   private watchSavedVariables(
-    config: IniConfig,
+    config: LocalConfig,
     target: SavedVariablesTarget,
     targetCount: number,
   ): void {

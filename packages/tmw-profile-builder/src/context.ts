@@ -34,7 +34,7 @@ export function createBuildContext(options: {
     aioDir: resolve(paths.aioDir, 'src/aio'),
     templatePath: resolve(paths.template, 'tmw-template.lua'),
     outputPath: resolve(paths.output, 'output/TellMeWhen.lua'),
-    iniPath: resolve(paths.ini, 'dev.ini'),
+    localConfigPath: resolve(paths.local, 'builder.config.local.json'),
     buildVersionPath: resolve(paths.buildVersion, 'build-version.json'),
     conventions,
   };

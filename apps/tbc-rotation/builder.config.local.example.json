@@ -1,0 +1,11 @@
+{
+  "_comment": "Local-only config for build:sync / build:all / watch. A plain `build` does NOT need this file. Copy it to builder.config.local.json (gitignored) and fill in your SavedVariables path(s).",
+  "_help": {
+    "accounts": "REQUIRED for sync/watch. Map each WoW account name to its TellMeWhen.lua SavedVariables file. List more than one only if you multi-box and want them kept in lockstep.",
+    "profiles": "OPTIONAL. Override the generated profile name per class. Default is \"Flux <ClassName>\" (e.g. \"Flux Druid\"). Example: { \"druid\": \"Chancity Druid\" }.",
+    "paths": "OPTIONAL advanced overrides: watchdir (source dir, default src/aio), template (default tmw-template.lua), savedvariables (a single sync target used instead of accounts)."
+  },
+  "accounts": {
+    "YOURNAME": "C:\\Path\\To\\WoW\\WTF\\Account\\YOURNAME\\SavedVariables\\TellMeWhen.lua"
+  }
+}

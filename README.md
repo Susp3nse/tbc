@@ -42,7 +42,7 @@ pnpm --filter @flux/tbc-rotation analyze:report -- --report <code> --fight <id> 
 
 ```bash
 pnpm --filter @flux/tbc-rotation build        # Compile to apps/tbc-rotation/output/TellMeWhen.lua
-pnpm --filter @flux/tbc-rotation build:sync   # Build + sync to SavedVariables (requires dev.ini)
+pnpm --filter @flux/tbc-rotation build:sync   # Build + sync to SavedVariables (requires builder.config.local.json)
 pnpm --filter @flux/tbc-rotation build:all    # Build + sync
 pnpm --filter @flux/tbc-rotation watch        # Watch mode: auto-rebuild + sync on save
 pnpm --filter @flux/tbc-rotation watch:log    # Watch mode with logs in apps/tbc-rotation/.logs/

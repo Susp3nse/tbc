@@ -1,9 +1,9 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BuildContext, IniConfig } from './types.js';
+import type { BuildContext, LocalConfig } from './types.js';
 import { ProfileBuilder } from './tmw-profile-builder.js';
-import { getSavedVariablesPaths } from './ini.js';
+import { getSavedVariablesPaths, readLocalConfig } from './localconfig.js';
 
 function isWowRunning(): boolean {
   if (process.platform !== 'win32') return false;
@@ -18,7 +18,7 @@ function isWowRunning(): boolean {
   }
 }
 
-function resolveClasses(builder: ProfileBuilder, config: IniConfig | null): string[] {
+function resolveClasses(builder: ProfileBuilder, config: LocalConfig | null): string[] {
   const aioDir = builder.getAIODir(config);
 
   if (!fs.existsSync(aioDir)) {
@@ -66,10 +66,7 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
   const doSync = args.has('--sync') || args.has('--all');
   const doBuild = args.has('--build') || args.has('--all') || !doSync;
 
-  let config: IniConfig | null = null;
-  if (fs.existsSync(context.iniPath)) {
-    config = builder.parseINI(fs.readFileSync(context.iniPath, 'utf8'));
-  }
+  const config: LocalConfig | null = readLocalConfig(context);
 
   let classes: string[];
   try {
@@ -87,8 +84,10 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
   if (doSync) {
     const svPaths = getSavedVariablesPaths(config);
     if (svPaths.length === 0) {
-      console.error('Error: --sync requires dev.ini with [accounts] or [paths] savedvariables');
-      console.error('Create dev.ini from dev.ini.example');
+      console.error(
+        'Error: --sync requires builder.config.local.json with "accounts" or "paths.savedvariables"',
+      );
+      console.error('Create it from builder.config.local.example.json');
       process.exit(1);
     }
 

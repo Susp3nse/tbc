@@ -220,7 +220,8 @@ GG Rotations/
 │   │   │   └── TellMeWhen.lua
 │   │   ├── build.ts                  # Thin wrapper around @flux/tmw-profile-builder build CLI
 │   │   ├── dev-watch.ts              # Thin wrapper around @flux/tmw-profile-builder dev watch
-│   │   ├── dev.ini                   # Local dev config (gitignored)
+│   │   ├── builder.config.json       # Build conventions + paths (committed)
+│   │   ├── builder.config.local.json # Local sync targets (gitignored)
 │   │   ├── tmw-template.lua          # TMW profile template (icons, groups, bars)
 │   │   └── package.json
 │
@@ -252,7 +253,7 @@ The build system (`apps/tbc-rotation/build.ts`) auto-discovers class modules and
 
 ```bash
 corepack pnpm --filter @flux/tbc-rotation build        # Build output/TellMeWhen.lua
-corepack pnpm --filter @flux/tbc-rotation build:sync   # Sync to SavedVariables (requires dev.ini)
+corepack pnpm --filter @flux/tbc-rotation build:sync   # Sync to SavedVariables (requires builder.config.local.json)
 corepack pnpm --filter @flux/tbc-rotation build:all    # Build + sync
 corepack pnpm --filter @flux/tbc-rotation watch        # Watch for changes, auto-rebuild + sync
 corepack pnpm --filter @flux/tbc-rotation watch:log    # Watch with logs in apps/tbc-rotation/.logs/

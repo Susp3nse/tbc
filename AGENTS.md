@@ -17,7 +17,7 @@ This is a pnpm workspace for Flux AIO TBC.
 Run `corepack enable` once, then `pnpm install`.
 
 - `pnpm build:rotation`: compile the rotation package and generate TMW output.
-- `pnpm --filter @flux/tbc-rotation build:sync`: build and sync to a local WoW SavedVariables target; requires `apps/tbc-rotation/dev.ini`.
+- `pnpm --filter @flux/tbc-rotation build:sync`: build and sync to a local WoW SavedVariables target; requires `apps/tbc-rotation/builder.config.local.json`.
 - `pnpm --filter @flux/tbc-rotation watch`: rebuild and sync on source changes.
 - `pnpm --filter @flux/tbc-rotation watch:log`: run watch mode with stdout/stderr written under `apps/tbc-rotation/.logs/`.
 - `pnpm build:website`: build the site.
@@ -37,7 +37,7 @@ Automated tests cover `@flux/log-analyzer` with direct `tsx` files such as `proc
 
 ## Commit & Pull Request Guidelines
 
-Commit subjects must use `[<Expansion>] (<Class or Area>) <type of work>: <description>`, for example `[TBC] (Druid) fix: preserve Moonfire refresh timing`. Use the expansion tag for the target game version, the class name for class-specific rotation work, or an area such as `Website`, `Bot`, `Analyzer`, or `Workspace` for non-class changes. Keep descriptions imperative and concise. PRs should describe behavior changes, list validation commands, link related issues or plans, and include screenshots for website UI changes. Note required secrets or local config, but never commit `.env`, `dev.ini`, logs, or credentials.
+Commit subjects must use `[<Expansion>] (<Class or Area>) <type of work>: <description>`, for example `[TBC] (Druid) fix: preserve Moonfire refresh timing`. Use the expansion tag for the target game version, the class name for class-specific rotation work, or an area such as `Website`, `Bot`, `Analyzer`, or `Workspace` for non-class changes. Keep descriptions imperative and concise. PRs should describe behavior changes, list validation commands, link related issues or plans, and include screenshots for website UI changes. Note required secrets or local config, but never commit `.env`, `builder.config.local.json`, logs, or credentials.
 
 ## Agent-Specific Instructions
 
