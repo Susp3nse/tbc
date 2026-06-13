@@ -20,7 +20,10 @@ export async function createWorkspace() {
     recursive: true,
   });
   await fs.copyFile(path.join(rotRoot, 'dist', 'build.js'), path.join(tempDir, 'build.js'));
-  await fs.copyFile(path.join(rotRoot, 'tmw-template.lua'), path.join(tempDir, 'tmw-template.lua'));
+  await fs.copyFile(
+    path.join(rotRoot, 'src', 'tmw-template.lua'),
+    path.join(tempDir, 'src', 'tmw-template.lua'),
+  );
   await fs.copyFile(
     path.join(rotRoot, 'builder.config.json'),
     path.join(tempDir, 'builder.config.json'),
@@ -39,7 +42,9 @@ export async function createWorkspace() {
   return tempDir;
 }
 
-export async function runBuild(workDir) {
+type BuildResult = { success: true; outputPath: string } | { success: false; error: string };
+
+export async function runBuild(workDir): Promise<BuildResult> {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -60,9 +65,10 @@ export async function runBuild(workDir) {
 
     return { success: true, outputPath };
   } catch (err) {
+    const e = err as { message?: string; stderr?: string };
     return {
       success: false,
-      error: `Build failed: ${err.message}${err.stderr ? '\n' + err.stderr : ''}`,
+      error: `Build failed: ${e.message}${e.stderr ? '\n' + e.stderr : ''}`,
     };
   }
 }
@@ -71,7 +77,8 @@ export async function cleanup(workDir) {
   try {
     await fs.rm(workDir, { recursive: true, force: true });
   } catch (err) {
-    console.error(`Cleanup failed for ${path.basename(workDir)}: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Cleanup failed for ${path.basename(workDir)}: ${message}`);
   }
 }
 

@@ -1,7 +1,9 @@
 import { PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { runAdminLoop } from '../services/admin-claude.js';
 
-let currentSession = null;
+type AdminSession = { userId: string; startTime: number; prompt: string };
+
+let currentSession: AdminSession | null = null;
 
 export function getCurrentAdminSession() {
   return currentSession;

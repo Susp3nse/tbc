@@ -38,8 +38,15 @@ export async function graphql(query, variables = {}) {
  * Fetch paginated events from a report fight.
  * Follows nextPageTimestamp until all events are collected.
  */
-export async function fetchAllEvents(reportCode, fightID, dataType, startTime, endTime, opts = {}) {
-  const allEvents = [];
+export async function fetchAllEvents(
+  reportCode,
+  fightID,
+  dataType,
+  startTime,
+  endTime,
+  opts: { limit?: number; sourceID?: number | null } = {},
+) {
+  const allEvents: any[] = [];
   let cursor = startTime;
   const limit = opts.limit || 10000;
   const sourceID = opts.sourceID;

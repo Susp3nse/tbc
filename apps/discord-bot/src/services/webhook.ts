@@ -22,20 +22,31 @@ export function startWebhookServer(client) {
     }
 
     // Collect body
-    const chunks = [];
+    const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
 
-    // Verify signature
+    // The server only starts when webhookSecret is set (see guard above), but TS
+    // can't narrow that across the request closure — re-check so the secret is a
+    // definite string before handing it to createHmac.
+    const secret = config.webhookSecret;
+    if (!secret) {
+      res.writeHead(500);
+      res.end('Webhook secret not configured');
+      return;
+    }
+
+    // Verify signature. Header values are string | string[]; signatures are a
+    // single value, so reject the array form rather than guessing which to use.
     const signature = req.headers['x-hub-signature-256'];
-    if (!signature) {
+    if (!signature || Array.isArray(signature)) {
       res.writeHead(401);
       res.end('Missing signature');
       return;
     }
 
     const expected =
-      'sha256=' + createHmac('sha256', config.webhookSecret).update(body).digest('hex');
+      'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
 
     if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
       console.warn('Webhook signature verification failed');

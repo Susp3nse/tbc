@@ -109,7 +109,7 @@ Summarize briefly:
 2. What it does functionally
 3. Any caveats`;
 
-const TOOLS = [
+const TOOLS: Anthropic.Tool[] = [
   {
     name: 'read_file',
     description: 'Read a Lua source file. Path relative to workspace root.',
@@ -149,8 +149,8 @@ const TOOLS = [
 ];
 
 // Add cache_control to last tool for prompt caching (90% discount on repeated input tokens)
-const TOOLS_CACHED = TOOLS.map((tool, i) =>
-  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool,
+const TOOLS_CACHED: Anthropic.Tool[] = TOOLS.map((tool, i) =>
+  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
 );
 
 async function handleToolCall(workDir, toolName, input) {
@@ -178,7 +178,7 @@ async function handleToolCall(workDir, toolName, input) {
     }
     case 'list_files': {
       const pattern = path.join(workDir, input.pattern).replace(/\\/g, '/');
-      const entries = [];
+      const entries: string[] = [];
       try {
         for await (const entry of glob(pattern)) {
           entries.push(path.relative(workDir, entry).replace(/\\/g, '/'));
@@ -197,7 +197,7 @@ async function handleToolCall(workDir, toolName, input) {
 
 // Fallback glob via recursive readdir + minimatch-style filtering
 async function walkDir(dir) {
-  const results = [];
+  const results: string[] = [];
   async function walk(currentDir, depth) {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
     for (const entry of entries) {
@@ -222,8 +222,10 @@ export async function editRotation(workDir, userPrompt, classHint) {
     ? `\n\nFocus ONLY on the ${classHint} class files in src/aio/${classHint}/.`
     : '';
 
-  const filesChanged = new Set();
-  const messages = [{ role: 'user', content: userPrompt + classConstraint }];
+  const filesChanged = new Set<string>();
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: userPrompt + classConstraint },
+  ];
 
   try {
     for (let turn = 0; turn < config.maxTurns; turn++) {
@@ -247,18 +249,22 @@ export async function editRotation(workDir, userPrompt, classHint) {
       }
 
       // Handle tool calls
-      const toolResults = [];
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const block of assistantContent) {
         if (block.type !== 'tool_use') continue;
 
+        // Tool inputs come through the SDK as `unknown`; the tools defined here
+        // always send an object with string fields (path, pattern, etc.).
+        const input = block.input as Record<string, string>;
+
         let result;
         try {
-          result = await handleToolCall(workDir, block.name, block.input);
+          result = await handleToolCall(workDir, block.name, input);
           if (block.name === 'edit_file' && !result.startsWith('Error')) {
-            filesChanged.add(path.resolve(workDir, block.input.path));
+            filesChanged.add(path.resolve(workDir, input.path));
           }
         } catch (err) {
-          result = `Error: ${err.message}`;
+          result = `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
 
         toolResults.push({
@@ -278,6 +284,7 @@ export async function editRotation(workDir, userPrompt, classHint) {
       filesChanged: [...filesChanged],
     };
   } catch (err) {
-    return { success: false, error: err.message, filesChanged: [...filesChanged] };
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, error: message, filesChanged: [...filesChanged] };
   }
 }

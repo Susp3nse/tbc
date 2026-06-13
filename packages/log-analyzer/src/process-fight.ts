@@ -10,9 +10,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @param {object} tracked - Map of abilityGameID → { name }
  * @returns {Array} Windows: [{ abilityGameID, name, start, end }]
  */
+type BuffWindow = { abilityGameID: number; name: string; start: number; end: number };
+
 export function buildBuffTimeline(events, tracked) {
-  const active = {}; // abilityGameID → start timestamp
-  const windows = [];
+  const active: Record<number, number | null> = {}; // abilityGameID → start timestamp
+  const windows: BuffWindow[] = [];
 
   for (const e of events) {
     const id = e.abilityGameID;
@@ -64,14 +66,14 @@ export function computeUptimes(windows, tracked, fightStart, fightEnd) {
   const duration = fightEnd - fightStart;
   if (duration <= 0) return {};
 
-  const byName = {};
+  const byName: Record<string, number> = {};
   for (const w of windows) {
     if (!byName[w.name]) byName[w.name] = 0;
     const overlap = Math.min(w.end, fightEnd) - Math.max(w.start, fightStart);
     if (overlap > 0) byName[w.name] += overlap;
   }
 
-  const result = {};
+  const result: Record<string, number> = {};
   for (const [name, totalMs] of Object.entries(byName)) {
     result[name] = Math.round((totalMs / duration) * 1000) / 10;
   }
@@ -82,7 +84,7 @@ export function computeUptimes(windows, tracked, fightStart, fightEnd) {
  * Compute spell A → spell B transition frequency matrix.
  */
 export function computeTransitions(castSequence) {
-  const transitions = {};
+  const transitions: Record<string, number> = {};
   for (let i = 0; i < castSequence.length - 1; i++) {
     const from = castSequence[i].spell;
     const to = castSequence[i + 1].spell;
@@ -96,19 +98,19 @@ export function computeTransitions(castSequence) {
  * Analyze DoT/debuff refresh patterns: how much time was remaining when re-applied.
  */
 export function computeRefreshPatterns(debuffWindows, tracked) {
-  const byAbility = {};
+  const byAbility: Record<string, BuffWindow[]> = {};
   for (const w of debuffWindows) {
     if (!byAbility[w.abilityGameID]) byAbility[w.abilityGameID] = [];
     byAbility[w.abilityGameID].push(w);
   }
 
-  const patterns = {};
+  const patterns: Record<string, any> = {};
   for (const [id, wins] of Object.entries(byAbility)) {
     const info = tracked[id];
     if (!info) continue;
 
-    const remainingOnRefresh = [];
-    const dropDurations = [];
+    const remainingOnRefresh: number[] = [];
+    const dropDurations: number[] = [];
 
     for (let i = 0; i < wins.length - 1; i++) {
       const current = wins[i];
@@ -154,7 +156,11 @@ export function computeRefreshPatterns(debuffWindows, tracked) {
  * @param {object} rankingInfo - Optional: { player, server, dps, ilvl } from rankings
  * @returns {object} Enriched fight JSON matching design doc schema
  */
-export async function processFight(rawData, specConfig, rankingInfo = {}) {
+export async function processFight(
+  rawData,
+  specConfig,
+  rankingInfo: { player?: string; server?: string; dps?: number; ilvl?: number } = {},
+) {
   const { meta, casts, buffs, debuffs } = rawData;
   const fightStart = meta.startTime;
   const fightEnd = meta.endTime;
@@ -165,8 +171,16 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
   const debuffWindows = buildBuffTimeline(debuffs, specConfig.trackedDebuffs);
 
   // 2. Build cast sequence with enrichment
-  const castSequence = [];
-  const castCounts = {};
+  type CastEntry = {
+    time: number;
+    spell: string;
+    spell_id: number;
+    buffs_active: string[];
+    target_debuffs: string[];
+    target_hp_pct: number | null;
+  };
+  const castSequence: CastEntry[] = [];
+  const castCounts: Record<string, number> = {};
 
   for (const event of casts) {
     const spellId = event.abilityGameID;
@@ -192,7 +206,7 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
   }
 
   // 3. Cast summary (CPM)
-  const castSummary = {};
+  const castSummary: Record<string, { count: number; cpm: number }> = {};
   for (const [spell, count] of Object.entries(castCounts)) {
     castSummary[spell] = {
       count,
@@ -217,7 +231,7 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
   const refreshPatterns = computeRefreshPatterns(debuffWindows, specConfig.trackedDebuffs);
 
   // 7. Idle analysis
-  const idleWindows = [];
+  const idleWindows: Array<{ start: number; duration: number }> = [];
   let totalIdle = 0;
   for (let i = 0; i < castSequence.length - 1; i++) {
     const gap = castSequence[i + 1].time - castSequence[i].time;
@@ -235,7 +249,7 @@ export async function processFight(rawData, specConfig, rankingInfo = {}) {
   };
 
   // 8. Cooldown alignment
-  const cooldownAlignment = {};
+  const cooldownAlignment: Record<string, any> = {};
   for (const cdName of specConfig.cooldowns || []) {
     const cdCasts = castSequence.filter((c) => c.spell === cdName);
     const timestamps = cdCasts.map((c) => c.time);

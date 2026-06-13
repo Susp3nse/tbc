@@ -11,8 +11,15 @@ import { hunter, hunterSpellName } from './specs/hunter.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
-  const args = { top: 3, maxFights: 0, player: null, report: null, noTop: false, spec: null };
-  const positional = [];
+  const args: Record<string, any> = {
+    top: 3,
+    maxFights: 0,
+    player: null,
+    report: null,
+    noTop: false,
+    spec: null,
+  };
+  const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -96,9 +103,17 @@ function amountFromDamage(event) {
   return Number(event.amount ?? event.unmitigatedAmount ?? 0) + Number(event.absorbed ?? 0);
 }
 
-function buildWindows(events, tracked, fightStart, fightEnd, opts = {}) {
-  const active = new Map();
-  const windows = [];
+type Window = { spellId: number; name: string; start: number; end: number };
+
+function buildWindows(
+  events,
+  tracked,
+  fightStart,
+  fightEnd,
+  opts: { targetID?: number; sourceID?: number } = {},
+) {
+  const active = new Map<string, number>();
+  const windows: Window[] = [];
   const isApply = new Set(['applybuff', 'refreshbuff', 'applydebuff', 'refreshdebuff']);
   const isRemove = new Set(['removebuff', 'removedebuff']);
 
@@ -112,11 +127,11 @@ function buildWindows(events, tracked, fightStart, fightEnd, opts = {}) {
     const key = `${spellId}:${event.targetID ?? 'target'}`;
     if (isApply.has(event.type)) {
       if (active.has(key)) {
-        windows.push({ spellId, name: info.name, start: active.get(key), end: event.timestamp });
+        windows.push({ spellId, name: info.name, start: active.get(key)!, end: event.timestamp });
       }
       active.set(key, event.timestamp);
     } else if (isRemove.has(event.type) && active.has(key)) {
-      windows.push({ spellId, name: info.name, start: active.get(key), end: event.timestamp });
+      windows.push({ spellId, name: info.name, start: active.get(key)!, end: event.timestamp });
       active.delete(key);
     }
   }
@@ -131,22 +146,27 @@ function buildWindows(events, tracked, fightStart, fightEnd, opts = {}) {
 
 function computeUptimes(windows, fightStart, fightEnd) {
   const duration = fightEnd - fightStart;
-  const totals = {};
+  const totals: Record<string, number> = {};
   for (const window of windows) {
     const overlap = Math.min(window.end, fightEnd) - Math.max(window.start, fightStart);
     if (overlap <= 0) continue;
     totals[window.name] = (totals[window.name] || 0) + overlap;
   }
 
-  const result = {};
+  const result: Record<string, number> = {};
   for (const [name, totalMs] of Object.entries(totals)) {
     result[name] = round((totalMs / duration) * 100, 1);
   }
   return result;
 }
 
-function summarizeByName(events, durationSec, spellMap, amountFn = null) {
-  const summary = {};
+function summarizeByName(
+  events,
+  durationSec,
+  spellMap,
+  amountFn: ((event: any) => number) | null = null,
+) {
+  const summary: Record<string, { count: number; cpm: number; amount: number }> = {};
   for (const event of events) {
     const info = spellMap[event.abilityGameID];
     if (!info) continue;
@@ -169,7 +189,7 @@ function summarizeAutoShot(damage, fightStart, durationSec) {
     .map((event) => eventTime(event, fightStart))
     .sort((a, b) => a - b);
 
-  const intervals = [];
+  const intervals: number[] = [];
   for (let i = 1; i < times.length; i++) {
     intervals.push(round(times[i] - times[i - 1], 3));
   }
@@ -191,7 +211,7 @@ function summarizeAutoShot(damage, fightStart, durationSec) {
 }
 
 function summarizeCooldowns(casts, buffWindows, fightStart) {
-  const byName = {};
+  const byName: Record<string, number[]> = {};
 
   for (const event of casts) {
     const name = hunter.trackedSpells[event.abilityGameID]?.name;
@@ -209,7 +229,7 @@ function summarizeCooldowns(casts, buffWindows, fightStart) {
     }
   }
 
-  const result = {};
+  const result: Record<string, { count: number; first: number | null; times: number[] }> = {};
   for (const [name, times] of Object.entries(byName)) {
     const ordered = times.sort((a, b) => a - b);
     result[name] = { count: ordered.length, first: ordered[0] ?? null, times: ordered };
@@ -252,7 +272,10 @@ function eventsUntil(events, endTime) {
   return (events || []).filter((event) => event.timestamp <= endTime);
 }
 
-function processHunterFight(raw, rankingInfo = {}) {
+function processHunterFight(
+  raw,
+  rankingInfo: { player?: string; server?: string; dps?: number } = {},
+) {
   const { meta, deaths } = raw;
   const death = deathForActor(deaths, meta.sourceID);
   const fightStart = meta.startTime;
@@ -430,8 +453,14 @@ async function fetchHunterFight(reportCode, fight, actor, reportTitle) {
   };
 }
 
-function aggregateTop(fights) {
-  const agg = {
+function aggregateTop(fights: any[]) {
+  const agg: {
+    sample_count: number;
+    action_summary: Record<string, any>;
+    uptimes: Record<string, number>;
+    auto_shot: Record<string, number>;
+    cooldowns: Record<string, any>;
+  } = {
     sample_count: fights.length,
     action_summary: {},
     uptimes: {},
@@ -471,8 +500,8 @@ function aggregateTop(fights) {
 }
 
 function compareFight(yours, topAgg) {
-  const notes = [];
-  const spellRows = [];
+  const notes: string[] = [];
+  const spellRows: Array<{ spell: string; yoursCpm: number; topCpm: number; delta: number }> = [];
 
   for (const spell of hunter.comparisonSpells) {
     const yoursCpm = yours.action_summary[spell]?.cpm || 0;
@@ -533,7 +562,7 @@ function openerText(opener) {
 }
 
 function renderMarkdown({ reportCode, reportTitle, playerName, fights, specName }) {
-  const lines = [];
+  const lines: string[] = [];
   const generatedAt = new Date().toISOString();
   lines.push(`# Hunter WCL Review - ${playerName}${specName ? ` vs ${specName}` : ''}`);
   lines.push('');
@@ -666,7 +695,7 @@ async function saveText(relativePath, text) {
 
 async function analyzeTopHunters(fight, ownReportCode, ownPlayer, topCount, specName = null) {
   const rankings = await fetchHunterRankings(fight.encounterID, topCount, specName);
-  const processed = [];
+  const processed: any[] = [];
 
   for (const entry of rankings.rankings) {
     if (processed.length >= topCount) break;
@@ -688,7 +717,9 @@ async function analyzeTopHunters(fight, ownReportCode, ownPlayer, topCount, spec
       const raw = await fetchHunterFight(entry.reportCode, topFight, actor, report.title);
       processed.push(processHunterFight(raw, entry));
     } catch (err) {
-      console.warn(`    Skipping top sample ${entry.player}: ${err.message}`);
+      console.warn(
+        `    Skipping top sample ${entry.player}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -714,7 +745,7 @@ async function main() {
 
   if (!bossFights.length) throw new Error('No killed boss fights found in report.');
 
-  const reviewFights = [];
+  const reviewFights: any[] = [];
   for (const fight of bossFights) {
     console.log(`\n=== ${fight.name} ===`);
     const raw = await fetchHunterFight(reportCode, fight, actor, report.title);
@@ -755,6 +786,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`Fatal: ${err.message}`);
+  console.error(`Fatal: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

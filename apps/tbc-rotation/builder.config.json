@@ -7,7 +7,7 @@
   "templateProfileKey": "__template__",
   "paths": {
     "aioDir": "src/aio",
-    "template": "tmw-template.lua",
+    "template": "src/tmw-template.lua",
     "output": "output/TellMeWhen.lua",
     "local": "builder.config.local.json"
   },

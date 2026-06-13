@@ -23,6 +23,7 @@
   },
   "scripts": {
     "cli": "tsx src/cli.ts",
+    "analyze:report": "tsx src/cli.ts analyze",
     "discover": "tsx src/cli.ts discover --expansion tbc",
     "hunter-review": "tsx src/hunter-review.ts",
     "typecheck": "tsc -p tsconfig.json",

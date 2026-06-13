@@ -14,7 +14,11 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
  * @param {object} opts - { playerName, className }
  * @returns {object} { meta, casts, buffs, debuffs, resources }
  */
-export async function fetchFightEvents(reportCode, fightID, opts = {}) {
+export async function fetchFightEvents(
+  reportCode,
+  fightID,
+  opts: { playerName?: string } = {},
+) {
   // 1. Get report metadata
   console.log(`Fetching report ${reportCode}...`);
   const reportData = await graphql(reportFightsQuery(reportCode));
@@ -32,10 +36,11 @@ export async function fetchFightEvents(reportCode, fightID, opts = {}) {
   }
 
   // 3. Find the player's actor ID (for filtering events)
-  let sourceID = null;
+  let sourceID: number | null = null;
   if (opts.playerName) {
+    const playerName = opts.playerName;
     const actor = (report.masterData?.actors || []).find(
-      (a) => a.name.toLowerCase() === opts.playerName.toLowerCase(),
+      (a) => a.name.toLowerCase() === playerName.toLowerCase(),
     );
     if (actor) {
       sourceID = actor.id;

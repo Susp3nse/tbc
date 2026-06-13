@@ -25,7 +25,7 @@ const mode = process.argv[2] || 'all'; // 'process', 'fetch-top', 'compare', or 
 // --- Step 1: Process Chancity's cat fights ---
 async function processChancityFights() {
   console.log('=== PROCESSING CHANCITY CAT FIGHTS ===\n');
-  const results = [];
+  const results: any[] = [];
 
   for (const fight of CAT_FIGHTS) {
     console.log(`\n--- ${fight.boss} (Fight ${fight.fightID}) ---`);
@@ -38,11 +38,11 @@ async function processChancityFights() {
       console.log(`  ${result.cast_sequence.length} casts tracked`);
       console.log(
         `  Casts: ${Object.entries(result.cast_summary)
-          .map(([s, i]) => s + ':' + i.count)
+          .map(([s, i]) => s + ':' + (i as { count: number }).count)
           .join(', ')}`,
       );
     } catch (err) {
-      console.error(`  Error: ${err.message}`);
+      console.error(`  Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -52,7 +52,7 @@ async function processChancityFights() {
 // --- Step 2: Fetch top cat parsers for same encounters ---
 async function fetchTopCatParsers() {
   console.log('\n=== FETCHING TOP CAT PARSERS ===\n');
-  const results = [];
+  const results: any[] = [];
 
   for (const fight of CAT_FIGHTS) {
     console.log(`\n--- Top Feral on ${fight.boss} (encounter ${fight.encounter}) ---`);
@@ -109,7 +109,7 @@ async function fetchTopCatParsers() {
         let catCount = 0,
           bearCount = 0;
 
-        for (const c of raw.casts.slice(0, 100)) {
+        for (const c of (raw.casts as any[]).slice(0, 100)) {
           if (catSpells.has(c.abilityGameID)) catCount++;
           if (bearSpells.has(c.abilityGameID)) bearCount++;
         }
@@ -126,7 +126,7 @@ async function fetchTopCatParsers() {
           `    [CAT] ${playerName}-${server}: ${dps} DPS, ${result.cast_sequence.length} casts`,
         );
       } catch (err) {
-        console.error(`    Error: ${err.message}`);
+        console.error(`    Error: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
@@ -191,7 +191,9 @@ async function compareAll() {
 
       // CPM differences
       console.log('\n  Cast-per-minute comparison:');
-      for (const [spell, info] of Object.entries(comparison.cast_diffs || {})) {
+      for (const [spell, info] of Object.entries(comparison.cast_diffs || {}) as Array<
+        [string, { delta: number; top_cpm: number; yours_cpm: number }]
+      >) {
         const dir = info.delta > 0 ? '+' : '';
         console.log(
           `    ${spell.padEnd(25)} Top: ${info.top_cpm.toFixed(1).padStart(5)}   You: ${info.yours_cpm.toFixed(1).padStart(5)}   (${dir}${info.delta.toFixed(1)})`,
@@ -201,7 +203,9 @@ async function compareAll() {
       // Uptimes
       if (Object.keys(comparison.uptime_diffs || {}).length > 0) {
         console.log('\n  Uptime comparison:');
-        for (const [buff, info] of Object.entries(comparison.uptime_diffs)) {
+        for (const [buff, info] of Object.entries(comparison.uptime_diffs) as Array<
+          [string, { delta: number; top: number; yours: number }]
+        >) {
           const dir = info.delta > 0 ? '+' : '';
           console.log(
             `    ${buff.padEnd(25)} Top: ${info.top.toFixed(1).padStart(5)}%  You: ${info.yours.toFixed(1).padStart(5)}%  (${dir}${info.delta.toFixed(1)}%)`,

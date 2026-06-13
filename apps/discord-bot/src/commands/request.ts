@@ -3,7 +3,9 @@ import { validatePrompt, checkRateLimit, validateChanges } from '../services/gua
 import { createWorkspace, runBuild, cleanup } from '../services/builder.js';
 import { editRotation } from '../services/claude.js';
 
-let currentRequest = null;
+type RequestSession = { userId: string; startTime: number; prompt: string };
+
+let currentRequest: RequestSession | null = null;
 
 // Recent request history per user (in-memory, capped at 10)
 const history = new Map();
@@ -50,7 +52,7 @@ export async function handleRequest(interaction) {
   currentRequest = { userId, startTime: Date.now(), prompt };
   await interaction.deferReply();
 
-  let tempDir = null;
+  let tempDir: string | null = null;
   try {
     // Step 1: Create isolated workspace
     tempDir = await createWorkspace();
@@ -119,7 +121,8 @@ export async function handleRequest(interaction) {
     });
   } catch (err) {
     console.error('Request failed:', err);
-    addHistory(userId, { timestamp: Date.now(), prompt, status: 'error', summary: err.message });
+    const message = err instanceof Error ? err.message : String(err);
+    addHistory(userId, { timestamp: Date.now(), prompt, status: 'error', summary: message });
     await interaction
       .editReply('An unexpected error occurred while processing your request.')
       .catch(() => {});

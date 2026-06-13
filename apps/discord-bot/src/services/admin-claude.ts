@@ -80,7 +80,7 @@ You can read the current server structure, ask the admin questions, propose plan
 // Tool definitions
 // ---------------------------------------------------------------------------
 
-const TOOLS = [
+const TOOLS: Anthropic.Tool[] = [
   // --- Read-only ---
   {
     name: 'list_channels',
@@ -385,8 +385,8 @@ const TOOLS = [
 ];
 
 // Add cache_control to last tool for prompt caching (90% discount on repeated input tokens)
-const TOOLS_CACHED = TOOLS.map((tool, i) =>
-  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool,
+const TOOLS_CACHED: Anthropic.Tool[] = TOOLS.map((tool, i) =>
+  i === TOOLS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
 );
 
 const TOOL_LABELS = {
@@ -509,7 +509,7 @@ async function handleAskQuestion(interaction, input) {
         .setCustomId('admin_answer_modal')
         .setTitle('Your Answer')
         .addComponents(
-          new ActionRowBuilder().addComponents(
+          new ActionRowBuilder<TextInputBuilder>().addComponents(
             new TextInputBuilder()
               .setCustomId('answer')
               .setLabel('Answer')
@@ -582,7 +582,7 @@ async function handleProposePlan(interaction, input, state) {
         .setCustomId('admin_revise_modal')
         .setTitle('Revise Plan')
         .addComponents(
-          new ActionRowBuilder().addComponents(
+          new ActionRowBuilder<TextInputBuilder>().addComponents(
             new TextInputBuilder()
               .setCustomId('feedback')
               .setLabel('What should change?')
@@ -667,7 +667,7 @@ async function handleReadMessages(guild, input) {
   const limit = Math.min(Math.max(input.limit || 10, 1), 25);
   const messages = await channel.messages.fetch({ limit });
   const formatted = messages.map((m) => {
-    const entry = {
+    const entry: Record<string, unknown> = {
       id: m.id,
       author: m.author.tag,
       is_bot: m.author.bot,
@@ -676,7 +676,7 @@ async function handleReadMessages(guild, input) {
     };
     if (m.embeds.length > 0) {
       entry.embeds = m.embeds.map((e) => {
-        const embed = {};
+        const embed: Record<string, unknown> = {};
         if (e.title) embed.title = e.title;
         if (e.url) embed.url = e.url;
         if (e.description) embed.description = e.description;
@@ -711,7 +711,7 @@ async function handleReadMessages(guild, input) {
 async function handleEditChannel(guild, input) {
   const channel = guild.channels.cache.get(input.channel_id);
   if (!channel) throw new Error('Channel not found.');
-  const opts = {};
+  const opts: Record<string, unknown> = {};
   if (input.name) opts.name = input.name;
   if (input.topic != null) opts.topic = input.topic;
   if (input.parent_id) opts.parent = input.parent_id;
@@ -730,7 +730,7 @@ async function handleDeleteChannel(guild, input) {
 }
 
 async function handleCreateRole(guild, input) {
-  const opts = { name: input.name };
+  const opts: Record<string, unknown> = { name: input.name };
   if (input.color) opts.color = input.color;
   if (input.permissions && input.permissions.length > 0) {
     const flags = input.permissions.map((p) => PermissionsBitField.Flags[p]).filter(Boolean);
@@ -743,7 +743,7 @@ async function handleCreateRole(guild, input) {
 async function handleEditRole(guild, input) {
   const role = guild.roles.cache.get(input.role_id);
   if (!role) throw new Error('Role not found.');
-  const opts = {};
+  const opts: Record<string, unknown> = {};
   if (input.name) opts.name = input.name;
   if (input.color) opts.color = input.color;
   if (input.permissions && input.permissions.length > 0) {
@@ -761,15 +761,15 @@ async function handleEditMessage(guild, input) {
   if (!msg) throw new Error('Message not found.');
   if (msg.author.id !== guild.client.user.id)
     throw new Error('Can only edit messages sent by the bot.');
-  const payload = {};
+  const payload: Record<string, unknown> = {};
   if (input.content != null) payload.content = unescapeContent(input.content);
   if (input.embed) {
     const existing = msg.embeds[0]?.data || {};
-    const merged = { ...existing, ...input.embed };
-    if (merged.title) merged.title = unescapeContent(merged.title);
-    if (merged.description) merged.description = unescapeContent(merged.description);
+    const merged: Record<string, unknown> = { ...existing, ...input.embed };
+    if (merged.title) merged.title = unescapeContent(merged.title as string);
+    if (merged.description) merged.description = unescapeContent(merged.description as string);
     if (merged.fields)
-      merged.fields = merged.fields.map((f) => ({
+      merged.fields = (merged.fields as Array<{ name: string; value: string }>).map((f) => ({
         ...f,
         name: unescapeContent(f.name),
         value: unescapeContent(f.value),
@@ -799,7 +799,7 @@ async function handleUnpinMessage(guild, input) {
 }
 
 async function handleCreateCategory(guild, input) {
-  const opts = { name: input.name, type: ChannelType.GuildCategory };
+  const opts: Record<string, unknown> = { name: input.name, type: ChannelType.GuildCategory };
   if (input.position != null) opts.position = input.position;
   const category = await guild.channels.create(opts);
   return JSON.stringify({ id: category.id, name: category.name });
@@ -807,7 +807,7 @@ async function handleCreateCategory(guild, input) {
 
 async function handleCreateChannel(guild, input) {
   const type = input.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
-  const opts = { name: input.name, type };
+  const opts: Record<string, unknown> = { name: input.name, type };
   if (input.parent_id) opts.parent = input.parent_id;
   if (input.topic && type === ChannelType.GuildText) opts.topic = unescapeContent(input.topic);
   const channel = await guild.channels.create(opts);
@@ -831,14 +831,14 @@ function unescapeContent(str) {
 async function handleSendMessage(guild, input) {
   const channel = guild.channels.cache.get(input.channel_id);
   if (!channel || !channel.isTextBased()) throw new Error('Channel not found or not text-based.');
-  const payload = {};
+  const payload: Record<string, unknown> = {};
   if (input.content) payload.content = unescapeContent(input.content);
   if (input.embed) {
-    const embed = { ...input.embed };
-    if (embed.title) embed.title = unescapeContent(embed.title);
-    if (embed.description) embed.description = unescapeContent(embed.description);
+    const embed: Record<string, unknown> = { ...input.embed };
+    if (embed.title) embed.title = unescapeContent(embed.title as string);
+    if (embed.description) embed.description = unescapeContent(embed.description as string);
     if (embed.fields)
-      embed.fields = embed.fields.map((f) => ({
+      embed.fields = (embed.fields as Array<{ name: string; value: string }>).map((f) => ({
         ...f,
         name: unescapeContent(f.name),
         value: unescapeContent(f.value),
@@ -854,7 +854,7 @@ async function handleSetPermissions(guild, input) {
   const channel = guild.channels.cache.get(input.channel_id);
   if (!channel) throw new Error('Channel not found.');
 
-  const overwrites = {};
+  const overwrites: Record<string, unknown> = {};
   if (input.allow && input.allow.length > 0) {
     const flags = input.allow.map((p) => PermissionsBitField.Flags[p]).filter(Boolean);
     if (flags.length > 0) overwrites.allow = flags;
@@ -995,8 +995,10 @@ export async function runAdminLoop(guild, interaction, userPrompt) {
   const channelContext = channel
     ? `\n\n[Context: This command was run in #${channel.name} (ID: ${channel.id})${channel.parent ? `, under category "${channel.parent.name}"` : ''}. When the admin says "this channel" or "here", they mean #${channel.name}.]`
     : '';
-  const messages = [{ role: 'user', content: userPrompt + channelContext }];
-  const state = {
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: userPrompt + channelContext },
+  ];
+  const state: { approved: boolean; actions: string[]; executionCount: number } = {
     approved: false,
     actions: [],
     executionCount: 0,
@@ -1023,7 +1025,7 @@ export async function runAdminLoop(guild, interaction, userPrompt) {
     }
 
     // Process tool calls
-    const toolResults = [];
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const block of response.content) {
       if (block.type !== 'tool_use') continue;
 
@@ -1046,7 +1048,7 @@ export async function runAdminLoop(guild, interaction, userPrompt) {
         if (err instanceof AdminCancelError || err instanceof AdminTimeoutError) {
           return { success: false, error: err.message, actions: state.actions };
         }
-        result = `Error: ${err.message}`;
+        result = `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
 
       toolResults.push({

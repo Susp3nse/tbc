@@ -35,6 +35,7 @@ for (const metric of metrics) {
       }
     }
   } catch (err) {
-    console.log(`metric=${metric}: API ERROR - ${err.message.substring(0, 100)}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`metric=${metric}: API ERROR - ${message.substring(0, 100)}`);
   }
 }

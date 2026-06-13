@@ -101,7 +101,7 @@ async function clipSamplesFor(p) {
   const auto = evs
     .filter((e) => e.abilityGameID === AUTO)
     .sort((a, b) => a.timestamp - b.timestamp);
-  const samples = [];
+  const samples: Array<{ windup: number; itv: number }> = [];
   let lastCast = null;
   for (let i = 0; i < auto.length - 1; i++) {
     if (auto[i].type === 'begincast' && auto[i + 1].type === 'cast') {
@@ -125,7 +125,7 @@ async function main() {
   const hunters = await collectTopHunters(encounters);
   console.log(`Collected ${hunters.length} distinct top ${SPEC} hunters\n`);
 
-  const global = {};
+  const global: Record<string, number[]> = {};
   for (const b of ORDER) global[b] = [];
   for (const p of hunters) {
     try {
@@ -138,7 +138,7 @@ async function main() {
         samples.map((s) => s.itv * (0.5 / s.windup)),
         0.1,
       );
-      const counts = {};
+      const counts: Record<string, number> = {};
       for (const b of ORDER) counts[b] = 0;
       for (const s of samples) {
         const expected = base / (0.5 / s.windup);
@@ -155,7 +155,8 @@ async function main() {
           .join(' ')}]`,
       );
     } catch (e) {
-      console.log(`  err ${p.name}: ${String(e.message).slice(0, 60)}`);
+      const message = e instanceof Error ? e.message : String(e);
+      console.log(`  err ${p.name}: ${message.slice(0, 60)}`);
     }
   }
 

@@ -11,13 +11,11 @@
     "build": "corepack pnpm run compile && node dist/build.js",
     "build:sync": "corepack pnpm run compile && node dist/build.js --sync",
     "build:all": "corepack pnpm run compile && node dist/build.js --all",
-    "analyze:report": "tsx analyze-report.ts",
     "sim:hunter": "tsx src/sim/hunter-adaptive-sim.ts",
     "watch": "corepack pnpm run compile && node dist/dev-watch.js",
     "watch:log": "corepack pnpm run compile && node -e \"require('fs').mkdirSync('.logs',{recursive:true})\" && node dist/dev-watch.js > .logs/dev-watch.log 2> .logs/dev-watch.err.log"
   },
   "dependencies": {
-    "@flux/log-analyzer": "workspace:*",
     "@flux/tmw-profile-builder": "workspace:*"
   },
   "excludeClasses": []

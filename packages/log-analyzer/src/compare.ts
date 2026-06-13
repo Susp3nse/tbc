@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @returns {object} Comparison report
  */
 export function compareFights(baseline, yours) {
-  const insights = [];
+  const insights: string[] = [];
 
   // DPS gap
   const dpsGap = {
@@ -27,7 +27,7 @@ export function compareFights(baseline, yours) {
     ...Object.keys(baseline.cast_summary || {}),
     ...Object.keys(yours.cast_summary || {}),
   ]);
-  const castDiffs = {};
+  const castDiffs: Record<string, { yours_cpm: number; top_cpm: number; delta: number }> = {};
   for (const spell of allSpells) {
     const topCpm = baseline.cast_summary?.[spell]?.cpm || 0;
     const yourCpm = yours.cast_summary?.[spell]?.cpm || 0;
@@ -53,7 +53,7 @@ export function compareFights(baseline, yours) {
     ...Object.keys(baseline.uptimes || {}),
     ...Object.keys(yours.uptimes || {}),
   ]);
-  const uptimeDiffs = {};
+  const uptimeDiffs: Record<string, { yours: number; top: number; delta: number }> = {};
   for (const name of allUptimes) {
     const topUp = baseline.uptimes?.[name] || 0;
     const yourUp = yours.uptimes?.[name] || 0;
@@ -66,7 +66,7 @@ export function compareFights(baseline, yours) {
   }
 
   // Transition diffs
-  const transitionNotes = [];
+  const transitionNotes: string[] = [];
   const allTransitions = new Set([
     ...Object.keys(baseline.transitions || {}),
     ...Object.keys(yours.transitions || {}),
@@ -80,7 +80,7 @@ export function compareFights(baseline, yours) {
   }
 
   // Refresh pattern diffs
-  const refreshDiffs = {};
+  const refreshDiffs: Record<string, any> = {};
   const allRefreshKeys = new Set([
     ...Object.keys(baseline.refresh_patterns || {}),
     ...Object.keys(yours.refresh_patterns || {}),

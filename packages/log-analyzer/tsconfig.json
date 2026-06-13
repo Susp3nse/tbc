@@ -3,7 +3,6 @@
   "compilerOptions": {
     "module": "NodeNext",
     "noEmit": true,
-    "noCheck": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],

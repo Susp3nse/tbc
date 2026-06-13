@@ -12,7 +12,7 @@
     "format:check": "corepack pnpm exec oxfmt --check apps packages",
     "typecheck": "corepack pnpm -r --if-present typecheck",
     "check": "corepack pnpm run lint && corepack pnpm run format:check && corepack pnpm run typecheck",
-    "test": "corepack pnpm --filter @flux/tbc-rotation test && corepack pnpm --filter @flux/log-analyzer test"
+    "test": "corepack pnpm -r --if-present test"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

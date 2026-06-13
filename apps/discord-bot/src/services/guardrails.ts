@@ -57,7 +57,7 @@ const DANGEROUS_PATTERNS = [
 ];
 
 export async function validateChanges(workDir, filesChanged) {
-  const errors = [];
+  const errors: string[] = [];
 
   for (const filePath of filesChanged) {
     const relative = path.relative(workDir, filePath).replace(/\\/g, '/');

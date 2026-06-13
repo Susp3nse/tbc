@@ -15,7 +15,7 @@ export async function getToken() {
     grant_type: 'client_credentials',
     client_id: config.wcl.clientId,
     client_secret: config.wcl.clientSecret,
-  });
+  } as Record<string, string>);
 
   const res = await fetch(config.wcl.tokenUrl, {
     method: 'POST',

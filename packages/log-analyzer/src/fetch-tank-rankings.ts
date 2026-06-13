@@ -112,7 +112,9 @@ for (const entry of entries.slice(0, count)) {
       console.log(`  [CAT]  ${playerName}-${server}: ${dps} DPS — skipping`);
     }
   } catch (err) {
-    console.error(`  Error checking ${playerName}: ${err.message}`);
+    console.error(
+      `  Error checking ${playerName}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
