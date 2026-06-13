@@ -33,8 +33,9 @@ Automated tests cover `@flux/log-analyzer` with direct `tsx` files such as `proc
 
 ## Commit & Pull Request Guidelines
 
-History uses concise conventional-style subjects such as `feat: cache rotation state...` and `chore: bump paladin...`. Keep subjects imperative and scoped when useful. PRs should describe behavior changes, list validation commands, link related issues or plans, and include screenshots for website UI changes. Note required secrets or local config, but never commit `.env`, `dev.ini`, logs, or credentials.
+Commit subjects must use `[<Expansion>] (<Class or Area>) <type of work>: <description>`, for example `[TBC] (Druid) fix: preserve Moonfire refresh timing`. Use the expansion tag for the target game version, the class name for class-specific rotation work, or an area such as `Website`, `Bot`, `Analyzer`, or `Workspace` for non-class changes. Keep descriptions imperative and concise. PRs should describe behavior changes, list validation commands, link related issues or plans, and include screenshots for website UI changes. Note required secrets or local config, but never commit `.env`, `dev.ini`, logs, or credentials.
 
 ## Agent-Specific Instructions
 
 Keep this file contributor-focused. Detailed agent workflow and architecture guidance lives in `CLAUDE.md`; consult it before broad code changes and avoid duplicating its full contents here.
+
