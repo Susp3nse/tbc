@@ -625,6 +625,7 @@ local function create_faerie_fire_strategy(refresh_window, spell_override, only_
       spell = ff_spell,
       matches = function(context)
          if context.target_magic_immune then return false end
+         if context.target_spell_reflect then return false end
          if is_faerie_fire_immune(TARGET_UNIT) then return false end
          -- Dropdown: "all", "elites", "bosses", "off" (backward compat: true → all)
          local ff_mode = context.settings.maintain_faerie_fire
@@ -665,6 +666,7 @@ local STANCE_PLAYSTYLE = {
 rotation_registry:register_class({
    name = "Druid",
    version = "v1.10.0",
+   dev_revision = 3,
    playstyles = {"caster", "cat", "bear", "balance", "resto"},
    idle_playstyle_name = "caster",
 

@@ -39,3 +39,4 @@ Commit subjects must use `[<Expansion>] (<Class or Area>) <type of work>: <descr
 
 Keep this file contributor-focused. Detailed agent workflow and architecture guidance lives in `CLAUDE.md`; consult it before broad code changes and avoid duplicating its full contents here.
 
+For rotation work, update the affected class version marker so in-game reloads can verify the active change. During development/watch mode, keep the released class `version` unchanged and increment `dev_revision` on each completed fix or change, which displays as `<Class> vX.Y.Z + N | Build: dev`. When the work is committed or released, roll the dev revision into the patch version, for example `v1.10.0 + 3` becomes `v1.10.1`, then reset or remove `dev_revision`.

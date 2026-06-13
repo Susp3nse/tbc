@@ -20,6 +20,7 @@ local GetInventoryItemTexture = _G.GetInventoryItemTexture
 local GetTime = _G.GetTime
 local UnitName = _G.UnitName
 local UnitGUID = _G.UnitGUID
+local UnitIsUnit = _G.UnitIsUnit
 local UnitDetailedThreatSituation = _G.UnitDetailedThreatSituation
 local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
 
@@ -35,18 +36,64 @@ local rotation_registry = NS.rotation_registry
 
 -- Last action state (updated by main.lua via set_last_action)
 -- Tracks what the rotation RECOMMENDS (for Priority text label only)
-local last_action = { name = nil, source = nil }
+local last_action = { name = nil, source = nil, target = nil }
 
-function NS.set_last_action(name, source)
+local function short_unit_label(unit)
+    if not unit then return nil end
+    if unit == "player" then return "P0" end
+    local party_idx = unit:match("^party(%d+)$")
+    if party_idx then return "P" .. party_idx end
+    local raid_idx = unit:match("^raid(%d+)$")
+    if raid_idx then return "R" .. raid_idx end
+    if unit == "target" then return "T" end
+    if unit == "focus" then return "F" end
+    return unit
+end
+
+local function short_guid_label(guid)
+    if not guid then return nil end
+    if guid == UnitGUID("player") then return "P0" end
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitGUID(unit) == guid then return "P" .. i end
+    end
+    for i = 1, 40 do
+        local unit = "raid" .. i
+        if UnitGUID(unit) == guid then return "R" .. i end
+    end
+    if UnitGUID("target") == guid then return "T" end
+    if UnitGUID("focus") == guid then return "F" end
+    return nil
+end
+
+local function normalize_target_label(unit)
+    if not unit then return nil end
+    if unit == "player" or unit:match("^party%d+$") or unit:match("^raid%d+$") or unit == "target" or unit == "focus" then
+        return short_unit_label(unit)
+    end
+    if UnitIsUnit and UnitIsUnit(unit, "player") then return "P0" end
+    for i = 1, 4 do
+        local party = "party" .. i
+        if UnitIsUnit and UnitIsUnit(unit, party) then return "P" .. i end
+    end
+    for i = 1, 40 do
+        local raid = "raid" .. i
+        if UnitIsUnit and UnitIsUnit(unit, raid) then return "R" .. i end
+    end
+    return short_unit_label(unit)
+end
+
+function NS.set_last_action(name, source, target)
     last_action.name = name
     last_action.source = source
+    last_action.target = normalize_target_label(target)
 end
 
 -- Action history ring buffer — driven by CLEU (actual casts, not recommendations)
 local MAX_HISTORY = 6
 local action_history = {}
 for i = 1, MAX_HISTORY do
-    action_history[i] = { name = nil, texture = nil, spell_id = nil }
+    action_history[i] = { name = nil, texture = nil, spell_id = nil, target = nil }
 end
 local history_count = 0
 
@@ -60,7 +107,7 @@ cleu_frame:SetScript("OnEvent", function()
         if not player_guid then return end
     end
 
-    local _, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellId, spellName = CombatLogGetCurrentEventInfo()
+    local _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, spellName = CombatLogGetCurrentEventInfo()
     if sourceGUID ~= player_guid then return end
     if subevent ~= "SPELL_CAST_SUCCESS" then return end
 
@@ -72,10 +119,12 @@ cleu_frame:SetScript("OnEvent", function()
         action_history[i].name = action_history[i - 1].name
         action_history[i].texture = action_history[i - 1].texture
         action_history[i].spell_id = action_history[i - 1].spell_id
+        action_history[i].target = action_history[i - 1].target
     end
     action_history[1].name = spellName
     action_history[1].texture = texture
     action_history[1].spell_id = spellId
+    action_history[1].target = short_guid_label(destGUID)
     if history_count < MAX_HISTORY then
         history_count = history_count + 1
     end
@@ -286,6 +335,7 @@ local ui = {
     resource_bar2 = nil,
     resource_text2 = nil,
     header_text = nil,
+    version_text = nil,
     sep2_tex = nil,
     cd_label_fs = nil,
     buff_label_fs = nil,
@@ -394,6 +444,13 @@ local function create_dashboard()
     -- Header (class name + playstyle, compact)
     ui.header_text = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     ui.header_text:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
+    ui.header_text:SetPoint("TOPRIGHT", f, "TOPRIGHT", -82, y)
+
+    ui.version_text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ui.version_text:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+    ui.version_text:SetPoint("TOPRIGHT", f, "TOPRIGHT", -24, y + 1)
+    ui.version_text:SetJustifyH("RIGHT")
+    ui.version_text:SetTextColor(1, 1, 1, 0.9)
 
     -- Close button
     local close = CreateFrame("Button", nil, f)
@@ -697,6 +754,10 @@ local function update_dashboard()
     end
     local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
     ui.header_text:SetText(format("|cff%s%s|r |cff9494a8\194\183|r |cff6c63ff%s|r", class_hex, cc.name or "Unknown", ps_display))
+    if ui.version_text then
+        local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc.version or "")
+        ui.version_text:SetText(class_version)
+    end
 
     last_class_name = cc.name
 
@@ -938,7 +999,8 @@ local function update_dashboard()
     local la = last_action
     local accent_hex = "6c63ff"
     if la and la.name then
-        ui.priority_text:SetText(format("|cff%sPriority|r  > %s", accent_hex, la.name))
+        local target_text = la.target and format(" |cff9494a8[%s]|r", la.target) or ""
+        ui.priority_text:SetText(format("|cff%sPriority|r  > %s%s", accent_hex, la.name, target_text))
     else
         ui.priority_text:SetText(format("|cff%sPriority|r  |cff444444Idle|r", accent_hex))
     end
@@ -965,7 +1027,13 @@ local function update_dashboard()
                 hs.frame.slot_id = nil
                 hs.frame:SetAlpha(alpha)
                 hs.tint:Hide()
-                hs.text:Hide()
+                if entry.target then
+                    hs.text:SetText(entry.target)
+                    hs.text:SetTextColor(1, 1, 1)
+                    hs.text:Show()
+                else
+                    hs.text:Hide()
+                end
                 position_icon(hs, f, ICON_X, content_y, i)
                 hs.frame:Show()
             else

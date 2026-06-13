@@ -133,6 +133,7 @@ do
          if not context.has_valid_enemy_target then return false end
          -- Skip if target has magic immunity (Divine Shield, Ice Block, Cloak, etc.)
          if has_magic_immunity(TARGET_UNIT) then return false end
+         if context.target_spell_reflect then return false end
          local min_targets = context.settings.hurricane_min_targets or Constants.AOE.HURRICANE_MIN_TARGETS
          return context.enemy_count >= min_targets and A.Hurricane:IsReady(TARGET_UNIT)
       end,
@@ -153,6 +154,7 @@ do
          if context.in_combat then return false end
          if not context.has_valid_enemy_target then return false end
          if has_magic_immunity(TARGET_UNIT) then return false end
+         if context.target_spell_reflect then return false end
          return true
       end,
       execute = function(icon, context)
@@ -191,6 +193,7 @@ do
 
          -- Check magic immunity (Divine Shield, Ice Block, Cloak, Grounding Totem, etc.)
          if has_magic_immunity(TARGET_UNIT) then return nil end
+         if context.target_spell_reflect then return nil end
 
          -- Arcane immunity (Curator, Astral Flares, Mana Wraiths, etc.):
          -- skip Starfire/Moonfire (Arcane school), keep Wrath/Insect Swarm/Hurricane (Nature).

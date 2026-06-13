@@ -87,6 +87,17 @@ NS.TARGET_UNIT = TARGET_UNIT
 NS.RACE_TROLL = RACE_TROLL
 NS.RACE_ORC = RACE_ORC
 
+local function format_class_version(class_config)
+   local version = class_config and class_config.version or "v1.0.0"
+   local dev_revision = class_config and class_config.dev_revision or 0
+   if dev_revision and dev_revision > 0 then
+      return format("%s + %d", version, dev_revision)
+   end
+   return version
+end
+
+NS.format_class_version = format_class_version
+
 -- ============================================================================
 -- FORCE COMMAND FLAGS (set by /flux slash commands)
 -- ============================================================================
@@ -255,12 +266,28 @@ local function has_total_immunity(target)
    return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_TOTAL)
 end
 
+local REFLECT_BUFF_IDS = {
+   23920, -- Spell Reflection (Warrior)
+   31533, -- Spell Reflection (NPC, 50%)
+   31534, -- Spell Reflection (NPC, 1%)
+   33719, -- Perfect Spell Reflection
+   35158, -- Reflective Magic Shield
+   38592, -- Spell Reflection (NPC, 100%)
+}
+
+local function has_spell_reflect(target)
+   target = target or TARGET_UNIT
+   return (Unit(target):HasBuffs("Reflect") or 0) > 0
+      or (Unit(target):HasBuffs(REFLECT_BUFF_IDS, nil, true) or 0) > 0
+end
+
 NS.has_phys_immunity = has_phys_immunity
 NS.has_magic_immunity = has_magic_immunity
 NS.has_cc_immunity = has_cc_immunity
 NS.has_stun_immunity = has_stun_immunity
 NS.has_kick_immunity = has_kick_immunity
 NS.has_total_immunity = has_total_immunity
+NS.has_spell_reflect = has_spell_reflect
 
 -- ============================================================================
 -- SCHOOL-IMMUNE NPC TABLES (npcID → true)
@@ -747,28 +774,37 @@ end
 local function safe_ability_cast(ability, icon, target, debug_context)
    if unavailable_spells[ability] then return nil end
    if not ability:IsReady(target) then return nil end
-   return ability:Show(icon)
+   local result = ability:Show(icon)
+   if result then NS.last_action_target_unit = target end
+   return result
 end
 
 -- Pre-allocated Click table for self-targeting (safe for combat use)
 local self_target_click = { unit = "player" }
+local heal_target_click = { unit = "player" }
 
 local function safe_self_cast(ability, icon, _target)
    if unavailable_spells[ability] then return nil end
    if not ability:IsReady("player") then return nil end
    ability.Click = self_target_click
-   return ability:Show(icon)
+   local result = ability:Show(icon)
+   if result then NS.last_action_target_unit = PLAYER_UNIT end
+   return result
 end
 
 local function safe_heal_cast(ability, icon, target_unit, log_message)
    if unavailable_spells[ability] then return nil end
+   if not target_unit or not _G.UnitExists(target_unit) or _G.UnitIsDead(target_unit) or not _G.UnitCanAssist(PLAYER_UNIT, target_unit) then return nil end
    -- IsReady(target_unit) fails for party/raid unit IDs — check on "player" instead.
    if not ability:IsReady("player") then return nil end
    -- Tell HE which unit to target. TMW reads HE.GetTarget() when Show() is called
    -- to inject [@unit,help] into the icon macro.
    local HE = A.HealingEngine
    if HE and HE.SetTarget then HE.SetTarget(target_unit) end
+   heal_target_click.unit = target_unit
+   ability.Click = heal_target_click
    local result = ability:Show(icon)
+   if result then NS.last_action_target_unit = target_unit end
    if result then return result, log_message end
    return nil
 end

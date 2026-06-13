@@ -7,7 +7,7 @@
     "build:website": "corepack pnpm --filter @flux/website build",
     "build:bot": "corepack pnpm --filter @flux/bot build",
     "typecheck": "corepack pnpm -r --if-present typecheck",
-    "test": "corepack pnpm --filter @flux/log-analyzer test"
+    "test": "corepack pnpm --filter @flux/rotation test && corepack pnpm --filter @flux/log-analyzer test"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

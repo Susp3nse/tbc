@@ -35,7 +35,7 @@ local CLASS_TITLE_COLORS = { Druid = "ff7d0a", Hunter = "abd473", Mage = "69ccf0
 local class_hex = CLASS_TITLE_COLORS[class_name] or "6c63ff"
 local addon_title = class_name .. " AIO"
 local addon_title_colored = format("|cff%s%s|r |cff6c63ffAIO|r", class_hex, class_name)
-local version = cc and cc.version or "v1.0.0"
+local version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "v1.0.0")
 
 -- ============================================================================
 -- THEME

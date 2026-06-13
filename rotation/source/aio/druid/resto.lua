@@ -41,8 +41,6 @@ local REGROWTH_RANKS = NS.REGROWTH_RANKS
 
 -- Import from Healing module
 local scan_healing_targets = NS.scan_healing_targets
-local get_tank_target = NS.get_tank_target
-local get_lowest_hp_target = NS.get_lowest_hp_target
 
 -- Framework utilities
 local AuraIsValid = A.AuraIsValid
@@ -53,6 +51,7 @@ local format = string.format
 
 -- Lifebloom spell ID (single rank in TBC)
 local LIFEBLOOM_ID = 33763
+local NATURES_SWIFTNESS_ID = 17116
 
 -- ============================================================================
 -- PRE-ALLOCATED SPELL OPTION TABLES
@@ -72,6 +71,10 @@ local regrowth_heal_options = {
 local resto_state = {
    tank = nil,               -- tank target entry from scan_healing_targets
    lowest = nil,             -- lowest HP target overall
+   emergency_target = nil,   -- lowest target below emergency threshold
+   swiftmend_target = nil,   -- lowest target below Swiftmend threshold with a HoT
+   regrowth_target = nil,    -- lowest target below standard threshold without Regrowth
+   rejuv_target = nil,       -- lowest target below proactive threshold without Rejuv
    emergency_count = 0,      -- count of targets below emergency_hp
    tank_lb_stacks = 0,       -- Lifebloom stack count on tank (0-3)
    tank_lb_duration = 0,     -- Lifebloom remaining duration on tank (seconds)
@@ -86,10 +89,17 @@ local function get_resto_state(context)
    local targets, count = scan_healing_targets()
    local settings = context.settings
    local emergency_hp = settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP
+   local swiftmend_hp = settings.resto_swiftmend_hp or Constants.RESTO.SWIFTMEND_HP
+   local standard_hp = settings.resto_standard_heal_hp or Constants.RESTO.STANDARD_HEAL_HP
+   local proactive_hp = settings.resto_proactive_hp or Constants.RESTO.PROACTIVE_HP
 
    -- Reset state
    resto_state.tank = nil
    resto_state.lowest = nil
+   resto_state.emergency_target = nil
+   resto_state.swiftmend_target = nil
+   resto_state.regrowth_target = nil
+   resto_state.rejuv_target = nil
    resto_state.emergency_count = 0
    resto_state.tank_lb_stacks = 0
    resto_state.tank_lb_duration = 0
@@ -111,6 +121,27 @@ local function get_resto_state(context)
          -- Emergency count (use effective_hp to avoid overcounting when heals are incoming)
          if entry.effective_hp < emergency_hp then
             resto_state.emergency_count = resto_state.emergency_count + 1
+            if not resto_state.emergency_target then
+               resto_state.emergency_target = entry
+            end
+         end
+
+         if not resto_state.swiftmend_target
+            and entry.effective_hp < swiftmend_hp
+            and (entry.has_rejuv or entry.has_regrowth) then
+            resto_state.swiftmend_target = entry
+         end
+
+         if not resto_state.regrowth_target
+            and entry.effective_hp < standard_hp
+            and not entry.has_regrowth then
+            resto_state.regrowth_target = entry
+         end
+
+         if not resto_state.rejuv_target
+            and entry.effective_hp < proactive_hp
+            and not entry.has_rejuv then
+            resto_state.rejuv_target = entry
          end
 
          -- Tank identification + Lifebloom tracking
@@ -177,13 +208,13 @@ do
    -- [1] Emergency Swiftmend (instant burst on critically low target with HoT)
    local Resto_EmergencySwiftmend = {
       matches = function(context, state)
-         if state.emergency_count == 0 then return false end
+         if not state.emergency_target then return false end
          if not is_spell_available(A.Swiftmend) then return false end
-         local target = get_lowest_hp_target(context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP)
-         return target and (target.has_rejuv or target.has_regrowth) and A.Swiftmend:IsReady(PLAYER_UNIT)
+         local target = state.emergency_target
+         return (target.has_rejuv or target.has_regrowth) and A.Swiftmend:IsReady(PLAYER_UNIT)
       end,
       execute = function(icon, context, state)
-         local target = get_lowest_hp_target(context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP)
+         local target = state.emergency_target
          if not target then return nil end
          return try_heal_cast_fmt(A.Swiftmend, icon, target.unit, "[P15]", "EMERGENCY Swiftmend",
                              "on %s (%.0f%%)", target.unit, target.hp)
@@ -195,13 +226,14 @@ do
    -- TreeReshift middleware handles getting back to Tree on the next frame.
    local Resto_EmergencyNSHealingTouch = {
       matches = function(context, state)
-         if state.emergency_count == 0 then return false end
+         if not state.emergency_target then return false end
          if not context.settings.resto_ns_healing_touch then return false end
          if not is_spell_available(A.NaturesSwiftness) then return false end
+         if state.emergency_target.hp >= (context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP) then return false end
          return A.NaturesSwiftness:IsReady(PLAYER_UNIT)
       end,
       execute = function(icon, context, state)
-         local target = get_lowest_hp_target(context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP)
+         local target = state.emergency_target
          if not target then return nil end
          -- Flag reshift so middleware returns us to Tree next frame
          pending_tree_reshift = true
@@ -209,6 +241,7 @@ do
          -- but macrobefore handles /cancelform before the spell fires)
          local HE = A.HealingEngine
          if HE and HE.SetTarget then HE.SetTarget(target.unit) end
+         A.NSHealingTouch13.Click.unit = target.unit
          return A.NSHealingTouch13:Show(icon), format("[P14] EMERGENCY NS+HT on %s (%.0f%%)", target.unit, target.hp)
       end,
    }
@@ -216,15 +249,21 @@ do
    -- [3] Emergency NS + Regrowth (instant big heal, both castable in Tree form)
    local Resto_EmergencyNSRegrowth = {
       matches = function(context, state)
-         if state.emergency_count == 0 then return false end
+         if not state.emergency_target then return false end
          if not is_spell_available(A.NaturesSwiftness) then return false end
+         if not is_spell_available(A.Regrowth10) then return false end
+         if (Unit(PLAYER_UNIT):HasBuffs(NATURES_SWIFTNESS_ID) or 0) > 0 then
+            return A.Regrowth10:IsReady(PLAYER_UNIT)
+         end
          return A.NaturesSwiftness:IsReady(PLAYER_UNIT)
       end,
       execute = function(icon, context, state)
-         local target = get_lowest_hp_target(context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP)
+         local target = state.emergency_target
          if not target then return nil end
-         -- Fire NS (self-buff), then max-rank Regrowth will be instant next frame
-         A.NaturesSwiftness:Show(icon)
+         if (Unit(PLAYER_UNIT):HasBuffs(NATURES_SWIFTNESS_ID) or 0) == 0 then
+            return try_cast_fmt(A.NaturesSwiftness, icon, PLAYER_UNIT, "[P14]", "Nature's Swiftness",
+                                "prep Regrowth on %s (%.0f%%)", target.unit, target.hp)
+         end
          return try_heal_cast_fmt(A.Regrowth10, icon, target.unit, "[P14]", "EMERGENCY NS+Regrowth",
                              "on %s (%.0f%%)", target.unit, target.hp)
       end,
@@ -273,13 +312,10 @@ do
    local Resto_SwiftmendUrgent = {
       matches = function(context, state)
          if not is_spell_available(A.Swiftmend) then return false end
-         local threshold = context.settings.resto_swiftmend_hp or Constants.RESTO.SWIFTMEND_HP
-         local target = get_lowest_hp_target(threshold)
-         return target and (target.has_rejuv or target.has_regrowth) and A.Swiftmend:IsReady(PLAYER_UNIT)
+         return state.swiftmend_target and A.Swiftmend:IsReady(PLAYER_UNIT)
       end,
       execute = function(icon, context, state)
-         local threshold = context.settings.resto_swiftmend_hp or Constants.RESTO.SWIFTMEND_HP
-         local target = get_lowest_hp_target(threshold)
+         local target = state.swiftmend_target
          if not target then return nil end
          return try_heal_cast_fmt(A.Swiftmend, icon, target.unit, "[P8]", "Swiftmend",
                              "on %s (%.0f%%)", target.unit, target.hp)
@@ -322,15 +358,12 @@ do
    -- [9] Regrowth on low HP targets (direct heal + HoT, mana-gated)
    local Resto_RegrowthLow = {
       matches = function(context, state)
-         local threshold = context.settings.resto_standard_heal_hp or Constants.RESTO.STANDARD_HEAL_HP
          local mana_conserve = context.settings.resto_mana_conserve or 40
          if context.mana_pct < mana_conserve then return false end
-         local target = get_lowest_hp_target(threshold)
-         return target and not target.has_regrowth
+         return state.regrowth_target ~= nil
       end,
       execute = function(icon, context, state)
-         local threshold = context.settings.resto_standard_heal_hp or Constants.RESTO.STANDARD_HEAL_HP
-         local target = get_lowest_hp_target(threshold)
+         local target = state.regrowth_target
          if not target or target.has_regrowth then return nil end
          local result, rank_info = cast_best_heal_rank(REGROWTH_RANKS, icon, target.unit, context, "Regrowth", regrowth_heal_options)
          if result then
@@ -343,27 +376,14 @@ do
    -- [8] Rejuvenation spread (HoT blanketing on injured members)
    local Resto_RejuvSpread = {
       matches = function(context, state)
-         local threshold = context.settings.resto_proactive_hp or Constants.RESTO.PROACTIVE_HP
-         local targets, count = scan_healing_targets()
-         for i = 1, count do
-            local entry = targets[i]
-            if entry and entry.effective_hp < threshold and not entry.has_rejuv then
-               return true
-            end
-         end
-         return false
+         return state.rejuv_target ~= nil
       end,
       execute = function(icon, context, state)
-         local threshold = context.settings.resto_proactive_hp or Constants.RESTO.PROACTIVE_HP
-         local targets, count = scan_healing_targets()
-         for i = 1, count do
-            local entry = targets[i]
-            if entry and entry.effective_hp < threshold and not entry.has_rejuv then
-               if A.Rejuvenation13:IsReady(PLAYER_UNIT) then
-                  return try_heal_cast_fmt(A.Rejuvenation13, icon, entry.unit, "[P4]", "Rejuv Spread",
-                                      "on %s (%.0f%%)", entry.unit, entry.hp)
-               end
-            end
+         local target = state.rejuv_target
+         if not target then return nil end
+         if A.Rejuvenation13:IsReady(PLAYER_UNIT) then
+            return try_heal_cast_fmt(A.Rejuvenation13, icon, target.unit, "[P4]", "Rejuv Spread",
+                                "on %s (%.0f%%)", target.unit, target.hp)
          end
          return nil
       end,

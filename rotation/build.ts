@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 
 const PROJECT_ROOT = process.env.ROTATION_ROOT || (
   path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : __dirname
@@ -24,6 +25,7 @@ const DEFAULT_AIO_DIR = path.join(PROJECT_ROOT, 'source', 'aio');
 const TEMPLATE_PATH = path.join(PROJECT_ROOT, 'tmw-template.lua');
 const OUTPUT_PATH = path.join(PROJECT_ROOT, 'output', 'TellMeWhen.lua');
 const INI_PATH = path.join(PROJECT_ROOT, 'dev.ini');
+const BUILD_VERSION_PATH = path.join(PROJECT_ROOT, 'build-version.json');
 
 // ---------------------------------------------------------------------------
 // INI Parser
@@ -201,10 +203,46 @@ function getProfileName(className, config) {
 // CodeSnippets Builder
 // ---------------------------------------------------------------------------
 
-function buildCodeSnippets(modules) {
+function readBuildMetadata() {
+  const fallback = { build: 0 };
+  if (!fs.existsSync(BUILD_VERSION_PATH)) return fallback;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(BUILD_VERSION_PATH, 'utf8'));
+    return {
+      build: Number.isInteger(parsed.build) ? parsed.build : fallback.build,
+    };
+  } catch (err) {
+    console.warn(`  WARNING: Could not read build-version.json (${err.message}); using build ${fallback.build}`);
+    return fallback;
+  }
+}
+
+function writeBuildMetadata(metadata) {
+  fs.writeFileSync(BUILD_VERSION_PATH, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+}
+
+function bumpBuildMetadata() {
+  const metadata = readBuildMetadata();
+  const next = { ...metadata, build: metadata.build + 1 };
+  writeBuildMetadata(next);
+  return next;
+}
+
+function injectBuildMetadata(code, metadata) {
+  if (!metadata || !code.startsWith('-- Flux AIO - Core Module')) return code;
+  const generated = [
+    `NS.BUILD_NUMBER = ${metadata.build}`,
+    `NS.BUILD_LABEL = "#${metadata.build}"`,
+  ].join('\n');
+  return code.replace('local NS = _G.FluxAIO', `local NS = _G.FluxAIO\n${generated}`);
+}
+
+function buildCodeSnippets(modules, metadata) {
   const lines = ['["CodeSnippets"] = {'];
   for (const mod of modules) {
-    const code = fs.readFileSync(mod.filePath, 'utf8');
+    const rawCode = fs.readFileSync(mod.filePath, 'utf8');
+    const code = injectBuildMetadata(rawCode, metadata);
     const escaped = escapeLuaString(code);
     lines.push('{');
     lines.push(`["Order"] = ${mod.order},`);
@@ -464,8 +502,8 @@ function removeProfile(lines, profileName) {
  * Sync modules for a single class into TellMeWhen.lua content.
  * Returns the updated lines array.
  */
-function syncProfile(lines, profileName, modules, templatePath) {
-  const snippetLines = buildCodeSnippets(modules);
+function syncProfile(lines, profileName, modules, templatePath, metadata) {
+  const snippetLines = buildCodeSnippets(modules, metadata);
   const profile = findProfile(lines, profileName);
   const templateProfileLines = loadTemplateProfileLines(templatePath);
 
@@ -646,6 +684,16 @@ function timestamp() {
   return new Date().toLocaleTimeString('en-US', { hour12: false });
 }
 
+function isWowRunning() {
+  if (process.platform !== 'win32') return false;
+  try {
+    const output = childProcess.execFileSync('tasklist', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return /(^|\r?\n)\s*(Wow|WowClassic|World of Warcraft)\.exe\s/i.test(output);
+  } catch (_err) {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Build Modes
 // ---------------------------------------------------------------------------
@@ -661,6 +709,8 @@ function buildOutput(classes, config) {
   }
 
   const aioDir = getAIODir(config);
+  const metadata = bumpBuildMetadata();
+  console.log(`  Build: #${metadata.build}`);
   const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
   const hasWindows = template.includes('\r\n');
   let lines = template.split(/\r?\n/);
@@ -676,7 +726,7 @@ function buildOutput(classes, config) {
       console.log(`  Skipping ${className}: no modules found`);
       continue;
     }
-    lines = syncProfile(lines, profileName, modules, TEMPLATE_PATH);
+    lines = syncProfile(lines, profileName, modules, TEMPLATE_PATH, metadata);
     console.log(`  Built: ${profileName} (${modules.length} modules)`);
   }
 
@@ -701,6 +751,7 @@ function syncToSavedVariables(config, classNames, svPathOverride) {
   const svPath = svPathOverride || config.paths.savedvariables;
 
   const aioDir = getAIODir(config);
+  const metadata = readBuildMetadata();
   const templatePath = config.paths.template
     ? path.resolve(PROJECT_ROOT, config.paths.template)
     : null;
@@ -746,7 +797,7 @@ function syncToSavedVariables(config, classNames, svPathOverride) {
       continue;
     }
 
-    lines = syncProfile(lines, profileName, modules, templatePath);
+    lines = syncProfile(lines, profileName, modules, templatePath, metadata);
     console.log(`[${timestamp()}] Synced: ${profileName} (${modules.length} modules, ${Date.now() - start}ms)`);
   }
 
@@ -755,6 +806,14 @@ function syncToSavedVariables(config, classNames, svPathOverride) {
 
   const output = lines.join(hasWindows ? '\r\n' : '\n');
   writeWithRetry(svPath, output);
+
+  const expectedBuildLabel = 'NS.BUILD_LABEL';
+  const written = fs.existsSync(svPath) ? fs.readFileSync(svPath, 'utf8') : '';
+  if (!written.includes(expectedBuildLabel)) {
+    console.error(`[${timestamp()}] ERROR: Build metadata was not written to ${svPath}`);
+    return false;
+  }
+
   return true;
 }
 
@@ -770,6 +829,8 @@ module.exports = {
   getSavedVariablesPaths,
   syncToSavedVariables,
   buildOutput,
+  readBuildMetadata,
+  bumpBuildMetadata,
   parseINI,
   timestamp,
   INI_PATH,
@@ -843,9 +904,19 @@ if (require.main === module) {
       process.exit(1);
     }
     console.log('\n--- Syncing to SavedVariables ---');
+    if (isWowRunning()) {
+      console.log('  WARNING: World of Warcraft appears to be running.');
+      console.log('  SavedVariables are loaded from disk at startup; /reload may overwrite external sync changes with in-memory addon data.');
+    }
+    let syncFailed = false;
     for (const { name, svPath } of svPaths) {
       if (svPaths.length > 1) console.log(`\n  Account: ${name}`);
-      syncToSavedVariables(config, classes, svPath);
+      if (!syncToSavedVariables(config, classes, svPath)) {
+        syncFailed = true;
+      }
+    }
+    if (syncFailed) {
+      process.exit(1);
     }
   }
 

@@ -109,6 +109,18 @@ local function has_any_lifebloom(target)
    return (Unit(target):HasBuffs(33763, "player", true) or 0) > 0
 end
 
+local function has_buff(target, buff_ids, source)
+   return (Unit(target):HasBuffs(buff_ids, source, true) or 0) > 0
+end
+
+local function missing_buff(target, buff_ids, source)
+   return not has_buff(target, buff_ids, source)
+end
+
+local function is_player_unit(unit)
+   return unit and _G.UnitExists(unit) and _G.UnitIsPlayer(unit)
+end
+
 -- ============================================================================
 -- PARTY/RAID HEALING SYSTEM
 -- ============================================================================
@@ -123,6 +135,12 @@ local healing_targets_count = 0
 local function unit_has_aggro(unit_id)
    local threat = _G.UnitThreatSituation(unit_id)
    return threat and threat >= 2
+end
+
+local function health_percent(unit)
+   local max_hp = _G.UnitHealthMax(unit) or 0
+   if max_hp <= 0 then return 0 end
+   return _G.UnitHealth(unit) / max_hp * 100
 end
 
 local function is_in_raid()
@@ -170,9 +188,9 @@ local function scan_healing_targets()
 
             local entry = healing_targets[idx]
             entry.unit = unit
-            local max_hp = _G.UnitHealthMax(unit)
-            entry.hp = _G.UnitHealth(unit) / max_hp * 100
-            entry.is_player = (unit == "player")
+            local max_hp = _G.UnitHealthMax(unit) or 0
+            entry.hp = health_percent(unit)
+            entry.is_player = is_player_unit(unit)
             entry.has_aggro = unit_has_aggro(unit)
             entry.has_rejuv = has_any_rejuv(unit)
             entry.has_regrowth = has_any_regrowth(unit)
@@ -182,9 +200,14 @@ local function scan_healing_targets()
             entry.effective_hp = max_hp > 0 and (100 - (eff_deficit / max_hp) * 100) or entry.hp
 
             local role = _G.UnitGroupRolesAssigned and _G.UnitGroupRolesAssigned(unit)
-            entry.is_tank = in_group and (entry.has_aggro or (role == "TANK"))
+            local player_has_aggro = _G.UnitIsUnit(unit, PLAYER_UNIT)
+            entry.is_tank = in_group and ((role == "TANK") or (entry.has_aggro and not player_has_aggro))
          end
       end
+   end
+
+   for i = healing_targets_count + 1, #healing_targets do
+      healing_targets[i] = nil
    end
 
    if healing_targets_count > 1 then
@@ -204,6 +227,19 @@ local function get_tank_target()
    for i = 1, healing_targets_count do
       local entry = healing_targets[i]
       if entry and entry.is_tank then
+         return entry
+      end
+   end
+
+   return nil
+end
+
+local function get_player_tank_target()
+   scan_healing_targets()
+
+   for i = 1, healing_targets_count do
+      local entry = healing_targets[i]
+      if entry and entry.is_tank and entry.is_player then
          return entry
       end
    end
@@ -366,11 +402,16 @@ NS.can_afford_spell = can_afford_spell
 NS.has_any_rejuv = has_any_rejuv
 NS.has_any_regrowth = has_any_regrowth
 NS.has_any_lifebloom = has_any_lifebloom
+NS.has_buff = has_buff
+NS.missing_buff = missing_buff
+NS.is_player_unit = is_player_unit
+NS.health_percent = health_percent
 
 NS.is_in_raid = is_in_raid
 NS.is_in_party = is_in_party
 NS.scan_healing_targets = scan_healing_targets
 NS.get_tank_target = get_tank_target
+NS.get_player_tank_target = get_player_tank_target
 NS.get_lowest_hp_target = get_lowest_hp_target
 NS.all_members_above_hp = all_members_above_hp
 NS.unit_has_aggro = unit_has_aggro

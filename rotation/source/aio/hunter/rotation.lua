@@ -38,7 +38,6 @@ local GetCurrentGCD = A.GetCurrentGCD
 local GetLatency = A.GetLatency
 local BurstIsON = A.BurstIsON
 local is_force_active = NS.is_force_active
-local IsUnitEnemy = A.IsUnitEnemy
 local AuraIsValid = A.AuraIsValid
 local MultiUnits = A.MultiUnits
 
@@ -46,6 +45,7 @@ local UnitIsUnit = _G.UnitIsUnit
 local UnitExists = _G.UnitExists
 local UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost
 local UnitGUID = _G.UnitGUID
+local UnitCanAttack = _G.UnitCanAttack
 local GetNumGroupMembers = _G.GetNumGroupMembers
 local GetTime = _G.GetTime
 
@@ -54,6 +54,12 @@ local TARGET_UNIT = "target"
 local next_pet_attack_at = 0
 local next_start_attack_at = 0
 local next_hunter_trace_at = 0
+
+local function IsAttackableUnit(unit)
+    return UnitExists and UnitExists(unit)
+        and UnitCanAttack and UnitCanAttack(PLAYER_UNIT, unit)
+        and not UnitIsDeadOrGhost(unit)
+end
 
 local function BurnPhaseActive()
     return Unit(PLAYER_UNIT):HasBuffs(A.Heroism.ID) > 0
@@ -196,7 +202,7 @@ strategies[#strategies + 1] = named("OOC_AspectCheetah", {
         if not context.settings.aspect_cheetah then return false end
         if context.is_mounted then return false end
         if context.in_combat then return false end
-        if IsUnitEnemy(TARGET_UNIT) then return false end
+        if IsAttackableUnit(TARGET_UNIT) then return false end
         if Unit(PLAYER_UNIT):HasBuffs(A.AspectoftheCheetah.ID, true) > 0 then return false end
         -- Don't use cheetah if we should be in viper
         if context.settings.aspect_viper then
@@ -262,8 +268,8 @@ strategies[#strategies + 1] = named("OOC_RevivePet", {
 strategies[#strategies + 1] = named("CombatRotation", {
     matches = function(context)
         -- Need either a mouseover enemy or target enemy
-        if context.settings.mouseover and IsUnitEnemy("mouseover") then return true end
-        if IsUnitEnemy(TARGET_UNIT) then return true end
+        if context.settings.mouseover and IsAttackableUnit("mouseover") then return true end
+        if IsAttackableUnit(TARGET_UNIT) then return true end
         return false
     end,
 
@@ -302,7 +308,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
                 local manaViperEnd = s.mana_viper_end or 30
                 local viperOff = (context.mana_pct > manaViperEnd and s.aspect_viper) or not s.aspect_viper
                 if A.AspectoftheHawk:IsReady(PLAYER_UNIT) and Unit(PLAYER_UNIT):HasBuffs(A.AspectoftheHawk.ID, true) == 0
-                   and (context.in_combat or IsUnitEnemy(unit)) and viperOff and not context.is_mounted then
+                   and (context.in_combat or IsAttackableUnit(unit)) and viperOff and not context.is_mounted then
                     return A.AspectoftheHawk:Show(icon), "[RANGED] Aspect of the Hawk"
                 end
             end
@@ -599,12 +605,12 @@ strategies[#strategies + 1] = named("CombatRotation", {
         end -- end EnemyRotation
 
         -- Check mouseover first, then target
-        if s.mouseover and IsUnitEnemy("mouseover") then
+        if s.mouseover and IsAttackableUnit("mouseover") then
             local result, log = EnemyRotation("mouseover")
             if result then return result, log end
         end
 
-        if IsUnitEnemy(TARGET_UNIT) then
+        if IsAttackableUnit(TARGET_UNIT) then
             local result, log = EnemyRotation(TARGET_UNIT)
             if result then return result, log end
         end

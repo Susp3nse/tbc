@@ -29,6 +29,7 @@ local refresh_settings = NS.refresh_settings
 local get_time_to_die = NS.get_time_to_die
 local has_phys_immunity = NS.has_phys_immunity
 local has_magic_immunity = NS.has_magic_immunity
+local has_spell_reflect = NS.has_spell_reflect
 local debug_print = NS.debug_print
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -50,6 +51,7 @@ local table_sort = table.sort
 local table_concat = table.concat
 local IsResting = _G.IsResting
 local UnitAffectingCombat = _G.UnitAffectingCombat
+local UnitCanAttack = _G.UnitCanAttack
 local GetTime = _G.GetTime
 local AddDebugLogLine = NS.AddDebugLogLine
 
@@ -93,6 +95,7 @@ function rotation_registry:execute_middleware(icon, context)
       local matches = setting_ok and not burst_blocked and (forced or mw.matches(context))
 
       if matches then
+         NS.last_action_target_unit = nil
          local result, log_msg = mw.execute(icon, context)
          if result then
             if debug_mode and log_msg and debug_print then
@@ -100,7 +103,7 @@ function rotation_registry:execute_middleware(icon, context)
             elseif debug_system and debug_print then
                debug_print(format("[MW] EXECUTED %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
             end
-            set_last_action(mw.name, "MW")
+            set_last_action(mw.name, "MW", NS.last_action_target_unit or mw.spell_target or "player")
             return result
          elseif debug_system and debug_print then
             debug_print(format("[MW] NO_ACTION %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
@@ -174,6 +177,7 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
          ))
 
          if passes then
+            NS.last_action_target_unit = nil
             local result, log_msg = strategy.execute(icon, context, state)
 
             if result then
@@ -182,7 +186,7 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
                elseif debug_system and debug_print then
                   debug_print(format("[%s] EXECUTED %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
                end
-               set_last_action(strategy.name, playstyle)
+               set_last_action(strategy.name, playstyle, NS.last_action_target_unit or strategy.spell_target or TARGET_UNIT)
                return result
             elseif debug_system and debug_print then
                debug_print(format("[%s] NO_ACTION %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
@@ -228,7 +232,7 @@ local function create_context(icon)
    ctx.mana = Player:Mana()
    ctx.target_exists = target_unit:IsExists()
    ctx.target_dead = target_unit:IsDead()
-   ctx.target_enemy = target_unit:IsEnemy()
+   ctx.target_enemy = ctx.target_exists and UnitCanAttack and UnitCanAttack(PLAYER_UNIT, TARGET_UNIT) or false
    ctx.has_valid_enemy_target = ctx.target_exists and not ctx.target_dead and ctx.target_enemy
    ctx.target_hp = target_unit:HealthPercent()
    ctx.ttd = get_time_to_die(TARGET_UNIT)
@@ -236,6 +240,7 @@ local function create_context(icon)
    ctx.in_melee_range = (min_range and min_range <= 5) or false
    ctx.target_phys_immune = has_phys_immunity(TARGET_UNIT)
    ctx.target_magic_immune = has_magic_immunity(TARGET_UNIT)
+   ctx.target_spell_reflect = has_spell_reflect(TARGET_UNIT)
    ctx.is_boss = ctx.has_valid_enemy_target and target_unit:IsBoss()
    if ctx.has_valid_enemy_target then
        local c = _G.UnitClassification(TARGET_UNIT)
@@ -288,7 +293,9 @@ A[3] = function(icon)
    -- Gap closer: keeps showing gap spell on icon for 3s window.
    -- Once spell fires (goes on CD), handler returns nil → normal rotation resumes.
    if is_force_active("force_gap") then
-      if cc.gap_handler then
+      if not context.has_valid_enemy_target then
+         clear_force_flag("force_gap")
+      elseif cc.gap_handler then
          local result = cc.gap_handler(icon, context)
          if result then
             set_last_action("Gap Closer", "CMD")
@@ -364,7 +371,8 @@ A[8] = nil
 -- Print load summary (dynamic from class_config)
 local cc = rotation_registry.class_config
 local class_label = cc and cc.name or "Unknown"
-local class_version = cc and cc.version or "?"
+local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "?")
+local build_label = NS.BUILD_LABEL or "dev"
 
 -- Count strategies per registered playstyle
 local strategy_summary = {}
@@ -373,6 +381,6 @@ for ps, strats in pairs(rotation_registry.strategy_maps) do
 end
 local mw_count = rotation_registry.middleware and #rotation_registry.middleware or 0
 
-print(format("|cFF00FF00[Flux AIO]|r %s %s loaded successfully!", class_label, class_version))
+print(format("|cff6c63ff[Flux AIO]|r %s %s loaded successfully! Build: %s", class_label, class_version, build_label))
 print(format("|cFF00FF00[Flux AIO]|r Strategies: %s", table.concat(strategy_summary, ", ")))
 print(format("|cFF00FF00[Flux AIO]|r Middleware: %d handlers registered", mw_count))
