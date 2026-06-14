@@ -7,6 +7,7 @@
   "scripts": {
     "compile": "corepack pnpm --filter @flux/tmw-profile-builder build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint:lua": "luacheck src/aio",
     "test": "tsx test/guardrails.test.ts",
     "build": "corepack pnpm run compile && node dist/build.js",
     "build:sync": "corepack pnpm run compile && node dist/build.js --sync",
