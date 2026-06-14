@@ -1,0 +1,2 @@
+# Full gate before code leaves the machine: lint, format check, typecheck.
+corepack pnpm run check

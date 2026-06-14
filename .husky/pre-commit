@@ -1,0 +1,4 @@
+# Lint + format staged TS/JS/JSON (lint-staged re-stages the auto-fixes),
+# then a full typecheck so no broken commit lands locally.
+corepack pnpm exec lint-staged
+corepack pnpm run typecheck
