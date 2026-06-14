@@ -33,6 +33,8 @@ _G.Menagerie_SECTIONS = {
               tooltip = "Print system debug messages (middleware, strategies)." },
             { type = "checkbox", key = "log_context", default = false, label = "Log Context",
               tooltip = "Print full context state to debug log every 2s during combat." },
+            { type = "checkbox", key = "show_debug_panel", default = false, label = "Show Debug Panel",
+              tooltip = "Enable the live state debug panel, then use /mdebug to open it." },
             { type = "checkbox", key = "suppress_spell_warnings", default = false, label = "Suppress Missing-Spell Warnings",
               tooltip = "Hide the 'missing required/optional spells' chat messages printed on playstyle switch. Useful while leveling when not all spells are trained yet." },
         }}

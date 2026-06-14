@@ -236,8 +236,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
               tooltip = "Extra time reserved before ranged Auto Shot windup begins. Raise this if orange/red feels late.", format = "%d ms" },
         }},
         { header = "Debug Panel", settings = {
-            { type = "checkbox", key = "show_debug_panel", default = false, label = "Show Debug Panel",
-              tooltip = "Show real-time hunter debug information." },
             { type = "checkbox", key = "show_adaptive_panel", default = false, label = "Show Adaptive Engine Panel",
               tooltip = "Live view of adaptive's per-tick scores, derived stats, and recent fires." },
         }},

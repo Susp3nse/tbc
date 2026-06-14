@@ -15,7 +15,7 @@ Single registered playstyle: `ranged` (no idle playstyle). `get_active_playstyle
 - `cliptracker.lua` — Auto Shot clip tracker (`NS.HunterClipTracker`): measures what clipped each auto shot, how long, whether it was worth it. Drives shot timing and a diagnostic UI.
 - `meleeweave.lua` — read-only traffic-light coach for manual Raptor Strike weaving (`NS.HunterMeleeWeaveCoach:Evaluate`). Coaching only; does not auto-cast melee.
 - `adaptivepanel.lua` — read-only live panel showing the adaptive engine's inputs/decisions (`show_adaptive_panel`).
-- `debugui.lua` — Hunter-specific diagnostic overlay.
+- `diag.lua` — Hunter-specific sections for the shared debug panel (`show_debug_panel` + `/mdebug`).
 - `schema.lua` — settings (tabs: General, Rotation, Cooldowns, PvP, Pet & Diag).
 
 ## Key spell IDs / ranks

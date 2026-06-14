@@ -569,6 +569,8 @@ local DBG_BACKDROP = {
    edgeFile = "Interface\\Buttons\\WHITE8X8",
    edgeSize = 1,
 }
+NS.DBG_THEME = DBG_THEME
+NS.DBG_BACKDROP = DBG_BACKDROP
 
 -- Looked up by LAYER for the src cell, and by forced for message tint.
 local DBG_CAT = {
@@ -669,11 +671,9 @@ local function create_debug_button(parent, text, width)
    return btn
 end
 
-local function CreateDebugLogFrame()
-   if DebugLogFrame then return DebugLogFrame end
-
-   local f = CreateFrame("Frame", "MenagerieDebugFrame", UIParent, "BackdropTemplate")
-   f:SetSize(500, 300)
+local function CreateDebugWindow(title_text)
+   local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+   f:SetSize(320, 240)
    f:SetPoint("TOPLEFT", 50, -100)
    f:SetBackdrop(DBG_BACKDROP)
    f:SetBackdropColor(DBG_THEME.bg[1], DBG_THEME.bg[2], DBG_THEME.bg[3], DBG_THEME.bg[4])
@@ -686,13 +686,12 @@ local function CreateDebugLogFrame()
    f:SetScript("OnDragStart", f.StartMoving)
    f:SetScript("OnDragStop", f.StopMovingOrSizing)
 
-   -- Title
    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
    title:SetPoint("TOPLEFT", 12, -8)
-   title:SetText("Menagerie Debug Log")
+   title:SetText(title_text or "Menagerie Debug")
    title:SetTextColor(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3])
+   f.title = title
 
-   -- Close button
    local closeBtn = CreateFrame("Button", nil, f)
    closeBtn:SetSize(22, 22)
    closeBtn:SetPoint("TOPRIGHT", -6, -6)
@@ -703,13 +702,26 @@ local function CreateDebugLogFrame()
    closeBtn:SetScript("OnClick", function() f:Hide() end)
    closeBtn:SetScript("OnEnter", function() closeX:SetTextColor(1, 0.3, 0.3) end)
    closeBtn:SetScript("OnLeave", function() closeX:SetTextColor(0.6, 0.6, 0.6) end)
+   f.closeBtn = closeBtn
 
-   -- Separator
    local sep = f:CreateTexture(nil, "ARTWORK")
    sep:SetPoint("TOPLEFT", 1, -28)
    sep:SetPoint("TOPRIGHT", -1, -28)
    sep:SetHeight(1)
    sep:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
+   f.separator = sep
+
+   return f
+end
+NS.CreateDebugWindow = CreateDebugWindow
+
+local function CreateDebugLogFrame()
+   if DebugLogFrame then return DebugLogFrame end
+
+   local f = CreateDebugWindow("Menagerie Debug Log")
+   f:SetSize(500, 300)
+   f:ClearAllPoints()
+   f:SetPoint("TOPLEFT", 50, -100)
 
    local scrollframe = CreateFrame("ScrollFrame", "MenagerieDebugScrollFrame", f, "FauxScrollFrameTemplate")
    scrollframe:SetPoint("TOPLEFT", 10, -34)
