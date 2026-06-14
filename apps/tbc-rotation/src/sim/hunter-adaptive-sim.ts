@@ -15,10 +15,8 @@
  * Steady clips in base/RF windows.
  */
 
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const ROOT = process.cwd();
 const ADAPTIVE_LUA = path.join(ROOT, 'src', 'aio', 'hunter', 'adaptive.lua');
