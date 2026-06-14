@@ -170,6 +170,7 @@ local GetSpellTexture = (_G.TMW and type(_G.TMW.GetSpellTexture) == "function" a
 local UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost
 local UnitRangedDamage = _G.UnitRangedDamage
 local GetNumGroupMembers = _G.GetNumGroupMembers
+local GetPetHappiness = _G.GetPetHappiness
 
 -- ============================================================================
 -- CONSTANTS
@@ -437,6 +438,10 @@ rotation_registry:register_class({
         ctx.pet_dead = UnitIsDeadOrGhost("pet") or Unit("pet"):IsDead()
         ctx.pet_active = Pet:IsActive() or (ctx.pet_exists and not ctx.pet_dead)
         ctx.pet_hp = Unit("pet"):HealthPercent() or 0
+        -- Happiness: 1 = unhappy, 2 = content, 3 = happy (nil when no pet).
+        -- Read-only coach signal; auto-feed is intentionally NOT implemented
+        -- (Feed Pet is a two-step cursor cast that needs a specific food item).
+        ctx.pet_happiness = GetPetHappiness and GetPetHappiness() or nil
     end,
 
     dashboard = {
@@ -454,6 +459,15 @@ rotation_registry:register_class({
             function(context)
                 if context.pet_active then return "Pet HP", format("%.0f%%", context.pet_hp or 0) end
                 return "Pet", "Inactive"
+            end,
+            -- Feed-pet coach: only nags while the pet isn't fully happy. Hidden
+            -- (returns nil) when happy or no pet, so the dashboard stays quiet.
+            function(context)
+                if not context.pet_active then return nil end
+                local h = context.pet_happiness
+                if not h or h >= 3 then return nil end
+                if h == 1 then return "Pet Mood", "|cFFFF2020Unhappy — feed pet!|r" end
+                return "Pet Mood", "|cFFFFD000Content — feed soon|r"
             end,
         },
     },
