@@ -915,7 +915,7 @@ local function debug_print(...)
    local last_print = debug_print_cache[key]
 
    if not last_print or (now - last_print) >= 1.5 then
-      local message = format("[%.1fs] %s", now, tconcat(debug_string_args, " "))
+      local message = format("[%s] %s", debug_timestamp(), tconcat(debug_string_args, " "))
       AddDebugLogLine(message)
       debug_print_cache[key] = now
    end

@@ -54,6 +54,7 @@ local UnitAffectingCombat = _G.UnitAffectingCombat
 local UnitCanAttack = _G.UnitCanAttack
 local GetTime = _G.GetTime
 local AddDebugLogLine = NS.AddDebugLogLine
+local debug_timestamp = NS.debug_timestamp
 
 -- Context logging
 local last_context_log_time = 0
@@ -154,7 +155,7 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
             table_sort(ctx_dump_parts)
             msg = table_concat(ctx_dump_parts, " ")
          end
-         AddDebugLogLine(format("[%.1fs] [%s CTX] %s", now, playstyle:upper(), msg))
+         AddDebugLogLine(format("[%s] [%s CTX] %s", debug_timestamp(), playstyle:upper(), msg))
       end
    end
 
