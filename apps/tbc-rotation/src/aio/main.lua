@@ -30,7 +30,7 @@ local get_time_to_die = NS.get_time_to_die
 local has_phys_immunity = NS.has_phys_immunity
 local has_magic_immunity = NS.has_magic_immunity
 local has_spell_reflect = NS.has_spell_reflect
-local debug_print = NS.debug_print
+local debug_log = NS.debug_log
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 
@@ -45,22 +45,10 @@ local set_last_action = NS.set_last_action
 local format = string.format
 local ipairs = ipairs
 local pairs = pairs
-local type = type
-local tostring = tostring
-local table_sort = table.sort
-local table_concat = table.concat
 local IsResting = _G.IsResting
 local UnitAffectingCombat = _G.UnitAffectingCombat
 local UnitCanAttack = _G.UnitCanAttack
 local GetTime = _G.GetTime
-local AddDebugLogLine = NS.AddDebugLogLine
-local debug_timestamp = NS.debug_timestamp
-
--- Context logging
-local last_context_log_time = 0
-local CONTEXT_LOG_INTERVAL = 2.0
--- Pre-allocated table for default context dump (avoids per-frame allocation)
-local ctx_dump_parts = {}
 
 -- Suggestion system for A[1] icon
 local suggestion = { spell = nil }
@@ -87,6 +75,10 @@ end
 function rotation_registry:execute_middleware(icon, context)
    local debug_mode = context.settings and context.settings.debug_mode
    local debug_system = context.settings and context.settings.debug_system
+   local log_context = context.settings
+      and context.settings.log_context
+      and context.in_combat
+      and context.has_valid_enemy_target
 
    for _, mw in ipairs(self.middleware) do
       if (not context.on_gcd and mw.is_gcd_gated ~= false)
@@ -101,15 +93,46 @@ function rotation_registry:execute_middleware(icon, context)
             NS.last_action_target_unit = nil
             local result, log_msg = mw.execute(icon, context)
             if result then
-               if debug_mode and log_msg and debug_print then
-                  debug_print(format("[MW] %s%s", forced and "[FORCED] " or "", log_msg))
-               elseif debug_system and debug_print then
-                  debug_print(format("[MW] EXECUTED %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
+               if debug_mode and log_msg and debug_log then
+                  local clean_msg = log_msg:gsub("^%[MW%] ", "")
+                  if forced and not clean_msg:find("[FORCED]", 1, true) then
+                     clean_msg = "[FORCED] " .. clean_msg
+                  end
+                  local e = debug_log("MW", "ACT", forced, "%s", clean_msg)
+                  if e and log_context then
+                     local cc = self.class_config
+                     local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
+                     local config = playstyle and self.playstyle_config[playstyle]
+                     local format_context_log = config and config.format_context_log
+                     if format_context_log then
+                        e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
+                     end
+                  end
+               elseif debug_system and debug_log then
+                  local e = debug_log("MW", "EXEC", forced, "%s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or "")
+                  if e and log_context then
+                     local cc = self.class_config
+                     local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
+                     local config = playstyle and self.playstyle_config[playstyle]
+                     local format_context_log = config and config.format_context_log
+                     if format_context_log then
+                        e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
+                     end
+                  end
                end
                set_last_action(mw.name, "MW", NS.last_action_target_unit or mw.spell_target or "player")
                return result
-            elseif debug_system and debug_print then
-               debug_print(format("[MW] NO_ACTION %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
+            elseif debug_system and debug_log then
+               local e = debug_log("MW", "NOOP", forced, "%s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or "")
+               if e and log_context then
+                  local cc = self.class_config
+                  local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
+                  local config = playstyle and self.playstyle_config[playstyle]
+                  local format_context_log = config and config.format_context_log
+                  if format_context_log then
+                     e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
+                  end
+               end
             end
          end
       end
@@ -131,33 +154,12 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
    local config = self.playstyle_config[playstyle]
    local config_prereqs = config and config.check_prerequisites
    local state = self:get_playstyle_state(playstyle, context)
-
-   -- Periodic context dump (gated by "Log Context" checkbox)
-   if context.settings.log_context and context.in_combat and context.has_valid_enemy_target then
-      local now = GetTime()
-      if (now - last_context_log_time) >= CONTEXT_LOG_INTERVAL then
-         last_context_log_time = now
-         local msg
-         if config and config.format_context_log then
-            msg = config.format_context_log(context, state)
-         else
-            -- Default: dump all scalar context fields
-            local n = 0
-            for k, v in pairs(context) do
-               local t = type(v)
-               if t ~= "function" and t ~= "table" and t ~= "userdata" then
-                  n = n + 1
-                  ctx_dump_parts[n] = k .. "=" .. tostring(v)
-               end
-            end
-            -- Clear stale entries from previous frame
-            for i = n + 1, #ctx_dump_parts do ctx_dump_parts[i] = nil end
-            table_sort(ctx_dump_parts)
-            msg = table_concat(ctx_dump_parts, " ")
-         end
-         AddDebugLogLine(format("[%s] [%s CTX] %s", debug_timestamp(), playstyle:upper(), msg))
-      end
-   end
+   local src = "STRAT:" .. playstyle:upper()
+   local log_context = context.settings
+      and context.settings.log_context
+      and context.in_combat
+      and context.has_valid_enemy_target
+   local format_context_log = config and config.format_context_log
 
    for _, strategy in ipairs(strategies) do
       if not context.on_gcd or strategy.is_gcd_gated == false then
@@ -173,15 +175,18 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
             local result, log_msg = strategy.execute(icon, context, state)
 
             if result then
-               if debug_mode and log_msg and debug_print then
-                  debug_print(format("[%s] %s%s", playstyle:upper(), forced and "[FORCED] " or "", log_msg))
-               elseif debug_system and debug_print then
-                  debug_print(format("[%s] EXECUTED %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
+               if debug_mode and log_msg and debug_log then
+                  local e = debug_log(src, "ACT", forced, "%s%s", forced and "[FORCED] " or "", log_msg)
+                  if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
+               elseif debug_system and debug_log then
+                  local e = debug_log(src, "EXEC", forced, "%s%s", strategy.name, forced and " [FORCED]" or "")
+                  if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
                end
                set_last_action(strategy.name, playstyle, NS.last_action_target_unit or strategy.spell_target or TARGET_UNIT)
                return result
-            elseif debug_system and debug_print then
-               debug_print(format("[%s] NO_ACTION %s%s", playstyle:upper(), strategy.name, forced and " [FORCED]" or ""))
+            elseif debug_system and debug_log then
+               local e = debug_log(src, "NOOP", forced, "%s%s", strategy.name, forced and " [FORCED]" or "")
+               if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
             end
          end
       end

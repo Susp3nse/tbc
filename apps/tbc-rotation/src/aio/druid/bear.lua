@@ -43,7 +43,7 @@ local DEMO_ROAR_DEBUFF_IDS = NS.DEMO_ROAR_DEBUFF_IDS
 
 -- Utility imports
 local get_spell_rage_cost = NS.get_spell_rage_cost
-local AddDebugLogLine = NS.AddDebugLogLine
+local debug_log = NS.debug_log
 local GetTime = _G.GetTime
 
 -- Import factory functions from Core
@@ -555,12 +555,12 @@ do
          local isc = A.Maul:IsSpellCurrent()
          if not bear_state.maul_confirmed and isc then
             bear_state.maul_confirmed = true
-            AddDebugLogLine(format("[%.3fs] [MAUL] Confirmed by IsSpellCurrent", GetTime()))
+            debug_log("STRAT:BEAR", "ACT", false, "[MAUL] Confirmed by IsSpellCurrent")
          elseif bear_state.maul_confirmed and not isc then
             -- Log once, not every frame (CLEU will clear state authoritatively)
             if not bear_state.maul_dequeue_logged then
                bear_state.maul_dequeue_logged = true
-               AddDebugLogLine(format("[%.3fs] [MAUL] Dequeued (IsSpellCurrent lost, awaiting CLEU)", GetTime()))
+               debug_log("STRAT:BEAR", "ACT", false, "[MAUL] Dequeued (IsSpellCurrent lost, awaiting CLEU)")
             end
          end
       end
@@ -765,7 +765,7 @@ do
          local urgency = threat == 0 and "NO THREAT" or "losing aggro"
          local reason = targeting_healer and "HEALER TARGETED" or urgency
          local tt = _G.UnitExists("targettarget") and (_G.UnitName("targettarget") or "?") or "none"
-         NS.debug_print(format("[GROWL] threat=%d, targettarget=%s, healer=%s, TTD=%.0f", threat, tt, tostring(targeting_healer), context.ttd))
+         debug_log("STRAT:BEAR", "TRACE", false, "[GROWL] threat=%d, targettarget=%s, healer=%s, TTD=%.0f", threat, tt, tostring(targeting_healer), context.ttd)
          return try_cast_fmt(A.Growl, icon, TARGET_UNIT, "[P3]", "Growl", "%s (threat=%d, tt=%s, TTD: %.0fs)", reason, threat, tt, context.ttd)
       end,
    }
@@ -808,10 +808,10 @@ do
       execute = function(icon, context)
          local desired = bear_state.tab_target_desired
          if desired and _G.UnitExists(desired) then
-            AddDebugLogLine(format("[%.3fs] [TAB TARGET] Cycling toward %s (%s) [attempt %d]",
-               GetTime(), _G.UnitName(desired) or "?", _G.UnitClassification(desired) or "?", bear_state.tab_target_attempts))
+            debug_log("STRAT:BEAR", "ACT", false, "[TAB TARGET] Cycling toward %s (%s) [attempt %d]",
+               _G.UnitName(desired) or "?", _G.UnitClassification(desired) or "?", bear_state.tab_target_attempts)
          else
-            AddDebugLogLine(format("[%.3fs] [TAB TARGET] Auto-targeting", GetTime()))
+            debug_log("STRAT:BEAR", "ACT", false, "[TAB TARGET] Auto-targeting")
          end
          return A:Show(icon, CONST.AUTOTARGET)
       end,

@@ -41,6 +41,7 @@ local UnitGUID = _G.UnitGUID
 local IsCurrentSpell = _G.IsCurrentSpell
 local C_Timer = _G.C_Timer
 local AUTO_ATTACK_SPELL_ID = 6603
+local debug_log = NS.debug_log
 
 -- ============================================================================
 -- SWING SYNC TRACKER (Enhancement)
@@ -72,12 +73,12 @@ local swing_sync = {
 }
 NS.swing_sync = swing_sync
 
--- Diagnostic helper: prints to debug log only when debug_mode is on.
--- Keys are static strings ("sync-MH", "sync-OH", etc) so debug_print's
--- 1.5s dedup throttles per-channel output to roughly one line per cycle.
+-- Diagnostic helper: writes to debug log only when debug_mode is on.
+-- Keys are static strings ("sync-MH", "sync-OH", etc) so debug throttling
+-- stays per-channel and outputs roughly one line per cycle.
 local function sync_dbg(key, msg)
     if not NS.cached_settings or not NS.cached_settings.debug_mode then return end
-    NS.debug_print(key, msg)
+    debug_log("STRAT:ENH", "TRACE", false, "%s", key .. " " .. msg)
 end
 
 -- Macro-side hook so we can confirm the resync macro actually ran in-game
@@ -88,7 +89,7 @@ end
 -- normal play doesn't spam.
 _G.Menagerie_ResyncFired = function()
     if not NS.cached_settings or not NS.cached_settings.debug_mode then return end
-    NS.debug_print("sync-macro",
+    debug_log("STRAT:ENH", "TRACE", false, "%s", "sync-macro " ..
         format("[SYNC] Macro fired @ %.2f (since-show=%.2fs)",
             GetTime(),
             swing_sync.last_resync_at > 0

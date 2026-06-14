@@ -25,7 +25,7 @@ end
 -- Import commonly used references
 local Unit = NS.Unit
 local cached_settings = NS.cached_settings
-local debug_print = NS.debug_print
+local debug_log = NS.debug_log
 local round_half = NS.round_half
 local safe_heal_cast = NS.safe_heal_cast
 local get_spell_mana_cost = NS.get_spell_mana_cost
@@ -36,6 +36,17 @@ local REGROWTH_BUFF_IDS = NS.REGROWTH_BUFF_IDS
 
 -- Lua optimizations
 local tsort = table.sort
+local select = select
+local tostring = tostring
+
+local function debug_trace(first, ...)
+   if not debug_log then return end
+   local msg = tostring(first)
+   for i = 1, select("#", ...) do
+      msg = msg .. " " .. tostring(select(i, ...))
+   end
+   debug_log("STRAT:DRUID", "TRACE", false, "%s", msg)
+end
 
 -- ============================================================================
 -- PRE-ALLOCATED SPELL OPTION TABLES
@@ -77,11 +88,11 @@ local function can_afford_spell(spell, context, use_fresh_mana, mana_floor)
 
    local affordable = can_pay_cost and stays_above_floor
 
-   if not affordable and cached_settings.debug_mode and debug_print then
+   if not affordable and cached_settings.debug_mode and debug_log then
       if not can_pay_cost then
-         debug_print("[MANA CHECK] FAILED - Current:", current_mana, "Need:", cost_with_margin, "Spell:", spell:Info())
+         debug_trace("[MANA CHECK] FAILED - Current:", current_mana, "Need:", cost_with_margin, "Spell:", spell:Info())
       elseif not stays_above_floor then
-         debug_print("[MANA CHECK] BLOCKED - Would drop below floor. Current:", current_mana, "Cost:", cost, "Floor:", mana_floor, "Spell:", spell:Info())
+         debug_trace("[MANA CHECK] BLOCKED - Would drop below floor. Current:", current_mana, "Cost:", cost, "Floor:", mana_floor, "Spell:", spell:Info())
       end
    end
 
@@ -283,8 +294,8 @@ local function cast_best_heal_rank(ranks, icon, target, context, context_msg, op
       if raw > max_hp * 0.05 then hp_deficit = raw end
    end
    if hp_deficit <= 0 then
-      if cached_settings.debug_mode and debug_print then
-         debug_print("[HEAL] Skipped", context_msg, "- no health deficit on", target)
+      if cached_settings.debug_mode and debug_log then
+         debug_trace("[HEAL] Skipped", context_msg, "- no health deficit on", target)
       end
       return nil, nil
    end
@@ -308,13 +319,13 @@ local function cast_best_heal_rank(ranks, icon, target, context, context_msg, op
    end
 
    local function debug_rank_check(i, rank_data, spell_name)
-      if not debug_mode or not debug_print then return end
+      if not debug_mode or not debug_log then return end
       local rank_num = num_ranks + 1 - i
       local viable = is_viable(rank_data)
       local affordable = can_afford(rank_data)
       local ready = rank_data.spell:IsReady("player")
       if not (viable and affordable and ready) then
-         debug_print("[HEAL CHECK]", spell_name, "R" .. rank_num,
+         debug_trace("[HEAL CHECK]", spell_name, "R" .. rank_num,
                      "viable:", viable, "affordable:", affordable, "ready:", ready)
       end
    end
@@ -382,8 +393,8 @@ local function cast_best_heal_rank(ranks, icon, target, context, context_msg, op
    end
    if best_data then return try_cast(best_i, best_data) end
 
-   if debug_mode and debug_print and round_half then
-      debug_print("[HEAL] No viable rank found for", context_msg, "- deficit:", round_half(hp_deficit))
+   if debug_mode and debug_log and round_half then
+      debug_trace("[HEAL] No viable rank found for", context_msg, "- deficit:", round_half(hp_deficit))
    end
    return nil, nil
 end

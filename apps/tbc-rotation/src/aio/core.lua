@@ -9,6 +9,7 @@ local _G, pairs, ipairs, tostring = _G, pairs, ipairs, tostring
 local tinsert, tconcat, tsort = table.insert, table.concat, table.sort
 local floor = math.floor
 local format = string.format
+local strmatch = string.match
 local GetTime = _G.GetTime
 local A = _G.Action
 
@@ -545,6 +546,14 @@ NS.refresh_settings = refresh_settings
 local DebugLogFrame
 local debug_log_lines = {}
 local MAX_LOG_LINES = 500
+local ROW_H = 12
+local DBG_ROW_PAD = 4
+local DBG_TIME_W = 72
+local DBG_SRC_W = 86
+local DBG_KIND_W = 44
+local DBG_COL_GAP = 6
+local MSG_TRUNC_W = 120
+local DBG_TOOLTIP_WRAP = 96
 
 local DBG_THEME = {
    bg          = { 0.094, 0.082, 0.063, 0.75 },    -- #18140f
@@ -561,21 +570,80 @@ local DBG_BACKDROP = {
    edgeSize = 1,
 }
 
--- Per-category line colors (whole-line, applied via SMF:AddMessage). Plain text is
--- still stored uncolored in debug_log_lines, so Copy stays clean.
+-- Looked up by LAYER for the src cell, and by forced for message tint.
 local DBG_CAT = {
-   forced = { 1.00, 0.62, 0.22 },  -- orange  -- forced/burst lines (highest priority to spot)
-   ctx    = { 0.58, 0.58, 0.659 }, -- dim     -- periodic context dumps
-   mw     = { 0.42, 0.82, 0.95 },  -- cyan    -- middleware
-   action = { 0.86, 0.86, 0.894 }, -- text    -- playstyle action lines (default)
+   forced = { 1.00, 0.62, 0.22 },  -- orange
+   ctx    = { 0.58, 0.58, 0.659 }, -- SYS / plumbing
+   mw     = { 0.42, 0.82, 0.95 },  -- middleware
+   action = { 0.86, 0.86, 0.894 }, -- STRAT / playstyle action lines
 }
 
-local sfind = string.find
-local function debug_line_color(line)
-   if sfind(line, "FORCED", 1, true) then return DBG_CAT.forced end
-   if sfind(line, "CTX", 1, true) then return DBG_CAT.ctx end
-   if sfind(line, "[MW]", 1, true) then return DBG_CAT.mw end
-   return DBG_CAT.action
+local FauxScrollFrame_Update = _G.FauxScrollFrame_Update
+local FauxScrollFrame_OnVerticalScroll = _G.FauxScrollFrame_OnVerticalScroll
+local FauxScrollFrame_GetOffset = _G.FauxScrollFrame_GetOffset
+local FauxScrollFrame_SetOffset = _G.FauxScrollFrame_SetOffset
+
+local function debug_layer(src)
+   local layer = src and strmatch(src, "^([^:]+)") or nil
+   if layer == "MW" then return "mw" end
+   if layer == "STRAT" then return "action" end
+   return "ctx"
+end
+
+local function debug_src_color(src)
+   return DBG_CAT[debug_layer(src)] or DBG_CAT.ctx
+end
+
+local function utf8_safe_prefix(text, limit)
+   if #text <= limit then return text end
+   while limit > 0 do
+      local byte = string.byte(text, limit)
+      if not byte then return "" end
+      if byte < 128 then
+         return string.sub(text, 1, limit)
+      end
+      if byte >= 194 then
+         return string.sub(text, 1, limit - 1)
+      end
+      limit = limit - 1
+   end
+   return ""
+end
+
+local function debug_truncate_text(text, width)
+   text = text or ""
+   local max_chars = math.max(16, floor((width or MSG_TRUNC_W) / 5))
+   if #text <= max_chars then return text end
+   return utf8_safe_prefix(text, max_chars - 3) .. "..."
+end
+
+local function add_wrapped_tooltip_line(text, r, g, b)
+   text = tostring(text or "")
+   local start = 1
+   while start <= #text do
+      local line_end = string.find(text, "\n", start, true)
+      local line
+      if line_end then
+         line = string.sub(text, start, line_end - 1)
+         start = line_end + 1
+      else
+         line = string.sub(text, start)
+         start = #text + 1
+      end
+
+      while #line > DBG_TOOLTIP_WRAP do
+         local cut = DBG_TOOLTIP_WRAP
+         for i = DBG_TOOLTIP_WRAP, 1, -1 do
+            if string.sub(line, i, i) == " " then
+               cut = i
+               break
+            end
+         end
+         GameTooltip:AddLine(string.sub(line, 1, cut), r, g, b, true)
+         line = string.sub(line, cut + 1)
+      end
+      GameTooltip:AddLine(line, r, g, b, true)
+   end
 end
 
 local function create_debug_button(parent, text, width)
@@ -643,72 +711,221 @@ local function CreateDebugLogFrame()
    sep:SetHeight(1)
    sep:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
 
-   -- Message log. A ScrollingMessageFrame (the widget chat windows use): it keeps its
-   -- own line buffer, self-trims, supports per-line color, and appends one line at a
-   -- time -- no re-concatenating/re-rendering the whole buffer on every new line.
-   local smf = CreateFrame("ScrollingMessageFrame", nil, f)
-   smf:SetPoint("TOPLEFT", 10, -34)
-   smf:SetPoint("BOTTOMRIGHT", -22, 30)
-   smf:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
-   smf:SetJustifyH("LEFT")
-   smf:SetSpacing(1)
-   smf:SetFading(false)
-   smf:SetMaxLines(MAX_LOG_LINES)
-   smf:SetTextColor(DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3])
-   smf:EnableMouseWheel(true)
-   f.smf = smf
+   local scrollframe = CreateFrame("ScrollFrame", "MenagerieDebugScrollFrame", f, "FauxScrollFrameTemplate")
+   scrollframe:SetPoint("TOPLEFT", 10, -34)
+   scrollframe:SetPoint("BOTTOMRIGHT", -28, 30)
+   scrollframe:EnableMouseWheel(true)
+   f.scrollframe = scrollframe
 
-   -- Themed scrollbar (so you can see where top/bottom of the content is)
-   local scrollbar = CreateFrame("Slider", nil, f)
-   scrollbar:SetPoint("TOPRIGHT", -6, -34)
-   scrollbar:SetPoint("BOTTOMRIGHT", -6, 30)
-   scrollbar:SetWidth(10)
-   scrollbar:SetOrientation("VERTICAL")
-   scrollbar:SetValueStep(1)
-   scrollbar:SetObeyStepOnDrag(true)
-   scrollbar:SetMinMaxValues(0, 0)
-   scrollbar:SetValue(0)
+   local rowHost = CreateFrame("Frame", nil, f)
+   rowHost:SetPoint("TOPLEFT", scrollframe, "TOPLEFT", 0, 0)
+   rowHost:SetPoint("BOTTOMRIGHT", scrollframe, "BOTTOMRIGHT", -2, 0)
+   f.rowHost = rowHost
+   f.rows = {}
+   f.numToDisplay = 1
+   f.msgWidth = MSG_TRUNC_W
+
+   local scrollbar = _G.MenagerieDebugScrollFrameScrollBar
    f.scrollbar = scrollbar
 
-   local track = scrollbar:CreateTexture(nil, "BACKGROUND")
-   track:SetAllPoints()
-   track:SetColorTexture(DBG_THEME.bg_widget[1], DBG_THEME.bg_widget[2], DBG_THEME.bg_widget[3], 0.6)
+   if scrollbar then
+      local track = scrollbar:CreateTexture(nil, "BACKGROUND")
+      track:SetAllPoints()
+      track:SetColorTexture(DBG_THEME.bg_widget[1], DBG_THEME.bg_widget[2], DBG_THEME.bg_widget[3], 0.6)
+      scrollbar.track = track
 
-   local thumb = scrollbar:CreateTexture(nil, "OVERLAY")
-   thumb:SetColorTexture(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.85)
-   thumb:SetSize(10, 40)
-   scrollbar:SetThumbTexture(thumb)
+      if scrollbar.GetThumbTexture then
+         local thumb = scrollbar:GetThumbTexture()
+         if thumb and thumb.SetColorTexture then
+            thumb:SetColorTexture(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.85)
+         elseif thumb and thumb.SetVertexColor then
+            thumb:SetVertexColor(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.85)
+         end
+      end
 
-   -- Keep the scrollbar in sync with the SMF. SMF scroll offset = lines scrolled up
-   -- from the bottom (0 = newest at bottom). We map slider value so the thumb sits at
-   -- the bottom when viewing newest, top when viewing oldest.
-   local LINE_H = 11
-   local syncing = false
-   local function sync_scrollbar()
-      local num = smf:GetNumMessages() or 0
-      local visible = math.max(1, math.floor((smf:GetHeight() or 200) / LINE_H))
-      local max_offset = math.max(0, num - visible)
-      syncing = true
-      scrollbar:SetMinMaxValues(0, max_offset)
-      scrollbar:SetValue(max_offset - (smf:GetScrollOffset() or 0))
-      syncing = false
-      if max_offset <= 0 then scrollbar:Hide() else scrollbar:Show() end
+      local function tint_scroll_button(btn)
+         if not (btn and btn.GetNormalTexture) then return end
+         local normal = btn:GetNormalTexture()
+         if normal and normal.SetVertexColor then
+            normal:SetVertexColor(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.85)
+         end
+      end
+      tint_scroll_button(_G.MenagerieDebugScrollFrameScrollBarScrollUpButton)
+      tint_scroll_button(_G.MenagerieDebugScrollFrameScrollBarScrollDownButton)
    end
-   f.SyncScrollbar = sync_scrollbar
 
-   scrollbar:SetScript("OnValueChanged", function(self, value)
-      if syncing then return end
-      local _, max_offset = self:GetMinMaxValues()
-      smf:SetScrollOffset(math.max(0, math.floor(max_offset - value + 0.5)))
+   local function current_offset()
+      if FauxScrollFrame_GetOffset then
+         return FauxScrollFrame_GetOffset(scrollframe) or 0
+      end
+      return scrollframe.offset or 0
+   end
+
+   local function set_offset(offset)
+      offset = math.max(0, floor(offset or 0))
+      local scroll_value = offset * ROW_H
+      f.settingLogOffset = true
+      if FauxScrollFrame_SetOffset then
+         FauxScrollFrame_SetOffset(scrollframe, offset)
+      else
+         scrollframe.offset = offset
+      end
+      if scrollbar and scrollbar.SetValue then
+         scrollbar:SetValue(scroll_value)
+      end
+      if scrollframe.SetVerticalScroll then
+         scrollframe:SetVerticalScroll(scroll_value)
+      end
+      f.settingLogOffset = nil
+   end
+
+   local function update_scrollbar()
+      if FauxScrollFrame_Update then
+         FauxScrollFrame_Update(scrollframe, #debug_log_lines, f.numToDisplay, ROW_H)
+      end
+      if scrollbar then
+         if #debug_log_lines <= f.numToDisplay then scrollbar:Hide() else scrollbar:Show() end
+      end
+   end
+
+   local function configure_font_string(fs, width)
+      fs:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+      fs:SetJustifyH("LEFT")
+      fs:SetWordWrap(false)
+      fs:SetWidth(width)
+   end
+
+   local function create_row(index)
+      local row = CreateFrame("Frame", nil, rowHost, "BackdropTemplate")
+      row:SetHeight(ROW_H)
+      row:SetPoint("TOPLEFT", rowHost, "TOPLEFT", 0, -(index - 1) * ROW_H)
+      row:SetPoint("TOPRIGHT", rowHost, "TOPRIGHT", 0, -(index - 1) * ROW_H)
+      row:EnableMouse(true)
+      row:EnableMouseWheel(true)
+
+      local timeText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+      timeText:SetPoint("LEFT", DBG_ROW_PAD, 0)
+      configure_font_string(timeText, DBG_TIME_W)
+      timeText:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+      row.timeText = timeText
+
+      local srcText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+      srcText:SetPoint("LEFT", timeText, "RIGHT", DBG_COL_GAP, 0)
+      configure_font_string(srcText, DBG_SRC_W)
+      row.srcText = srcText
+
+      local kindText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+      kindText:SetPoint("LEFT", srcText, "RIGHT", DBG_COL_GAP, 0)
+      configure_font_string(kindText, DBG_KIND_W)
+      kindText:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+      row.kindText = kindText
+
+      local messageText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+      messageText:SetPoint("LEFT", kindText, "RIGHT", DBG_COL_GAP, 0)
+      messageText:SetPoint("RIGHT", row, "RIGHT", -DBG_ROW_PAD, 0)
+      configure_font_string(messageText, f.msgWidth)
+      row.messageText = messageText
+
+      row:SetScript("OnEnter", function(self)
+         local entry = debug_log_lines[self.entryIndex or 0]
+         if not entry then return end
+         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+         GameTooltip:ClearLines()
+         if GameTooltip.SetMinimumWidth then GameTooltip:SetMinimumWidth(400) end
+         GameTooltip:AddLine(format("%s | %s | %s", entry.ts or "", entry.src or "", entry.kind or ""),
+            DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+         local msg_color = entry.forced and DBG_CAT.forced or DBG_THEME.text
+         add_wrapped_tooltip_line(entry.text, msg_color[1], msg_color[2], msg_color[3])
+         if entry.ctx then
+            add_wrapped_tooltip_line(entry.ctx, DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+         end
+         GameTooltip:Show()
+      end)
+      row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      row:SetScript("OnMouseWheel", function(_, delta)
+         local on_wheel = scrollframe:GetScript("OnMouseWheel")
+         if on_wheel then on_wheel(scrollframe, delta) end
+      end)
+      row:Hide()
+      return row
+   end
+
+   local function ensure_rows()
+      local needed = f.numToDisplay + 1
+      for i = #f.rows + 1, needed do
+         f.rows[i] = create_row(i)
+      end
+      for i = needed + 1, #f.rows do
+         f.rows[i]:Hide()
+         f.rows[i].entryIndex = nil
+      end
+   end
+
+   local function update_metrics()
+      local height = rowHost:GetHeight() or 0
+      local width = rowHost:GetWidth() or 0
+      f.numToDisplay = math.max(1, floor(height / ROW_H))
+      f.msgWidth = math.max(MSG_TRUNC_W,
+         width - (DBG_ROW_PAD * 2) - DBG_TIME_W - DBG_SRC_W - DBG_KIND_W - (DBG_COL_GAP * 3))
+      ensure_rows()
+      for _, row in ipairs(f.rows) do
+         row.messageText:SetWidth(f.msgWidth)
+      end
+   end
+
+   local function repaint()
+      update_metrics()
+      update_scrollbar()
+
+      local max_offset = math.max(0, #debug_log_lines - f.numToDisplay)
+      local offset = math.min(current_offset(), max_offset)
+      set_offset(offset)
+
+      for i, row in ipairs(f.rows) do
+         if i <= f.numToDisplay then
+            local entry_index = offset + i
+            local entry = debug_log_lines[entry_index]
+            if entry then
+               local src_color = debug_src_color(entry.src)
+               local msg_color = entry.forced and DBG_CAT.forced or DBG_THEME.text
+               row.entryIndex = entry_index
+               row.timeText:SetText(entry.ts or "")
+               row.srcText:SetText(entry.src or "")
+               row.srcText:SetTextColor(src_color[1], src_color[2], src_color[3])
+               row.kindText:SetText(entry.kind or "")
+               row.messageText:SetText(debug_truncate_text(entry.text, f.msgWidth))
+               row.messageText:SetTextColor(msg_color[1], msg_color[2], msg_color[3])
+               row:Show()
+            else
+               row.entryIndex = nil
+               row:Hide()
+            end
+         else
+            row.entryIndex = nil
+            row:Hide()
+         end
+      end
+   end
+
+   f.repaint = repaint
+   f.setLogOffset = set_offset
+   f.getLogOffset = current_offset
+   f.updateLogMetrics = update_metrics
+
+   scrollframe:SetScript("OnVerticalScroll", function(self, offset)
+      if f.settingLogOffset then return end
+      if FauxScrollFrame_OnVerticalScroll then
+         FauxScrollFrame_OnVerticalScroll(self, offset, ROW_H, repaint)
+      else
+         set_offset((offset or 0) / ROW_H)
+         repaint()
+      end
    end)
 
-   smf:SetScript("OnMouseWheel", function(self, delta)
-      if delta > 0 then
-         self:ScrollUp(); self:ScrollUp(); self:ScrollUp()
-      else
-         self:ScrollDown(); self:ScrollDown(); self:ScrollDown()
-      end
-      sync_scrollbar()
+   scrollframe:SetScript("OnMouseWheel", function(_, delta)
+      local max_offset = math.max(0, #debug_log_lines - f.numToDisplay)
+      set_offset(math.min(max_offset, math.max(0, current_offset() - (delta * 3))))
+      repaint()
    end)
 
    -- Action buttons live in the bottom toolbar (clear of the close X and resize grip)
@@ -775,8 +992,26 @@ local function CreateDebugLogFrame()
    f.copyEditBox = copyEditBox
 
    copyBtn:SetScript("OnClick", function()
-      local logText = tconcat(debug_log_lines, "\n")
-      copyEditBox:SetText(logText)
+      local copy_lines = {}
+      for i = 1, #debug_log_lines do
+         local entry = debug_log_lines[i]
+         copy_lines[#copy_lines + 1] = format("[%s] [%s] [%s] %s",
+            entry.ts or "", entry.src or "", entry.kind or "", entry.text or "")
+         if entry.ctx then
+            local start = 1
+            while start <= #entry.ctx do
+               local line_end = string.find(entry.ctx, "\n", start, true)
+               if line_end then
+                  copy_lines[#copy_lines + 1] = "    " .. string.sub(entry.ctx, start, line_end - 1)
+                  start = line_end + 1
+               else
+                  copy_lines[#copy_lines + 1] = "    " .. string.sub(entry.ctx, start)
+                  break
+               end
+            end
+         end
+      end
+      copyEditBox:SetText(tconcat(copy_lines, "\n"))
       copyPopup:Show()
       copyEditBox:SetFocus()
       copyEditBox:HighlightText()
@@ -784,8 +1019,8 @@ local function CreateDebugLogFrame()
 
    clearBtn:SetScript("OnClick", function()
       for i = 1, #debug_log_lines do debug_log_lines[i] = nil end
-      smf:Clear()
-      sync_scrollbar()
+      set_offset(0)
+      repaint()
    end)
 
    -- Resize grip
@@ -804,9 +1039,10 @@ local function CreateDebugLogFrame()
    resizeBtn:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
    resizeBtn:SetScript("OnMouseUp", function()
       f:StopMovingOrSizing()
-      sync_scrollbar()
+      repaint()
    end)
    f:SetResizeBounds(300, 150, 800, 600)
+   f:SetScript("OnSizeChanged", repaint)
 
    -- Hint text
    local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -814,7 +1050,7 @@ local function CreateDebugLogFrame()
    hint:SetText("/menagerielog to toggle")
    hint:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
 
-   sync_scrollbar()
+   repaint()
    f:Hide()
    DebugLogFrame = f
    NS.DebugLogFrame = f
@@ -829,51 +1065,6 @@ local function trim_debug_log()
    end
    for i = MAX_LOG_LINES + 1, MAX_LOG_LINES + extra do
       debug_log_lines[i] = nil
-   end
-end
-
-local function AddDebugLogLine(text)
-   tinsert(debug_log_lines, text)
-   trim_debug_log()
-
-   local f = DebugLogFrame
-   if f and f:IsShown() and f.smf then
-      local follow = f.smf:AtBottom()
-      local c = debug_line_color(text)
-      f.smf:AddMessage(text, c[1], c[2], c[3])
-      if follow then f.smf:ScrollToBottom() end
-      f.SyncScrollbar()
-   end
-end
-
-local function RefreshDebugLogFrame()
-   local f = DebugLogFrame
-   if not (f and f.smf) then return end
-   f.smf:Clear()
-   for i = 1, #debug_log_lines do
-      local line = debug_log_lines[i]
-      local c = debug_line_color(line)
-      f.smf:AddMessage(line, c[1], c[2], c[3])
-   end
-   f.smf:ScrollToBottom()
-   f.SyncScrollbar()
-end
-
-NS.CreateDebugLogFrame = CreateDebugLogFrame
-NS.RefreshDebugLogFrame = RefreshDebugLogFrame
-
--- /menagerielog slash command
-SLASH_MENAGERIELOG1 = "/menagerielog"
-SLASH_MENAGERIELOG2 = "/mlog"
-SlashCmdList["MENAGERIELOG"] = function()
-   if not DebugLogFrame then
-      CreateDebugLogFrame()
-   end
-   if DebugLogFrame:IsShown() then
-      DebugLogFrame:Hide()
-   else
-      RefreshDebugLogFrame()
-      DebugLogFrame:Show()
    end
 end
 
@@ -893,15 +1084,11 @@ local DEBUG_CACHE_PRUNE_INTERVAL = 30
 local last_debug_cache_prune = 0
 local select = select
 
-local function debug_print(...)
-   local n = select('#', ...)
-   for i = 1, n do
-      debug_string_args[i] = tostring(select(i, ...))
-   end
-   for i = n + 1, #debug_string_args do
-      debug_string_args[i] = nil
-   end
-   local key = tconcat(debug_string_args, "|")
+local function debug_log(src, kind, forced, fmt, ...)
+   src = src or "SYS"
+   kind = kind or "TRACE"
+   local text = select("#", ...) > 0 and format(fmt, ...) or tostring(fmt or "")
+   local key = src .. "|" .. kind .. "|" .. text
 
    local now = GetTime()
    if (now - last_debug_cache_prune) >= DEBUG_CACHE_PRUNE_INTERVAL then
@@ -912,17 +1099,86 @@ local function debug_print(...)
       end
       last_debug_cache_prune = now
    end
-   local last_print = debug_print_cache[key]
 
-   if not last_print or (now - last_print) >= 1.5 then
-      local message = format("[%s] %s", debug_timestamp(), tconcat(debug_string_args, " "))
-      AddDebugLogLine(message)
-      debug_print_cache[key] = now
+   local last_print = debug_print_cache[key]
+   if last_print and (now - last_print) < 1.5 then
+      return nil
    end
+   debug_print_cache[key] = now
+
+   local f = DebugLogFrame
+   local follow_tail = false
+   if f and f:IsShown() and f.updateLogMetrics and f.getLogOffset then
+      f.updateLogMetrics()
+      local old_max = math.max(0, #debug_log_lines - (f.numToDisplay or 1))
+      follow_tail = f.getLogOffset() >= old_max
+   end
+
+   local e = {
+      ts = debug_timestamp(),
+      src = src,
+      kind = kind,
+      forced = forced or nil,
+      text = text,
+   }
+   tinsert(debug_log_lines, e)
+   trim_debug_log()
+
+   if f and f:IsShown() and f.repaint then
+      if follow_tail and f.setLogOffset then
+         f.setLogOffset(math.max(0, #debug_log_lines - (f.numToDisplay or 1)))
+      end
+      f.repaint()
+   end
+
+   return e
 end
 
+local function AddDebugLogLine(text)
+   debug_log("SYS", "TRACE", false, "%s", tostring(text or ""))
+end
+
+local function RefreshDebugLogFrame()
+   local f = DebugLogFrame
+   if not f then return end
+   if f.updateLogMetrics then f.updateLogMetrics() end
+   if f.setLogOffset then
+      f.setLogOffset(math.max(0, #debug_log_lines - (f.numToDisplay or 1)))
+   end
+   if f.repaint then f.repaint() end
+end
+
+local function debug_print(...)
+   local n = select('#', ...)
+   for i = 1, n do
+      debug_string_args[i] = tostring(select(i, ...))
+   end
+   for i = n + 1, #debug_string_args do
+      debug_string_args[i] = nil
+   end
+   debug_log("SYS", "TRACE", false, "%s", tconcat(debug_string_args, " "))
+end
+
+NS.CreateDebugLogFrame = CreateDebugLogFrame
+NS.RefreshDebugLogFrame = RefreshDebugLogFrame
+NS.debug_log = debug_log
 NS.debug_print = debug_print
 NS.AddDebugLogLine = AddDebugLogLine
+
+-- /menagerielog slash command
+SLASH_MENAGERIELOG1 = "/menagerielog"
+SLASH_MENAGERIELOG2 = "/mlog"
+SlashCmdList["MENAGERIELOG"] = function()
+   if not DebugLogFrame then
+      CreateDebugLogFrame()
+   end
+   if DebugLogFrame:IsShown() then
+      DebugLogFrame:Hide()
+   else
+      RefreshDebugLogFrame()
+      DebugLogFrame:Show()
+   end
+end
 
 -- ============================================================================
 -- GENERIC UTILITIES

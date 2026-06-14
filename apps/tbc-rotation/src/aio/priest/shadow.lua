@@ -52,7 +52,7 @@ local SWP_DURATION = 18
 local VT_DURATION = 15
 local DOT_REFRESH_WINDOW = 3
 
-local debug_print = NS.debug_print
+local debug_log = NS.debug_log
 local player_guid = nil
 local dot_tracker_frame = _G.CreateFrame("Frame")
 dot_tracker_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -93,8 +93,8 @@ dot_tracker_frame:SetScript("OnEvent", function()
       else
          active_dots[dstGUID].vt = now + VT_DURATION
       end
-      if debug_print then
-         debug_print(("[DOT_TRACK] %s %s on %s (%.0fs)"):format(
+      if debug_log then
+         debug_log("STRAT:SHADOW", "TRACE", false, "%s", ("[DOT_TRACK] %s %s on %s (%.0fs)"):format(
             subevent, spellName, dstGUID:sub(-6), is_swp and SWP_DURATION or VT_DURATION))
       end
    elseif subevent == "SPELL_AURA_REMOVED" then

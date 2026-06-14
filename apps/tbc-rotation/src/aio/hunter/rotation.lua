@@ -30,7 +30,7 @@ local CheckCCImmune = NS.CheckCCImmune
 local ShouldUseWingClip = NS.ShouldUseWingClip
 local ShouldUseViperSting = NS.ShouldUseViperSting
 local is_spell_available = NS.is_spell_available
-local debug_print = NS.debug_print
+local debug_log = NS.debug_log
 
 -- Framework helpers
 local CONST = A.Const
@@ -107,7 +107,7 @@ end
 
 local function HunterTrace(context, unit, reason, atRange, inMeleeRange)
     local settings = context.settings
-    if not (settings and (settings.debug_mode or settings.debug_system) and debug_print) then return end
+    if not (settings and (settings.debug_mode or settings.debug_system) and debug_log) then return end
 
     local now = GetTime()
     if now < next_hunter_trace_at then return end
@@ -120,7 +120,7 @@ local function HunterTrace(context, unit, reason, atRange, inMeleeRange)
     local petAggro = UnitExists and UnitExists("targettarget") and UnitIsUnit("targettarget", "pet")
     local targetTargetGUID = UnitGUID and UnitGUID("targettarget") or "none"
 
-    debug_print(format(
+    debug_log("STRAT:HUNTER", "TRACE", false, "%s", format(
         "[HUNTER PATH] %s unit=%s atRange=%s inMelee=%s ctxMelee=%s targetRange=%s shoot=%.3f gcd=%.3f attacking=%s shooting=%s playerAggro=%s petAggro=%s targetTargetGUID=%s petOnUnit=%s raptorReady=%s raptorCurrent=%s",
         reason,
         unit,

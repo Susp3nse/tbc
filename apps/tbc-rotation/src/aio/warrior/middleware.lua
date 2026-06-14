@@ -21,7 +21,7 @@ local Unit = NS.Unit
 local MultiUnits = A.MultiUnits
 local rotation_registry = NS.rotation_registry
 local Constants = NS.Constants
-local debug_print = NS.debug_print
+local debug_log = NS.debug_log
 local ttd_too_short = NS.ttd_too_short
 local DetermineUsableObject = A.DetermineUsableObject
 local LoC = A.LossOfControl
@@ -1506,8 +1506,8 @@ rotation_registry:register_middleware({
     execute = function(icon, context)
         local desired = tab_state.desired_unit
         if desired and UnitExists(desired) then
-            debug_print(format("[MW] Auto Tab → cycling toward %s (HP: %.0f%%) [attempt %d]",
-                UnitName(desired) or "?", Unit(desired):HealthPercent() or 0, tab_state.attempts))
+            debug_log("MW:WAR", "ACT", false, "Auto Tab → cycling toward %s (HP: %.0f%%) [attempt %d]",
+                UnitName(desired) or "?", Unit(desired):HealthPercent() or 0, tab_state.attempts)
         end
         return A:Show(icon, CONST.AUTOTARGET), "[MW] Auto Tab"
     end,
