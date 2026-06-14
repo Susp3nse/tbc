@@ -86,13 +86,11 @@ NS.TARGET_UNIT = TARGET_UNIT
 NS.RACE_TROLL = RACE_TROLL
 NS.RACE_ORC = RACE_ORC
 
-local function format_class_version(class_config)
-   local version = class_config and class_config.version or "v1.0.0"
-   local dev_revision = class_config and class_config.dev_revision or 0
-   if dev_revision and dev_revision > 0 then
-      return format("%s + %d", version, dev_revision)
-   end
-   return version
+-- The version is a single platform-wide value injected at build time (NS.VERSION, from the app's
+-- package.json) — no longer per-class. The class_config arg is accepted for caller compatibility
+-- but ignored.
+local function format_class_version()
+   return NS.VERSION or "v0.0.0"
 end
 
 NS.format_class_version = format_class_version

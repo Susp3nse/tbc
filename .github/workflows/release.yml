@@ -29,14 +29,25 @@ jobs:
       - name: Build rotation
         run: pnpm --filter @flux/tbc-rotation build
 
-      - name: Get tag annotation
+      - name: Resolve release notes
         id: tag_msg
+        # Single source of truth: the changelog content-collection entry for this tag
+        # (apps/website/src/content/changelog/<tag>.md). Strip the YAML frontmatter and use the
+        # markdown body as the GitHub Release body — which the Discord webhook below also reuses.
+        # Fall back to the annotated tag message if the changelog file is missing.
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          git fetch origin tag "${{ github.ref_name }}" --force
-          MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" 2>/dev/null || echo "")
-          echo "--- DEBUG: tag msg is: $MSG"
+          CHANGELOG="apps/website/src/content/changelog/${TAG}.md"
+          if [ -f "$CHANGELOG" ]; then
+            # Print every line after the second '---' (end of frontmatter), preserving body markdown.
+            BODY=$(awk 'f>=2{print} /^---$/{f++}' "$CHANGELOG")
+          else
+            git fetch origin tag "$TAG" --force
+            BODY=$(git tag -l --format='%(contents)' "$TAG" 2>/dev/null || echo "")
+          fi
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
-          echo "${MSG:-Release ${{ github.ref_name }}}" >> "$GITHUB_OUTPUT"
+          echo "${BODY:-Release ${TAG}}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release

@@ -1,12 +1,12 @@
 # Flux AIO
 
-A multi-class WoW TBC rotation addon built on the GGL Action/Textfiles framework. Currently supports **Druid** (all forms) and **Hunter**.
+A multi-class WoW TBC rotation addon built on the GGL Action/Textfiles framework, covering all nine classes.
 
 **Website & Docs** — [flux-rotations.github.io/tbc](https://flux-rotations.github.io/tbc)
 
 ## Project Structure
 
-This is a monorepo with four app packages:
+This is a pnpm monorepo. New here? Start with **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)**.
 
 | Package | Description |
 |---------|-------------|
@@ -15,7 +15,6 @@ This is a monorepo with four app packages:
 | `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
 | `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library and CLI |
 | `packages/tmw-profile-builder/` | Reusable TMW profile build, watch, and SavedVariables sync library |
-| `packages/` | Shared workspace packages |
 
 ## Getting Started
 
@@ -35,7 +34,7 @@ pnpm test
 ### Rotation Log Analysis
 
 ```bash
-pnpm --filter @flux/tbc-rotation analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
+pnpm --filter @flux/log-analyzer analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
 ```
 
 ### Building the Rotation
@@ -77,5 +76,6 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 ## Supported Classes
 
-- **Druid** — Caster, Cat, Bear, Balance (Moonkin), Resto (Tree of Life)
-- **Hunter** — Ranged DPS with auto-shot clip tracking
+All nine TBC classes: **Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior**.
+Each lives under `apps/tbc-rotation/src/aio/<class>/` and registers its own specs/forms. See the
+[class pages](https://flux-rotations.github.io/tbc) for per-spec coverage.

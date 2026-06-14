@@ -665,10 +665,48 @@ code {
   border: 1px solid #1f2d4d;
   color: #5b9bd5;
 }
-.tag-patch {
+.tag-patch,
+.tag-fix {
   background: #0f1f1a;
   border: 1px solid #1a3d2f;
   color: var(--green);
+}
+.tag-feature {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-hover);
+}
+/* Changelog body — rendered from markdown, styled to match .features lists */
+.changelog-body ul {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+}
+.changelog-body li {
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  position: relative;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.changelog-body li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.changelog-body strong {
+  color: var(--text);
+}
+.changelog-body code {
+  font-size: 0.8em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
 }
 
 /* FAQ */

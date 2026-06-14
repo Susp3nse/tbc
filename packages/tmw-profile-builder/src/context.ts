@@ -29,6 +29,12 @@ export function createBuildContext(options: {
   const resolve = (rel: string | undefined, fallback: string) =>
     path.join(projectRoot, rel ?? fallback);
 
+  // Release version comes from the app's package.json — the single source of the in-game label.
+  const pkgPath = path.join(projectRoot, 'package.json');
+  const version = fs.existsSync(pkgPath)
+    ? ((JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version as string | undefined) ?? '')
+    : '';
+
   return {
     projectRoot,
     aioDir: resolve(paths.aioDir, 'src/aio'),
@@ -36,5 +42,6 @@ export function createBuildContext(options: {
     outputPath: resolve(paths.output, 'output/TellMeWhen.lua'),
     localConfigPath: resolve(paths.local, 'builder.config.local.json'),
     conventions,
+    version,
   };
 }

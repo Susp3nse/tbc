@@ -78,7 +78,8 @@ export function runCli(context: BuildContext, argv = process.argv.slice(2)): voi
 
   // A one-shot CLI run is a fresh session with a single build, numbered 1.
   // (The persistent climbing counter only matters in the long-lived watch loop.)
-  const metadata = { build: 1 };
+  // version threads the release identity (NS.VERSION) through on every build, incl. plain `build`.
+  const metadata = { build: 1, version: context.version };
 
   if (doBuild) {
     console.log('--- Building distributable ---');

@@ -377,7 +377,7 @@ A[8] = nil
 local cc = rotation_registry.class_config
 local class_label = cc and cc.name or "Unknown"
 local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "?")
-local build_label = NS.BUILD_LABEL or "dev"
+local build_number = NS.BUILD_NUMBER or "dev"
 
 -- Count strategies per registered playstyle
 local strategy_summary = {}
@@ -386,6 +386,6 @@ for ps, strats in pairs(rotation_registry.strategy_maps) do
 end
 local mw_count = rotation_registry.middleware and #rotation_registry.middleware or 0
 
-print(format("|cff6c63ff[Flux AIO]|r %s %s loaded successfully! Build: %s", class_label, class_version, build_label))
+print(format("|cff6c63ff[Flux AIO]|r %s loaded! %s | Build: %s", class_label, class_version, build_number))
 print(format("|cFF00FF00[Flux AIO]|r Strategies: %s", table.concat(strategy_summary, ", ")))
 print(format("|cFF00FF00[Flux AIO]|r Middleware: %d handlers registered", mw_count))

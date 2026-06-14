@@ -43,7 +43,10 @@ export class DevWatcher {
 
     this.classes = this.resolveInitialClasses(aioDir);
     this.logStartup(aioDir, savedVariablesTargets);
-    this.syncAndMark(config, savedVariablesTargets, this.classes, { build: ++this.buildNumber });
+    this.syncAndMark(config, savedVariablesTargets, this.classes, {
+      build: ++this.buildNumber,
+      version: this.context.version,
+    });
 
     fs.watch(aioDir, { recursive: true }, (_eventType, filename) => {
       this.handleSourceChange(config, savedVariablesTargets, aioDir, filename);
@@ -180,7 +183,10 @@ export class DevWatcher {
     }
 
     if (isShared || affectedClasses.size > 0) {
-      this.syncAndMark(config, targets, this.classes, { build: ++this.buildNumber });
+      this.syncAndMark(config, targets, this.classes, {
+        build: ++this.buildNumber,
+        version: this.context.version,
+      });
     }
   }
 
@@ -210,6 +216,7 @@ export class DevWatcher {
         // External /reload clobbered the file — restore the same build, don't advance it.
         this.builder.syncToSavedVariables(config, this.classes, target.svPath, {
           build: this.buildNumber,
+          version: this.context.version,
         });
         this.lastOurWriteTime.set(target.svPath, Date.now());
       }, this.savedVariablesDebounceMs);

@@ -199,7 +199,6 @@ NS.get_curse_spell = get_curse_spell
 -- ============================================================================
 rotation_registry:register_class({
     name = "Warlock",
-    version = "v1.7.0",
     playstyles = { "affliction", "demonology", "destruction" },
     idle_playstyle_name = nil,
 

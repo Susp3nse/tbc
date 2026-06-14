@@ -18,7 +18,7 @@ export type MetadataInjection = {
   marker: string;
   /** The injected text is placed immediately after this anchor line. */
   anchor: string;
-  /** Text to inject, with `{build}` substituted for the build number. */
+  /** Text to inject, with `{build}` → build number and `{version}` → release version substituted. */
   template: string;
 };
 
@@ -63,6 +63,8 @@ export type BuildContext = {
   outputPath: string;
   localConfigPath: string;
   conventions: BuildConventions;
+  /** Release version (semver, no leading 'v') read from the app's package.json; '' if unavailable. */
+  version: string;
 };
 
 export type RotationModule = {
@@ -73,6 +75,8 @@ export type RotationModule = {
 
 export type BuildMetadata = {
   build: number;
+  /** Release version (semver, no leading 'v') from the app's package.json; injected as NS.VERSION. */
+  version?: string;
 };
 
 export type SavedVariablesTarget = {

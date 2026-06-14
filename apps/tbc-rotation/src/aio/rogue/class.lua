@@ -150,7 +150,6 @@ NS.Constants = Constants
 -- ============================================================================
 rotation_registry:register_class({
     name = "Rogue",
-    version = "v1.7.0",
     playstyles = { "combat", "assassination", "subtlety" },
     idle_playstyle_name = nil,
 

@@ -149,7 +149,7 @@ export class ProfileBuilder {
     writeWithRetry(svPath, output);
 
     const written = fs.existsSync(svPath) ? fs.readFileSync(svPath, 'utf8') : '';
-    if (!written.includes('NS.BUILD_LABEL')) {
+    if (!written.includes('NS.BUILD_NUMBER')) {
       console.error(`[${timestamp()}] ERROR: Build metadata was not written to ${svPath}`);
       return false;
     }

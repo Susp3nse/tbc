@@ -29,14 +29,25 @@ src/
 public/           Static assets served as-is
 ```
 
-## Changelog page
+## Changelog (content collection)
 
-`src/pages/changelog.astro` is the user-facing release history. Each release is a
-`<section class="section changelog-entry">` with `<h2>vX.Y.Z</h2>`, a
-`<span class="changelog-tag tag-feature">Feature</span>` and/or `tag-fix` tag, one `<h3>Class &mdash;
-Spec</h3>` per area touched, and a `<ul class="features">` of `<li><strong>Title</strong> &mdash;
-description</li>`. **Insert new entries at the top**, above the current topmost entry, mirroring its
-markup. This is the website substep of the root release workflow — see root `AGENTS.md`.
+The changelog is an **Astro content collection**, not hand-written HTML. It is the single source of
+truth for release notes — the website renders it, and (going forward) the release pipeline reads the
+matching entry for the GitHub Release body + Discord announcement.
+
+- **Source:** one markdown file per release at `src/content/changelog/v<X.Y.Z>.md`.
+- **Schema** (`src/content/config.ts`): frontmatter `version` (string), `year` (string), `tags`
+  (array of `feature` / `fix` / `major` / `minor` / `patch`). Body is markdown.
+- **Body format:** `### Class — Spec` heading per area touched, then a `-` bulleted list of
+  `**Title** — description` (markdown `**bold**`, `*italic*`, `` `code` `` all render).
+- **Rendering:** `src/pages/changelog.astro` loads the collection, sorts by semver descending, and
+  renders each entry; the page is generic and needs no edits per release.
+
+**To add a release:** drop a new `v<X.Y.Z>.md` file in `src/content/changelog/`. No markup to mirror,
+no ordering to manage. This is the website substep of the root release workflow — see root `AGENTS.md`.
+
+> Historical note: entries `v1.0.0`–`v1.8.x` predate the `feature`/`fix` convention and carry
+> `major`/`minor`/`patch` tags; both taxonomies are accepted. New entries should use `feature`/`fix`.
 
 ## Deploy
 

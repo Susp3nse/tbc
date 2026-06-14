@@ -230,13 +230,14 @@ classes or unrelated apps. Each nested doc owns its own concerns and does not re
 - **Never commit secrets or local config:** no `.env`, no `builder.config.local.json`, no logs, no
   credentials. Use the `*.example.json` templates for shape.
 - **Build versioning (two distinct mechanisms — don't conflate):**
-  - `dev_revision` — a per-class manual counter in `class.lua`'s `register_class({ dev_revision = N })`.
-    `core.lua` renders the in-game label as `vX.Y.Z + N`. Increment it on each completed fix during
-    development so an in-game reload confirms the active change; roll it into the patch `version`
-    (and reset/remove it) at release. Currently live on some classes (e.g. Druid, Hunter).
+  - `NS.VERSION` — the **single platform version**, sourced from `apps/tbc-rotation/package.json`
+    `"version"` and injected into the compiled output at build time (`core.lua` renders it as the
+    in-game label). There are **no per-class versions** — one version covers the whole rotation.
+    Bump it with `pnpm release` (or by hand in `package.json`); the build does the rest.
   - `BUILD_NUMBER` / `BUILD_LABEL` — an **ephemeral per-session** counter the
-    `@flux/tmw-profile-builder` engine injects into the compiled output. It is a local dev aid, not
-    a release version. See `packages/tmw-profile-builder/AGENTS.md`.
+    `@flux/tmw-profile-builder` engine injects into the compiled output. It is a local dev aid (it
+    confirms a fresh sync loaded after `/reload`), not a release version. See
+    `packages/tmw-profile-builder/AGENTS.md`.
 
 ## Testing expectations
 
@@ -264,24 +265,27 @@ without re-prompting.
    `--rebase`) so commit attribution is preserved on main. Then `git checkout main && git pull
    origin main`.
 
-3. **Bump versions** (semver: patch for bugfix, minor for new feature / new setting, major for
-   breaking change):
-   - `apps/tbc-rotation/package.json` `"version"` field.
-   - The per-class file the PR actually touched, e.g.
-     `apps/tbc-rotation/src/aio/<class>/class.lua` under `register_class({ version = "vX.Y.Z" })`.
-     Bump **every** class the PR touched — per-class versions are independent.
-   - Verify the build: `corepack pnpm --filter @flux/tbc-rotation build`.
+3. **Bump the single platform version** (semver: patch for bugfix, minor for new feature / new
+   setting, major for breaking change). There is **one** version — `apps/tbc-rotation/package.json`
+   `"version"`; the build injects it as `NS.VERSION`. **No per-class versions to touch.** Easiest:
+   run `corepack pnpm release` from main — it computes the bump from the conventional commits since
+   the last tag, bumps `package.json`, and scaffolds the changelog entry (step 4). Then verify the
+   build: `corepack pnpm --filter @flux/tbc-rotation build`.
 
-4. **Update the website changelog** at `apps/website/src/pages/changelog.astro` (format documented
-   in `apps/website/AGENTS.md`): insert a new entry at the **top**, one `<h3>` per class touched.
+4. **Curate the changelog entry** — the changelog is an Astro content collection (one markdown file
+   per release at `apps/website/src/content/changelog/v<X.Y.Z>.md`; format in `apps/website/AGENTS.md`).
+   `pnpm release` scaffolds it from commit subjects grouped by scope — rewrite each bullet into
+   player-facing prose and drop non-player scopes (workspace/builder/analyzer). This file is the
+   **single source** for the release notes: `release.yml` reads it as the GitHub Release body, which
+   the Discord webhook reuses.
 
-5. **Commit and push** — `chore(workspace): bump <class> to vX.Y.Z, package to vP.Q.R, update
-   changelog`, mentioning the PR number in the body. Push to main.
+5. **Commit and push** — `chore(workspace): release vX.Y.Z`, mentioning the PR number in the body.
+   Push to main.
 
-6. **Annotated tag** — `git tag -a vP.Q.R -m "<release notes>"` then `git push origin vP.Q.R`. The
-   tag message becomes the **GitHub Release body AND the Discord notification**, so write it for
-   end-users (mirror the changelog content as plain text — no HTML). Pushing the tag triggers
-   `release.yml`.
+6. **Annotated tag** — `git tag -a vX.Y.Z -m "<short release notes>"` then `git push origin vX.Y.Z`.
+   Pushing the tag triggers `release.yml`, which builds the addon and creates the GitHub Release
+   using the **changelog entry** as the body (the tag message is only a fallback if that file is
+   missing). Annotated tags only.
 
 ### Hard rules
 - **Never tag without explicit user approval.** "Tag a release" in the request counts; absence of

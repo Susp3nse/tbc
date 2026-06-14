@@ -82,7 +82,7 @@ Each entry is a table: `name`, `matches(context, state)`, `execute(icon, context
 result, log_msg`, plus optional `is_burst`, `is_defensive`, `setting_key` (auto-checked by
 `check_prerequisites`), `spell` (auto-checked `IsReady` + availability).
 
-**`register_class(config)`** — each `class.lua` registers `name`, `version`, `playstyles`,
+**`register_class(config)`** — each `class.lua` registers `name`, `playstyles`,
 `idle_playstyle_name`, `get_active_playstyle(context)`, `get_idle_playstyle(context)`,
 `extend_context(ctx)`, optional `gap_handler(icon, ctx)`, and a declarative `dashboard` table.
 
