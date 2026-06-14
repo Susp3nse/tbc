@@ -55,15 +55,6 @@ local Panel = {
     -- pre-built lookup of fire codes for the recent-fires line
 }
 
--- Helper to make a left-anchored fontstring inside a parent
-local function fs(parent, anchorTo, dx, dy, justify)
-    local t = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    t:SetPoint("TOPLEFT", anchorTo, "TOPLEFT", dx, dy)
-    t:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-    t:SetJustifyH(justify or "LEFT")
-    return t
-end
-
 local function colored(t, color)
     t:SetTextColor(color[1], color[2], color[3])
 end
@@ -237,8 +228,7 @@ local function optionLine(score, delay, jitterFloor, gated, isChosen)
     if gated then
         return format("%5s  (gated)", "--"), THEME.text_dim
     end
-    local clip = ""
-    local color = THEME.text
+    local clip, color
     if delay <= jitterFloor + 0.001 then
         clip = "open"
         color = THEME.good

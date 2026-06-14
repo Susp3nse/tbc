@@ -37,8 +37,6 @@ local named = NS.named
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
-local AddDebugLogLine = NS.AddDebugLogLine
-local GetTime = _G.GetTime
 
 local scan_healing_targets = NS.scan_healing_targets
 local HOLY_LIGHT_RANKS = NS.HOLY_LIGHT_RANKS

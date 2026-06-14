@@ -31,11 +31,8 @@ local A = NS.A
 local Constants = NS.Constants
 local Priority = NS.Priority
 local Player = NS.Player
-local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
-local RACE_TROLL = NS.RACE_TROLL
-local RACE_ORC = NS.RACE_ORC
 local get_form_cost = NS.get_form_cost
 
 -- Lua optimizations

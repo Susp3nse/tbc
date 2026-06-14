@@ -1,7 +1,7 @@
 -- Priest Class Module
 -- Defines all Priest spells, constants, helper functions, and registers Priest as a class
 
-local _G, setmetatable, pairs = _G, setmetatable, pairs
+local _G, setmetatable = _G, setmetatable
 local A = _G.Action
 
 if not A then return end
@@ -100,7 +100,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player

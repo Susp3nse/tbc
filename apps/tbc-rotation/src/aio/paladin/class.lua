@@ -1,8 +1,7 @@
 -- Paladin Class Module
 -- Defines all Paladin spells, constants, helper functions, and registers Paladin as a class
 
-local _G, setmetatable, pairs, ipairs, tostring, select, type = _G, setmetatable, pairs, ipairs, tostring, select, type
-local GetTime = _G.GetTime
+local _G, setmetatable = _G, setmetatable
 local A = _G.Action
 
 if not A then return end
@@ -129,14 +128,12 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
-local PLAYER_UNIT = NS.PLAYER_UNIT
-local TARGET_UNIT = NS.TARGET_UNIT
 
 -- Framework helpers
 local MultiUnits = A.MultiUnits

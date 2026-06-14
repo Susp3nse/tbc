@@ -23,8 +23,6 @@ if not NS.HEALING_TOUCH_RANKS then
 end
 
 -- Import commonly used references
-local A = NS.A
-local Constants = NS.Constants
 local Unit = NS.Unit
 local cached_settings = NS.cached_settings
 local debug_print = NS.debug_print
@@ -33,9 +31,6 @@ local safe_heal_cast = NS.safe_heal_cast
 local get_spell_mana_cost = NS.get_spell_mana_cost
 local predict_effective_deficit = NS.predict_effective_deficit
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
-local HEALING_TOUCH_RANKS = NS.HEALING_TOUCH_RANKS
-local REGROWTH_RANKS = NS.REGROWTH_RANKS
-local REJUVENATION_RANKS = NS.REJUVENATION_RANKS
 local REJUVENATION_BUFF_IDS = NS.REJUVENATION_BUFF_IDS
 local REGROWTH_BUFF_IDS = NS.REGROWTH_BUFF_IDS
 
@@ -163,7 +158,7 @@ local function scan_healing_targets()
    for i = 1, max_units do
       local unit = units_to_scan[i]
       if unit and _G.UnitExists(unit) and not _G.UnitIsDead(unit) and _G.UnitIsConnected(unit) and _G.UnitCanAssist("player", unit) then
-         local in_range = false
+         local in_range
          if _G.UnitIsUnit(unit, "player") then
             in_range = true
          else

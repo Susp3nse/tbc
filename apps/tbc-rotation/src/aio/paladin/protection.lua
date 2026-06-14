@@ -183,13 +183,13 @@ end
 -- Returns true if the currently configured seal is active
 local function has_configured_seal(context)
     local choice = context.settings.prot_seal_choice or "righteousness"
-    
+
     -- During mana recovery mode, Seal of Wisdom is acceptable even if not configured
     local threshold = context.settings.seal_of_wisdom_mana_pct or 20
     if context.mana_pct <= threshold and context.seal_wisdom_active then
         return true
     end
-    
+
     if choice == "vengeance" then return context.seal_vengeance_active end
     if choice == "wisdom" then return context.seal_wisdom_active end
     return context.seal_righteousness_active

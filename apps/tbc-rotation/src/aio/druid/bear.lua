@@ -40,7 +40,6 @@ local format = string.format
 
 -- Debuff ID tables
 local DEMO_ROAR_DEBUFF_IDS = NS.DEMO_ROAR_DEBUFF_IDS
-local MANGLE_DEBUFF_IDS = NS.MANGLE_DEBUFF_IDS
 
 -- Utility imports
 local get_spell_rage_cost = NS.get_spell_rage_cost
@@ -486,7 +485,7 @@ do
    local cleu_frame = _G.CreateFrame("Frame")
    cleu_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
    cleu_frame:SetScript("OnEvent", function()
-      local _, event, _, srcGUID, _, _, _, _, destName, _, _, p12, p13, p14, p15, _, _, _, _, p20 = _G.CombatLogGetCurrentEventInfo()
+      local _, event, _, srcGUID, _, _, _, _, _, _, _, _, p13 = _G.CombatLogGetCurrentEventInfo()
       if srcGUID ~= player_guid then return end
       if event == "SWING_DAMAGE" or event == "SWING_MISSED" then
          if bear_state.maul_queued then
@@ -662,7 +661,7 @@ do
       spell = A.Enrage,
       spell_target = PLAYER_UNIT,
       matches = function(context)
-         if not (context.rage < (context.settings.enrage_rage_threshold or Constants.BEAR.ENRAGE_RAGE_THRESHOLD)) then return false end
+         if context.rage >= (context.settings.enrage_rage_threshold or Constants.BEAR.ENRAGE_RAGE_THRESHOLD) then return false end
          -- Boss safety: 27% armor reduction is too risky on boss encounters
          -- Exception: allow if Frenzied Regen is active (Enrage feeds rage to FR for healing)
          -- Boss hits generate enough rage naturally; not worth the armor loss

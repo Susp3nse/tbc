@@ -311,7 +311,7 @@ function Coach:Evaluate(unit)
 
     local state = "GRAY"
     local action = "HOLD RANGE"
-    local reason = "No weave window"
+    local reason
 
     if not s.show_melee_weave_coach then
         reason = "Disabled"

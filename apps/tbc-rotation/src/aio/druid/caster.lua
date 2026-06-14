@@ -49,7 +49,6 @@ local SELF_HEALING_TOUCH_RANKS = NS.SELF_HEALING_TOUCH_RANKS
 local SELF_REGROWTH_RANKS = NS.SELF_REGROWTH_RANKS
 local SELF_REJUVENATION_RANKS = NS.SELF_REJUVENATION_RANKS
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
-local TARGET_UNIT = NS.TARGET_UNIT or "target"
 
 -- Framework utilities
 local AuraIsValid = A.AuraIsValid
@@ -102,7 +101,7 @@ do
 		end,
 		execute = function(icon, context)
 			local settings = context.settings
-			local emergency_hp, critical_hp = settings.emergency_heal_hp, settings.critical_heal_hp
+			local critical_hp = settings.critical_heal_hp
 			local severity = (critical_hp and context.hp <= critical_hp) and "crit" or "emrg"
 			local is_low_mana = context.mana_pct < 20
 			local has_rejuv, has_regrowth = has_any_rejuv(PLAYER_UNIT), has_any_regrowth(PLAYER_UNIT)

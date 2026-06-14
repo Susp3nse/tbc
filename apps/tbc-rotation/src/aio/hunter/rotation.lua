@@ -14,7 +14,7 @@ if not NS then
     return
 end
 
-local A = NS.A
+A = NS.A
 local Player = NS.Player
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
@@ -46,7 +46,6 @@ local UnitExists = _G.UnitExists
 local UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost
 local UnitGUID = _G.UnitGUID
 local UnitCanAttack = _G.UnitCanAttack
-local GetNumGroupMembers = _G.GetNumGroupMembers
 local GetTime = _G.GetTime
 
 local PLAYER_UNIT = "player"
@@ -154,13 +153,13 @@ strategies[#strategies + 1] = named("Interrupt", {
 
     matches = function(context)
         if not context.has_valid_enemy_target then return false end
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
+        local castLeft = Unit(TARGET_UNIT):IsCastingRemains()
         if castLeft <= GetGCD() + GetLatency() then return false end
         return true
     end,
 
     execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
+        local _, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
 
         if not notKickAble and A.SilencingShot:IsReadyByPassCastGCD(TARGET_UNIT, nil, nil, true) and A.SilencingShot:IsInRange() then
             return A.SilencingShot:Show(icon), "[INT] Silencing Shot"

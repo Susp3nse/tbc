@@ -39,7 +39,6 @@ end
 -- both resolve from this single binding. Same pattern as rotation.lua:17.
 local A = NS.A
 local Player = NS.Player
-local GetGCD = A.GetGCD
 local GetCurrentGCD = A.GetCurrentGCD
 local GetLatency = A.GetLatency
 local Listener = A.Listener
@@ -651,7 +650,7 @@ local function auraDebugSnapshot()
     end
 
     for i = 1, 40 do
-        local name, _, _, _, duration, expirationTime, sourceUnit, _, _, spellID, slot11 = UnitBuff("player", i)
+        local name, _, _, _, _, expirationTime, sourceUnit, _, _, spellID, slot11 = UnitBuff("player", i)
         if not name then break end
         count = count + 1
 
@@ -795,11 +794,11 @@ local function ChooseAction(unit, opts)
 
     -- Compute dmgResults[]
     local NEG = -1e9
-    local rShoot, rSteady, rMulti, rArcane = NEG, NEG, NEG, NEG
+    local rSteady, rMulti, rArcane = NEG, NEG, NEG
 
     -- (rotation.go:196-198) shoot option
     local shootGCDDelay = math_max(0, shootDoneAt - gcdAt)
-    rShoot = State.avgShootDmg - (State.steadyDPS * shootGCDDelay)
+    local rShoot = State.avgShootDmg - (State.steadyDPS * shootGCDDelay)
 
     -- Mana gates. Steady Shot is intentionally not gated by mana_save; the
     -- setting only protects expensive shots, matching schema.lua's tooltip.

@@ -78,7 +78,6 @@ local TICK_OPT_THRESHOLD = 1.0  -- seconds until tick
 -- Mangle: include both Cat (33876-33983) and Bear (33878-33987) IDs
 -- so we detect the debuff regardless of which druid applied it
 local MANGLE_CAT_DEBUFF_IDS = { 33876, 33982, 33983, 33878, 33986, 33987 }
-local FAERIE_FIRE_DEBUFF_IDS = NS.FAERIE_FIRE_DEBUFF_IDS
 local RIP_DEBUFF_IDS = { 1079, 9492, 9493, 9752, 9894, 9896, 27008 }
 local RAKE_DEBUFF_IDS = { 1822, 1823, 1824, 9904, 27003 }
 local TIGERS_FURY_BUFF_IDS = { 5217, 6793, 9845, 9846 }

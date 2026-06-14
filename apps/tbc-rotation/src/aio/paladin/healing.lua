@@ -71,7 +71,7 @@ local function scan_healing_targets()
         if unit and _G.UnitExists(unit) and not _G.UnitIsDead(unit)
             and _G.UnitIsConnected(unit) and _G.UnitCanAssist("player", unit) then
 
-            local in_range = false
+            local in_range
             if _G.UnitIsUnit(unit, "player") then
                 in_range = true
             else

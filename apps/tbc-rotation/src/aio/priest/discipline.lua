@@ -14,10 +14,9 @@ if not NS then
     return
 end
 
-local A = NS.A
+A = NS.A
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
-local Constants = NS.Constants
 local is_spell_available = NS.is_spell_available
 local try_cast_fmt = NS.try_cast_fmt
 local try_heal_cast_fmt = NS.try_heal_cast_fmt

@@ -17,7 +17,7 @@ if not NS then
    return
 end
 
-local A = NS.A
+A = NS.A
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local Constants = NS.Constants
@@ -52,25 +52,6 @@ local SWP_DURATION = 18
 local VT_DURATION = 15
 local DOT_REFRESH_WINDOW = 3
 
--- Build a set of all SWP/VT spell IDs (all ranks) for fast lookup
-local swp_ids = {}
-local vt_ids = {}
-for i = 1, 20 do
-   local name = _G.GetSpellInfo(A.ShadowWordPain.ID, i)
-   if not name then break end
-   local id = select(7, _G.GetSpellInfo(name, nil, i))
-   if id then swp_ids[id] = true end
-end
-for i = 1, 20 do
-   local name = _G.GetSpellInfo(A.VampiricTouch.ID, i)
-   if not name then break end
-   local id = select(7, _G.GetSpellInfo(name, nil, i))
-   if id then vt_ids[id] = true end
-end
--- Fallback: ensure base IDs are included (GetSpellInfo rank iteration may not work in TBC)
-swp_ids[A.ShadowWordPain.ID] = true
-vt_ids[A.VampiricTouch.ID] = true
-
 local debug_print = NS.debug_print
 local player_guid = nil
 local dot_tracker_frame = _G.CreateFrame("Frame")
@@ -81,7 +62,7 @@ dot_tracker_frame:SetScript("OnEvent", function()
       if not player_guid then return end
    end
 
-   local _, subevent, _, srcGUID, _, _, _, dstGUID, _, _, _, spellID, spellName = CombatLogGetCurrentEventInfo()
+   local _, subevent, _, srcGUID, _, _, _, dstGUID, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
 
    -- Clean up dead mobs (srcGUID won't be player for deaths)
    if subevent == "UNIT_DIED" or subevent == "UNIT_DESTROYED" then
@@ -290,9 +271,8 @@ rotation_registry:register("shadow", {
                local unit_ttd = Unit(unitID):TimeToDie() or 0
                local survives = unit_ttd == 0 or unit_ttd >= 6
                local cc_remaining = Unit(unitID):InCC() or 0
-               if not survives or cc_remaining > 0 or Unit(unitID):CombatTime() == 0 then
-                  -- skip dying, CC'd, or out-of-combat mobs
-               else
+               -- skip dying, CC'd, or out-of-combat mobs
+               if survives and cc_remaining <= 0 and Unit(unitID):CombatTime() ~= 0 then
                   local swp_remaining = get_dot_remaining(unitID, "swp")
                   if swp_remaining > DOT_REFRESH_WINDOW then
                      max_targets = max_targets - 1
@@ -340,9 +320,8 @@ rotation_registry:register("shadow", {
                local unit_ttd = Unit(unitID):TimeToDie() or 0
                local survives = unit_ttd == 0 or unit_ttd >= 6
                local cc_remaining = Unit(unitID):InCC() or 0
-               if not survives or cc_remaining > 0 or Unit(unitID):CombatTime() == 0 then
-                  -- skip dying, CC'd, or out-of-combat mobs
-               else
+               -- skip dying, CC'd, or out-of-combat mobs
+               if survives and cc_remaining <= 0 and Unit(unitID):CombatTime() ~= 0 then
                   local vt_remaining = get_dot_remaining(unitID, "vt")
                   if vt_remaining > DOT_REFRESH_WINDOW then
                      max_targets = max_targets - 1

@@ -156,7 +156,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player

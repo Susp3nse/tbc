@@ -1,7 +1,7 @@
 -- Shaman Class Module
 -- Defines all Shaman spells, constants, totem utilities, and registers Shaman as a class
 
-local _G, setmetatable, pairs, ipairs, tostring, select, type = _G, setmetatable, pairs, ipairs, tostring, select, type
+local _G, setmetatable = _G, setmetatable
 local GetTime = _G.GetTime
 local GetTotemInfo = _G.GetTotemInfo
 local IsInGroup = _G.IsInGroup
@@ -120,7 +120,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player

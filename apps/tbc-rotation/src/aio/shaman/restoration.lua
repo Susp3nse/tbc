@@ -29,7 +29,6 @@ local try_cast = NS.try_cast
 local named = NS.named
 local resolve_totem_spell = NS.resolve_totem_spell
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
-local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
 local GetTotemInfo = _G.GetTotemInfo
 
@@ -63,7 +62,7 @@ local function scan_healing_targets()
     for i = 1, max_units do
         local unit = units_to_scan[i]
         if unit and _G.UnitExists(unit) and not _G.UnitIsDead(unit) and _G.UnitIsConnected(unit) and _G.UnitCanAssist("player", unit) then
-            local in_range = false
+            local in_range
             if _G.UnitIsUnit(unit, "player") then
                 in_range = true
             else
@@ -176,7 +175,7 @@ local Resto_NaturesSwiftnessEmergency = {
         end
 
         -- Check lowest party/raid member
-        local unit, hp = get_lowest_target(threshold)
+        local unit = get_lowest_target(threshold)
         if unit then return true end
 
         return false
@@ -392,7 +391,7 @@ local Resto_ChainHeal = {
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary ~= "chain_heal" then return false end
         -- Only heal if someone needs it (below 90% HP)
-        local unit, hp = get_lowest_target(90)
+        local unit = get_lowest_target(90)
         if not unit then return false end
         return true
     end,
@@ -416,11 +415,11 @@ local Resto_LesserHealingWave = {
         -- Used as primary heal or when someone is low and needs fast heal
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary == "lesser_healing_wave" then
-            local unit, hp = get_lowest_target(90)
+            local unit = get_lowest_target(90)
             if unit then return true end
         else
             -- As emergency: heal if someone below 50%
-            local unit, hp = get_lowest_target(50)
+            local unit = get_lowest_target(50)
             if unit then return true end
         end
         return false
@@ -445,11 +444,11 @@ local Resto_HealingWave = {
         if context.is_moving then return false end
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary == "healing_wave" then
-            local unit, hp = get_lowest_target(90)
+            local unit = get_lowest_target(90)
             if unit then return true end
         else
             -- As fallback: heal if someone below 70%
-            local unit, hp = get_lowest_target(70)
+            local unit = get_lowest_target(70)
             if unit then return true end
         end
         return false

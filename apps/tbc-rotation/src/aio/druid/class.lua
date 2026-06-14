@@ -1,9 +1,8 @@
 -- Druid Class Module
 -- Defines all Druid spells, constants, data tables, and registers Druid as a class
 
-local _G, setmetatable, pairs, ipairs, tostring = _G, setmetatable, pairs, ipairs, tostring
+local _G, setmetatable, ipairs = _G, setmetatable, ipairs
 local tinsert = table.insert
-local format = string.format
 local GetTime = _G.GetTime
 local A = _G.Action
 
@@ -227,7 +226,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player
@@ -792,7 +791,7 @@ rotation_registry:register_class({
 
       ctx.has_clearcasting = (Unit("player"):HasBuffs(Constants.BUFF_ID.CLEARCASTING) or 0) > 0
       ctx.enemy_count = A.MultiUnits:GetByRange(8)
-     
+
       ctx._cat_valid = false
       ctx._bear_valid = false
       ctx._resto_valid = false

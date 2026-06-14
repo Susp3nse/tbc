@@ -14,8 +14,7 @@ if not NS then
     return
 end
 
-local A = NS.A
-local Player = NS.Player
+A = NS.A
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local Priority = NS.Priority

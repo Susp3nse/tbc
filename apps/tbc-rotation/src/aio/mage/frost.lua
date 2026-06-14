@@ -28,7 +28,6 @@ local named = NS.named
 local is_spell_available = NS.is_spell_available
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
-local format = string.format
 
 -- ============================================================================
 -- FROST STATE (context_builder)

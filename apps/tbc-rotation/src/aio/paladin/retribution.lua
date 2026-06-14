@@ -28,7 +28,6 @@ local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
 local SealOfBloodAction = NS.SealOfBloodAction
-local SEAL_BLOOD_BUFF_ID = NS.SEAL_BLOOD_BUFF_ID
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format

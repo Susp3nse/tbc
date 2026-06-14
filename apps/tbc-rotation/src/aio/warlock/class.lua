@@ -1,7 +1,7 @@
 -- Warlock Class Module
 -- Defines all Warlock spells, constants, helper functions, and registers Warlock as a class
 
-local _G, setmetatable, pairs, ipairs, tostring, select, type = _G, setmetatable, pairs, ipairs, tostring, select, type
+local _G, setmetatable, tostring = _G, setmetatable, tostring
 local A = _G.Action
 
 if not A then return end
@@ -102,7 +102,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player

@@ -326,7 +326,7 @@ local function GetSpellCastTime(spellName)
         if spellName == "Steady Shot" then return 1.5 / haste end
         return 0.5 / haste
     end
-    local name, _, _, castTime = GetSpellInfo(spellName)
+    local _, _, _, castTime = GetSpellInfo(spellName)
     if castTime and castTime > 0 then return castTime / 1000 end
     return 0
 end
@@ -942,13 +942,13 @@ function ClipTracker:CreateFrame()
             btn:SetAlpha(0.4)
         end
 
-        btn:SetScript("OnClick", function(self)
-            self.enabled = not self.enabled
-            ClipTracker.SeverityEnabled[self.severity] = self.enabled
-            if self.enabled then
-                self:SetAlpha(1.0)
+        btn:SetScript("OnClick", function(sevBtn)
+            sevBtn.enabled = not sevBtn.enabled
+            ClipTracker.SeverityEnabled[sevBtn.severity] = sevBtn.enabled
+            if sevBtn.enabled then
+                sevBtn:SetAlpha(1.0)
             else
-                self:SetAlpha(0.4)
+                sevBtn:SetAlpha(0.4)
             end
             ClipTracker:RefreshLogDisplay()
         end)
@@ -990,7 +990,7 @@ function ClipTracker:CreateFrame()
     logText:SetWidth(LOG_TEXT_WIDTH)
     logText:SetAutoFocus(false)
     logText:EnableMouse(true)
-    logText:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    logText:SetScript("OnEscapePressed", function(editBox) editBox:ClearFocus() end)
     sf:SetScrollChild(logText)
 
     self.ScrollFrame = sf
@@ -1006,12 +1006,12 @@ function ClipTracker:CreateFrame()
     -- Bottom buttons
     local pauseBtn = create_theme_button(f, 60, 22, "Pause")
     pauseBtn:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 10, 8)
-    pauseBtn:SetScript("OnClick", function(self)
+    pauseBtn:SetScript("OnClick", function(pb)
         ClipTracker.IsPaused = not ClipTracker.IsPaused
         if ClipTracker.IsPaused then
-            self.label:SetText("Resume")
+            pb.label:SetText("Resume")
         else
-            self.label:SetText("Pause")
+            pb.label:SetText("Pause")
         end
     end)
     f.pauseBtn = pauseBtn

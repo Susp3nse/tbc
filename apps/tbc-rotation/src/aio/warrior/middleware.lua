@@ -15,7 +15,7 @@ if not NS then
     return
 end
 
-local A = NS.A
+A = NS.A
 local Player = NS.Player
 local Unit = NS.Unit
 local MultiUnits = A.MultiUnits
@@ -35,7 +35,6 @@ local CONST = A.Const
 
 -- Pre-allocated LoC type arrays (avoid inline table creation in combat)
 local LOC_FEAR_INCAP = { "FEAR", "INCAPACITATE" }
-local LOC_FEAR = { "FEAR" }
 
 -- Bloodlust/Heroism buff IDs for CD gating
 local BLOODLUST_IDS = { 2825, 32182 }
@@ -515,11 +514,9 @@ rotation_registry:register_middleware({
             kick_allowed = Unit(TARGET_UNIT):CanInterrupt(true, nil, 15, 67)
         end
 
-        -- PvP: Check kick immunity before committing
-        if is_pvp_mode and notKickAble then
-            -- Target immune to kicks — skip to CC fallbacks below
-            kick_allowed = false
-        elseif kick_allowed then
+        -- PvP: Check kick immunity before committing.
+        -- When the target is immune to kicks in PvP, skip to the CC fallbacks below.
+        if kick_allowed and not (is_pvp_mode and notKickAble) then
             if notKickAble then return nil end
 
             -- PvP: Verify target isn't immune to physical interrupts

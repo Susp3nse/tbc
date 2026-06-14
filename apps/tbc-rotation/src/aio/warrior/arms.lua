@@ -29,7 +29,6 @@ local try_cast = NS.try_cast
 local named = NS.named
 local is_spell_available = NS.is_spell_available
 -- Note: is_stance_swap_safe accessed via NS at call time (middleware load order)
-local debug_print = NS.debug_print
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format

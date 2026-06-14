@@ -1,7 +1,7 @@
 -- Mage Class Module
 -- Defines all Mage spells, constants, helper functions, and registers Mage as a class
 
-local _G, setmetatable, pairs, ipairs, tostring, select, type = _G, setmetatable, pairs, ipairs, tostring, select, type
+local _G, setmetatable = _G, setmetatable
 local A = _G.Action
 
 if not A then return end
@@ -84,7 +84,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 -- CLASS-SPECIFIC FRAMEWORK REFERENCES
 -- ============================================================================
-local A = setmetatable(Action[A.PlayerClass], { __index = Action })
+A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
 
 local Player = NS.Player
