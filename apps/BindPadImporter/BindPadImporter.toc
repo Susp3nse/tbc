@@ -1,0 +1,11 @@
+## Interface: 11503, 11504
+## Title: BindPad Importer
+## Version: 1.0
+## Author: Suspense
+## Notes: Adapter/extension for BindPad. Imports macros and keybinds from a Lua or JSON object.
+## Dependencies: BindPad
+## SavedVariables: BindPadImporterDB
+
+Json.lua
+Macros.lua
+BindPadImporter.lua

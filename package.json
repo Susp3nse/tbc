@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build:rotation": "corepack pnpm --filter @flux/tbc-rotation build",
+    "build:rotation:sync": "corepack pnpm --filter @flux/tbc-rotation watch:log",
     "build:website": "corepack pnpm --filter @flux/website build",
     "build:bot": "corepack pnpm --filter @flux/bot build",
     "release": "tsx tooling/release.ts",
