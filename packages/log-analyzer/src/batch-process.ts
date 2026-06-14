@@ -23,8 +23,6 @@ for (const fightID of fightIDs) {
     );
     console.log(`Cast summary:`, JSON.stringify(result.cast_summary, null, 2));
   } catch (err) {
-    console.error(
-      `Error on fight ${fightID}: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    console.error(`Error on fight ${fightID}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }

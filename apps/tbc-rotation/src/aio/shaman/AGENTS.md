@@ -6,11 +6,11 @@ Mana class with a totem system spanning all four elements. Registered as `Shaman
 
 ## Playstyles
 
-| Playstyle | When active | Core engine |
-|---|---|---|
-| `elemental` | settings.playstyle == "elemental" (default) | Lightning Bolt filler, Chain Lightning, shock weaving, Flame Shock DoT, Fire Elemental |
-| `enhancement` | settings.playstyle == "enhancement" | Stormstrike, shock, weapon-imbue twisting, Shamanistic Rage |
-| `restoration` | settings.playstyle == "restoration" | Chain Heal / Healing Wave / Lesser Healing Wave, Earth Shield, Mana Tide, Nature's Swiftness |
+| Playstyle     | When active                                 | Core engine                                                                                  |
+| ------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `elemental`   | settings.playstyle == "elemental" (default) | Lightning Bolt filler, Chain Lightning, shock weaving, Flame Shock DoT, Fire Elemental       |
+| `enhancement` | settings.playstyle == "enhancement"         | Stormstrike, shock, weapon-imbue twisting, Shamanistic Rage                                  |
+| `restoration` | settings.playstyle == "restoration"         | Chain Heal / Healing Wave / Lesser Healing Wave, Earth Shield, Mana Tide, Nature's Swiftness |
 
 ## Files
 
@@ -22,7 +22,7 @@ Mana class with a totem system spanning all four elements. Registered as `Shaman
 ## Key spell IDs / ranks
 
 Damage (base→max via `useMaxRank`): Lightning Bolt `403`→R12 `25449`, Chain Lightning `421`→`25442`, Earth Shock `25454` (R8, damage), Flame Shock `8050`→`25457`, Frost Shock `8056`→`25464`, Stormstrike `17364` (fixed).
-**`EarthShockR1` = `8042`** is a deliberate separate action — R1 Earth Shock is used *interrupt-only* to save mana (don't replace it with max-rank).
+**`EarthShockR1` = `8042`** is a deliberate separate action — R1 Earth Shock is used _interrupt-only_ to save mana (don't replace it with max-rank).
 Shields: Water Shield `24398`, Lightning Shield `324`, Earth Shield `974`. Heals: Healing Wave `331`, Lesser Healing Wave `8004`, Chain Heal `1064`.
 Totems (one per element slot): Searing/Magma/FireNova/TotemOfWrath/Flametongue/FireElemental (fire); StrengthOfEarth/Stoneskin/Tremor/Earthbind/EarthElemental (earth); ManaSpring/HealingStream/ManaTide (water); Windfury/GraceOfAir/WrathOfAir/Grounding/TranquilAir (air).
 CDs: Elemental Mastery `16166`, Nature's Swiftness `16188`, Shamanistic Rage `30823`, Bloodlust `2825`/Heroism `32182`. `SwingResync` `6603` is a dummy action used to re-sync the auto-attack swing timer.
@@ -35,7 +35,7 @@ CDs: Elemental Mastery `16166`, Nature's Swiftness `16188`, Shamanistic Rage `30
 
 **Totem management** is shared across specs via `TotemManagement` strategies plus middleware — totems are tracked per element slot with remaining-time, so the rotation only recasts when a slot is empty or expiring.
 
-Middleware (priority high→low): Interrupt (500, `FORM_RESHIFT` — TBC's *only* shaman interrupt, so it's top) → CurePoison (350) → CureDisease (340) → Healthstone/HealingPotion (RECOVERY_ITEMS 300/295) → ManaPotion (280) → DarkRune (275) → AutoTremor (260) → ShieldMaintain (250) → Purge (200) → WeaponImbues (`SELF_BUFF_OOC` 140).
+Middleware (priority high→low): Interrupt (500, `FORM_RESHIFT` — TBC's _only_ shaman interrupt, so it's top) → CurePoison (350) → CureDisease (340) → Healthstone/HealingPotion (RECOVERY_ITEMS 300/295) → ManaPotion (280) → DarkRune (275) → AutoTremor (260) → ShieldMaintain (250) → Purge (200) → WeaponImbues (`SELF_BUFF_OOC` 140).
 
 ## Class-specific context extensions
 

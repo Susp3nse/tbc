@@ -25,7 +25,7 @@ corepack pnpm --filter @flux/tbc-rotation watch:log    # watch, logs in .logs/
 then run the compiled `dist/build.js` / `dist/dev-watch.js`. `build.ts` is a thin wrapper: it
 builds a `BuildContext` via `createBuildContext({ projectRoot })` and dispatches to the package's
 `runCli`. The build/watch/sync **engine itself** lives in `packages/tmw-profile-builder/` — see
-that package's `AGENTS.md`. This app only owns the *config* (below) and the Lua source.
+that package's `AGENTS.md`. This app only owns the _config_ (below) and the Lua source.
 
 - `ROTATION_ROOT` env var overrides the project root. The discord-bot uses it to build in a temp
   workspace against a copied-out `dist/build.js` — this is why the rotation ships a compiled `dist`.
@@ -76,7 +76,7 @@ All modules share the `_G.FluxAIO` namespace (aliased `local NS = _G.FluxAIO`). 
   `rotation_registry:register_middleware()` with explicit `priority` (higher = first;
   `Constants.MIDDLEWARE.*`).
 - **Strategies** are playstyle-specific. Registered via `rotation_registry:register(playstyle,
-  strategies_array)`. Array order = priority (first = highest).
+strategies_array)`. Array order = priority (first = highest).
 
 Each entry is a table: `name`, `matches(context, state)`, `execute(icon, context, state) →
 result, log_msg`, plus optional `is_burst`, `is_defensive`, `setting_key` (auto-checked by
@@ -95,7 +95,7 @@ enemy_count), `context.settings` (cached from UI toggles), plus per-class fields
 **Force-bypass & burst context** — `/flux burst` and `/flux def` set force flags
 (`is_force_active`) that skip `matches()` + `check_prerequisites()` for tagged entries, but if a
 `spell` is set `IsReady()` is still checked (CD/range/stance respected). `should_auto_burst(context)`
-gates *automatic* burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_pull`,
+gates _automatic_ burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_pull`,
 `burst_on_execute`, `burst_in_combat`): `nil` = fire freely, `true` = met, `false` = configured but
 unmet (burst held).
 
@@ -104,14 +104,14 @@ unmet (burst held).
 
 ## Shared modules (`src/aio/*.lua`)
 
-| File | Owns |
-|------|------|
-| `common.lua` | Loads first; shared low-level helpers used before core. |
-| `core.lua` | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory. |
-| `ui.lua` | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store). |
-| `settings.lua` | Custom tabbed settings UI, movable toggle button, `/flux` slash commands. |
-| `dashboard.lua` | Data-driven combat overlay. |
-| `main.lua` | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass. |
+| File            | Owns                                                                                                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `common.lua`    | Loads first; shared low-level helpers used before core.                                                                             |
+| `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory. |
+| `ui.lua`        | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                             |
+| `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/flux` slash commands.                                                           |
+| `dashboard.lua` | Data-driven combat overlay.                                                                                                         |
+| `main.lua`      | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                               |
 
 ## Settings schema mechanics
 
@@ -135,14 +135,14 @@ Per-class `schema.lua` defines `_G.FluxAIO_SETTINGS_SCHEMA`. One schema drives *
 
 ## Slash commands (`/flux`)
 
-| Command | Behavior |
-|---------|----------|
-| `/flux` | Toggle settings UI |
-| `/flux burst` | Force offensive CDs for 3s (fires `is_burst` entries) |
-| `/flux def` | Force defensive CDs for 3s (fires `is_defensive` entries) |
-| `/flux gap` | Fire best gap closer (consumed on first success, uses `gap_handler`) |
-| `/flux status` | Toggle combat dashboard |
-| `/flux help` | Print command list |
+| Command        | Behavior                                                             |
+| -------------- | -------------------------------------------------------------------- |
+| `/flux`        | Toggle settings UI                                                   |
+| `/flux burst`  | Force offensive CDs for 3s (fires `is_burst` entries)                |
+| `/flux def`    | Force defensive CDs for 3s (fires `is_defensive` entries)            |
+| `/flux gap`    | Fire best gap closer (consumed on first success, uses `gap_handler`) |
+| `/flux status` | Toggle combat dashboard                                              |
+| `/flux help`   | Print command list                                                   |
 
 ## Debugging
 
@@ -150,6 +150,9 @@ Per-class `schema.lua` defines `_G.FluxAIO_SETTINGS_SCHEMA`. One schema drives *
   setting checkbox.
 - Combat dashboard (`/flux status`) — live priority/CDs/buffs overlay.
 - `src/sim/` — simulation harness that regression-checks rotation logic (`pnpm sim:hunter`, etc.).
+- `pnpm lint:lua` — static analysis of `src/aio` via `luacheck` (catches typo'd API names,
+  accidental globals, unused/shadowed locals before an in-game reload). Config + the WoW/Action
+  global allowlist live in `.luacheckrc`; needs the `luacheck` binary (`brew install luacheck`).
 
 ## Releases
 

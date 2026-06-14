@@ -6,11 +6,11 @@ Mana class that trades HP→mana (Life Tap) and depends on a pet. Registered as 
 
 ## Playstyles
 
-| Playstyle | When active | Core engine |
-|---|---|---|
-| `affliction` | settings.playstyle == "affliction" (default) | DoT stacking (Corruption, UA, Siphon Life, Immolate), Curse, Shadow Bolt filler |
-| `demonology` | settings.playstyle == "demonology" | Pet support (Felguard), Demonic Sacrifice, Soul Link, Shadow Bolt |
-| `destruction` | settings.playstyle == "destruction" | Immolate → Conflagrate, Incinerate/Shadow Bolt nuke, Shadowburn, Backlash procs |
+| Playstyle     | When active                                  | Core engine                                                                     |
+| ------------- | -------------------------------------------- | ------------------------------------------------------------------------------- |
+| `affliction`  | settings.playstyle == "affliction" (default) | DoT stacking (Corruption, UA, Siphon Life, Immolate), Curse, Shadow Bolt filler |
+| `demonology`  | settings.playstyle == "demonology"           | Pet support (Felguard), Demonic Sacrifice, Soul Link, Shadow Bolt               |
+| `destruction` | settings.playstyle == "destruction"          | Immolate → Conflagrate, Incinerate/Shadow Bolt nuke, Shadowburn, Backlash procs |
 
 ## Files
 

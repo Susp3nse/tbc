@@ -111,11 +111,19 @@ async function main() {
       const specName = typeof args.spec === 'string' ? args.spec : 'Feral';
 
       if (!reportCode || !Number.isInteger(fightId)) {
-        console.error('analyze requires --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]');
+        console.error(
+          'analyze requires --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]',
+        );
         process.exit(1);
       }
 
-      const report = await analyzeReportFight({ reportCode, fightId, playerName, className, specName });
+      const report = await analyzeReportFight({
+        reportCode,
+        fightId,
+        playerName,
+        className,
+        specName,
+      });
 
       const outputDir = path.resolve(process.cwd(), 'reports');
       await fs.mkdir(outputDir, { recursive: true });

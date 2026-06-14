@@ -33,16 +33,16 @@ omitted — the canonical values live in the app's config.
 
 ## Public API (`src/index.ts`)
 
-| Export | Role |
-|--------|------|
-| `createBuildContext` | Build the `BuildContext` from the app's config. |
-| `runCli` | The build/sync CLI dispatcher (`--sync`, `--all`). |
-| `DevWatcher` / `runDevWatch` | Watch `aioDir`, rebuild + sync on change. |
-| `ProfileBuilder` | Assembles modules into the TMW profile per `loadOrder` + conventions. |
-| `discoverClasses` / `discoverModules` / `getProfileName` | Auto-discover class folders + module files. |
-| `getAIODir` / `getSavedVariablesPaths` / `readLocalConfig` | Read the gitignored local sync config. |
-| `timestamp` / `writeWithRetry` | IO helpers. |
-| types | `BuildContext`, `BuildConventions`, `BuilderPaths`, `BuildMetadata`, `LocalConfig`, `ModuleSlot`, `RotationModule`, `SavedVariablesTarget`, `WatchOptions`, etc. |
+| Export                                                     | Role                                                                                                                                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createBuildContext`                                       | Build the `BuildContext` from the app's config.                                                                                                                  |
+| `runCli`                                                   | The build/sync CLI dispatcher (`--sync`, `--all`).                                                                                                               |
+| `DevWatcher` / `runDevWatch`                               | Watch `aioDir`, rebuild + sync on change.                                                                                                                        |
+| `ProfileBuilder`                                           | Assembles modules into the TMW profile per `loadOrder` + conventions.                                                                                            |
+| `discoverClasses` / `discoverModules` / `getProfileName`   | Auto-discover class folders + module files.                                                                                                                      |
+| `getAIODir` / `getSavedVariablesPaths` / `readLocalConfig` | Read the gitignored local sync config.                                                                                                                           |
+| `timestamp` / `writeWithRetry`                             | IO helpers.                                                                                                                                                      |
+| types                                                      | `BuildContext`, `BuildConventions`, `BuilderPaths`, `BuildMetadata`, `LocalConfig`, `ModuleSlot`, `RotationModule`, `SavedVariablesTarget`, `WatchOptions`, etc. |
 
 ## Internals
 

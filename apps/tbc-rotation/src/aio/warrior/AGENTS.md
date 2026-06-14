@@ -6,12 +6,12 @@ Rage class with **three stances** that gate most abilities. Registered as `Warri
 
 ## Playstyles
 
-| Playstyle | When active | Preferred stance | Core engine |
-|---|---|---|---|
-| `arms` | settings.playstyle == "arms" | Berserker (3) | 2H Mortal Strike, Slam (sim's #1 filler), Rend, Overpower, Execute |
-| `fury` | settings.playstyle == "fury" (default) | Berserker (3) | DW Bloodthirst, Whirlwind, Rampage, Execute, Heroic Strike dump |
-| `kebab` | settings.playstyle == "kebab" | Berserker (3) | **Dual-wield Arms** hybrid — MS + WW, OP on procs. Addon-original spec (not in research doc) |
-| `protection` | settings.playstyle == "protection" | Defensive (2) | Shield Slam / Revenge, Devastate, Sunder, threat + mitigation toolkit |
+| Playstyle    | When active                            | Preferred stance | Core engine                                                                                  |
+| ------------ | -------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `arms`       | settings.playstyle == "arms"           | Berserker (3)    | 2H Mortal Strike, Slam (sim's #1 filler), Rend, Overpower, Execute                           |
+| `fury`       | settings.playstyle == "fury" (default) | Berserker (3)    | DW Bloodthirst, Whirlwind, Rampage, Execute, Heroic Strike dump                              |
+| `kebab`      | settings.playstyle == "kebab"          | Berserker (3)    | **Dual-wield Arms** hybrid — MS + WW, OP on procs. Addon-original spec (not in research doc) |
+| `protection` | settings.playstyle == "protection"     | Defensive (2)    | Shield Slam / Revenge, Devastate, Sunder, threat + mitigation toolkit                        |
 
 `Constants.PREFERRED_STANCE` maps each spec → stance ID; the stance-correction middleware shifts you there.
 

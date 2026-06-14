@@ -6,11 +6,11 @@ Energy + combo-point class. Registered as `Rogue` (`version = "v1.7.0"`). No idl
 
 ## Playstyles
 
-| Playstyle | When active | Core engine |
-|---|---|---|
-| `combat` | settings.playstyle == "combat" (default) | Sinister Strike builder, SnD/Rupture/Eviscerate finishers, Blade Flurry + Adrenaline Rush |
-| `assassination` | settings.playstyle == "assassination" | Mutilate builder (dagger MH+OH), Envenom/Rupture finishers, Cold Blood |
-| `subtlety` | settings.playstyle == "subtlety" | Hemorrhage builder, Shadowstep/Preparation utility, opener support |
+| Playstyle       | When active                              | Core engine                                                                               |
+| --------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `combat`        | settings.playstyle == "combat" (default) | Sinister Strike builder, SnD/Rupture/Eviscerate finishers, Blade Flurry + Adrenaline Rush |
+| `assassination` | settings.playstyle == "assassination"    | Mutilate builder (dagger MH+OH), Envenom/Rupture finishers, Cold Blood                    |
+| `subtlety`      | settings.playstyle == "subtlety"         | Hemorrhage builder, Shadowstep/Preparation utility, opener support                        |
 
 Selection is a pure settings lookup — there is no auto-detect by stance/stealth.
 
@@ -50,7 +50,7 @@ Middleware (runs before strategies, priority high→low): EmergencyVanish (500) 
 
 ## Gotchas
 
-- **Positional & weapon requirements aren't enforced by the rotation** — Backstab/Ambush/Garrote need *behind* (`is_behind`), and Mutilate/Backstab/Ambush need a dagger. The opener strategies gate Garrote/Ambush on `context.is_behind`, but builders rely on `IsReady` + the player's spec being correct.
+- **Positional & weapon requirements aren't enforced by the rotation** — Backstab/Ambush/Garrote need _behind_ (`is_behind`), and Mutilate/Backstab/Ambush need a dagger. The opener strategies gate Garrote/Ambush on `context.is_behind`, but builders rely on `IsReady` + the player's spec being correct.
 - **`useMaxRank` everywhere** — never hardcode a rank ID in new code; pass the base ID and let the framework resolve.
 - Per-frame state tables are **pre-allocated at module load** (`combat_state` etc.) and mutated in place — do not create `{}` inside `matches`/`execute` (secure-combat constraint).
 - Settings are runtime-mutable: always read via `context.settings.<key>`, never capture at load.

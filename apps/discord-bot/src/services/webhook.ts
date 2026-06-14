@@ -45,8 +45,7 @@ export function startWebhookServer(client) {
       return;
     }
 
-    const expected =
-      'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+    const expected = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
 
     if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
       console.warn('Webhook signature verification failed');
