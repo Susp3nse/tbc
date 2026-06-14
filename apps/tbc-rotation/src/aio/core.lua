@@ -547,13 +547,13 @@ local debug_log_lines = {}
 local MAX_LOG_LINES = 500
 
 local DBG_THEME = {
-   bg          = { 0.067, 0.067, 0.078, 0.75 },    -- #111114
-   bg_widget   = { 0.118, 0.118, 0.141, 1 },       -- #1e1e24
-   bg_hover    = { 0.133, 0.133, 0.157, 1 },       -- #222228
-   border      = { 0.173, 0.173, 0.204, 1 },       -- #2c2c34
-   accent      = { 0.424, 0.388, 1.0, 1 },         -- #6c63ff
-   text        = { 0.863, 0.863, 0.894, 1 },       -- #dcdce4
-   text_dim    = { 0.580, 0.580, 0.659, 1 },       -- #9494a8
+   bg          = { 0.094, 0.082, 0.063, 0.75 },    -- #18140f
+   bg_widget   = { 0.118, 0.102, 0.078, 1 },       -- #1e1a14
+   bg_hover    = { 0.149, 0.125, 0.102, 1 },       -- #26201a
+   border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
+   accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
+   text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
+   text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
 }
 local DBG_BACKDROP = {
    bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -876,6 +876,15 @@ SlashCmdList["MENAGERIELOG"] = function()
       DebugLogFrame:Show()
    end
 end
+
+-- Wall-clock timestamp for the debug log. GetTime() (system uptime) is perfect for
+-- deltas/throttling but reads like "18130.6s" -- useless as a clock. Show local time
+-- of day, with tenths (from GetTime's fractional part) so sub-second cast ordering
+-- is still visible.
+local function debug_timestamp()
+   return date("%H:%M:%S") .. format(".%d", floor((GetTime() * 10) % 10))
+end
+NS.debug_timestamp = debug_timestamp
 
 local debug_print_cache = {}
 local debug_string_args = {}

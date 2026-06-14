@@ -136,12 +136,12 @@ end)
 -- THEME
 -- ============================================================================
 local THEME = {
-    bg          = { 0.031, 0.031, 0.039, 1 },
-    bg_light    = { 0.047, 0.047, 0.059, 0.7 },
-    border      = { 0.118, 0.118, 0.149, 1 },
-    accent      = { 0.424, 0.388, 1.0, 1 },
-    text        = { 0.863, 0.863, 0.894, 1 },
-    text_dim    = { 0.580, 0.580, 0.659, 1 },
+    bg          = { 0.086, 0.075, 0.059, 1 },       -- #16130f
+    bg_light    = { 0.118, 0.102, 0.078, 0.7 },     -- #1e1a14
+    border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
+    accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
+    text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
+    text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
     buff_active = { 0.85, 0.70, 0.20, 1 },    -- gold border for active buffs
     threat_green  = { 0.20, 0.90, 0.20 },
     threat_orange = { 1.00, 0.67, 0.20 },
@@ -748,7 +748,7 @@ local function update_dashboard()
 
     -- Header: class name + playstyle in one line
     -- Fall back to last valid playstyle when current returns nil (e.g. Druid flight form)
-    local class_hex = CLASS_HEX[cc.name] or "6c63ff"
+    local class_hex = CLASS_HEX[cc.name] or "e08a3c"
     local active_ps = cc.get_active_playstyle and cc.get_active_playstyle(dash_context)
     if active_ps then
         last_valid_ps = active_ps
@@ -756,7 +756,7 @@ local function update_dashboard()
         active_ps = last_valid_ps or cc.idle_playstyle_name or "?"
     end
     local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
-    ui.header_text:SetText(format("|cff%s%s|r |cff9494a8\194\183|r |cff6c63ff%s|r", class_hex, cc.name or "Unknown", ps_display))
+    ui.header_text:SetText(format("|cff%s%s|r |cffb3a587\194\183|r |cffe08a3c%s|r", class_hex, cc.name or "Unknown", ps_display))
     if ui.version_text then
         local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc.version or "")
         ui.version_text:SetText(class_version)
@@ -1001,9 +1001,9 @@ local function update_dashboard()
 
     -- Current Priority (inline)
     local la = last_action
-    local accent_hex = "6c63ff"
+    local accent_hex = "e08a3c"
     if la and la.name then
-        local target_text = la.target and format(" |cff9494a8[%s]|r", la.target) or ""
+        local target_text = la.target and format(" |cffb3a587[%s]|r", la.target) or ""
         ui.priority_text:SetText(format("|cff%sPriority|r  > %s%s", accent_hex, la.name, target_text))
     else
         ui.priority_text:SetText(format("|cff%sPriority|r  |cff444444Idle|r", accent_hex))
@@ -1233,7 +1233,7 @@ local function update_dashboard()
             end
         end
         local text = format("|cff%sTarget|r  |cffcccccc%s|r", accent_hex, tname)
-        text = text .. "\n|cff9494a8" .. (stats ~= "" and stats or " ") .. "|r"
+        text = text .. "\n|cffb3a587" .. (stats ~= "" and stats or " ") .. "|r"
         ui.target_info_fs:SetText(text)
     else
         ui.target_info_fs:SetText(format("|cff%sTarget|r  |cff444444N/A|r\n ", accent_hex))
@@ -1346,7 +1346,7 @@ local function update_dashboard()
         if cl and cl[i] then
             local clabel, cvalue = cl[i](dash_context)
             if clabel then
-                line:SetText(format("|cff9494a8%s:|r %s", clabel, tostring(cvalue or "")))
+                line:SetText(format("|cffb3a587%s:|r %s", clabel, tostring(cvalue or "")))
                 line:ClearAllPoints()
                 line:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y - num_custom * 14)
                 line:Show()

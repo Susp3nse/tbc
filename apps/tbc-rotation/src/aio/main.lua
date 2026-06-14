@@ -374,6 +374,6 @@ for ps, strats in pairs(rotation_registry.strategy_maps) do
 end
 local mw_count = rotation_registry.middleware and #rotation_registry.middleware or 0
 
-print(format("|cff6c63ff[Menagerie]|r %s loaded! %s | Build: %s", class_label, class_version, build_number))
+print(format("|cffe08a3c[Menagerie]|r %s loaded! %s | Build: %s", class_label, class_version, build_number))
 print(format("|cFF00FF00[Menagerie]|r Strategies: %s", table.concat(strategy_summary, ", ")))
 print(format("|cFF00FF00[Menagerie]|r Middleware: %d handlers registered", mw_count))

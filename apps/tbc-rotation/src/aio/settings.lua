@@ -31,25 +31,25 @@ local cc = rotation_registry and rotation_registry.class_config
 -- Derive display name from class config
 local class_name = cc and cc.name or "Unknown"
 local CLASS_TITLE_COLORS = { Druid = "ff7d0a", Hunter = "abd473", Mage = "69ccf0", Paladin = "f58cba", Priest = "ffffff", Rogue = "fff569", Shaman = "0070dd", Warlock = "9482c9", Warrior = "c79c6e" }
-local class_hex = CLASS_TITLE_COLORS[class_name] or "6c63ff"
-local addon_title_colored = format("|cff%s%s|r |cff6c63ffAIO|r", class_hex, class_name)
+local class_hex = CLASS_TITLE_COLORS[class_name] or "e08a3c"
+local addon_title_colored = format("|cff%s%s|r |cffe08a3cAIO|r", class_hex, class_name)
 local version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "v1.0.0")
 
 -- ============================================================================
 -- THEME
 -- ============================================================================
 local THEME = {
-    bg          = { 0.031, 0.031, 0.039, 0.97 },   -- #08080a
-    bg_light    = { 0.047, 0.047, 0.059, 1 },       -- #0c0c0f
-    bg_widget   = { 0.059, 0.059, 0.075, 1 },       -- #0f0f13
-    bg_hover    = { 0.075, 0.075, 0.086, 1 },       -- #131316
-    border      = { 0.118, 0.118, 0.149, 1 },       -- #1e1e26
-    accent      = { 0.424, 0.388, 1.0, 1 },         -- #6c63ff
-    accent_dim  = { 0.255, 0.233, 0.6, 1 },         -- #413b99 (dimmed accent)
-    accent_bg   = { 0.078, 0.074, 0.154, 1 },       -- accent @ 12% over bg
-    text        = { 0.863, 0.863, 0.894, 1 },       -- #dcdce4
-    text_dim    = { 0.580, 0.580, 0.659, 1 },       -- #9494a8
-    text_header = { 0.863, 0.863, 0.894, 1 },       -- #dcdce4 (primary text)
+    bg          = { 0.086, 0.075, 0.059, 0.97 },   -- #16130f
+    bg_light    = { 0.110, 0.094, 0.071, 1 },       -- #1c1812
+    bg_widget   = { 0.118, 0.102, 0.078, 1 },       -- #1e1a14
+    bg_hover    = { 0.149, 0.125, 0.102, 1 },       -- #26201a
+    border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
+    accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
+    accent_dim  = { 0.773, 0.447, 0.165, 1 },       -- #c5722a (dimmed accent)
+    accent_bg   = { 0.141, 0.102, 0.063, 1 },       -- #241a10 (accent bg tint)
+    text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
+    text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
+    text_header = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2 (primary text)
 
     frame_w     = 650,
     frame_h     = 520,
@@ -636,7 +636,7 @@ local function create_main_frame()
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
     f:SetFrameStrata("HIGH")
 
-    -- Title icon (favicon-style "F")
+    -- Title icon (favicon-style "M")
     local title_icon = CreateFrame("Frame", nil, f, "BackdropTemplate")
     title_icon:SetSize(20, 20)
     title_icon:SetPoint("TOPLEFT", THEME.pad, -8)
@@ -647,7 +647,7 @@ local function create_main_frame()
     local title_icon_txt = title_icon:CreateFontString(nil, "OVERLAY")
     title_icon_txt:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
     title_icon_txt:SetPoint("CENTER", 1, 0)
-    title_icon_txt:SetText("F")
+    title_icon_txt:SetText("M")
     title_icon_txt:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
 
     -- Title
@@ -784,7 +784,7 @@ local function create_settings_button()
     local txt = btn:CreateFontString(nil, "ARTWORK")
     txt:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
     txt:SetPoint("CENTER", 0, 0)
-    txt:SetText("F")
+    txt:SetText("M")
     txt:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
 
     -- Movable + draggable
