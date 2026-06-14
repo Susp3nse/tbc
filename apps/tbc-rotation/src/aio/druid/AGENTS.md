@@ -16,7 +16,7 @@ Moonkin (5) and Tree (5) collide on stance index, so detection uses `IsSpellKnow
 
 ## Files
 
-- `class.lua` — all spell/item Actions, `Constants`, `register_class`, playstyle detection, `extend_context`, dashboard config, Faerie Fire immunity CLEU tracker, Nordrassil 4pT5 set detection, healing rank tables, gap handler (Feral Charge → Dash).
+- `class.lua` — all spell/item Actions, `Constants`, `register_class`, playstyle detection, `extend_context`, dashboard config, Faerie Fire immunity query (via the shared learned-immunity tracker in `core.lua`), Nordrassil 4pT5 set detection, healing rank tables, gap handler (Feral Charge → Dash).
 - `middleware.lua` — `FormReshift`, `RecoveryItems`, `ManaRecovery`, `Barkskin` (cross-form, run before strategies).
 - `healing.lua` — shared Druid healing helpers (rank selection) used by resto + self-heal strategies.
 - `cat.lua` — 20 Cat strategies + energy-tick tracker.
@@ -55,7 +55,7 @@ Strategy order is array position (first = highest priority). The priority commen
 ## Gotchas
 
 - **Stance disambiguation:** Moonkin and Tree both report stance 5 — never branch on stance index alone for those two; use `IsSpellKnown`.
-- **Faerie Fire immunity:** a CLEU frame watches `SPELL_MISSED ... IMMUNE` for FF spell IDs and caches immune target GUIDs for 300s, so the rotation stops re-casting FF into an immune mob.
+- **Faerie Fire immunity:** FF immunity is spell-specific (an armor-debuff immunity), so it's tracked by spellID via the shared learned-immunity tracker in `core.lua` — `is_spell_immune(TARGET_UNIT, FAERIE_FIRE_SPELL_IDS)`. The CLEU learning/recording lives in `core.lua` (keyed by npcID, TTL = `immune_learn_ttl_min` setting); the druid only queries it. Don't re-add a per-class GUID tracker here.
 - **Form-aware consumables:** items used in Cat/Bear must be wrapped in shift macros (`HealthstoneMasterCat`, `...Bear`, sapper-shift sequences) — you can't `/use` a potion mid-form without shifting.
 - **Powershift energy math** lives in `Constants.POWERSHIFT` (Furor 40, Wolfshead +20); secure-combat rules mean these thresholds are pre-allocated constants, not inline tables.
 - `dashboard.secondary_resource` is per-playstyle (Cat=energy, Bear=rage); combo points show only for Cat.

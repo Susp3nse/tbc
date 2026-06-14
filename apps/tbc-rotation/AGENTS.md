@@ -107,11 +107,32 @@ unmet (burst held).
 | File            | Owns                                                                                                                                |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `common.lua`    | Loads first; shared low-level helpers used before core.                                                                             |
-| `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory. |
+| `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
 | `ui.lua`        | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                             |
 | `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/flux` slash commands.                                                           |
 | `dashboard.lua` | Data-driven combat overlay.                                                                                                         |
 | `main.lua`      | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                               |
+
+### Immunity model (two layers — don't build per-school tables)
+
+Immunity is handled in two complementary layers; reach for the right one and **do not** start
+maintaining `FIRE_IMMUNE`/`FROST_IMMUNE`/… npcID lists per school — the learned tracker exists
+precisely so that's unnecessary.
+
+1. **Aura-based (predictive).** Transient immunity from a *buff/debuff* — Divine Shield, Ice Block,
+   Banish, boss damage-immunity phases. Use `NS.has_phys_immunity` / `has_magic_immunity` /
+   `has_total_immunity` / … (core.lua, backed by the `IMMUNITY_*` spell-ID tables), or the Action
+   framework's own `spell:AbsentImun(unit, category)` + `Action.GetAuraList("TotalImun"/"CCTotalImun")`.
+   These overlap — both watch auras. The framework has **no** PvE creature/school immunity data.
+2. **Learned (reactive).** Intrinsic per-creature spell immunity the game only reveals on cast.
+   `NS.is_spell_immune(unit, spellID_or_array)` queries it; a single CLEU frame records the player's
+   `SPELL_MISSED … IMMUNE` events, **keyed by npcID (creature template, not GUID) and spellID (not
+   school)** so one lesson covers the whole pack and every future spawn. Recording is **target-only**
+   and skips transient (aura) immunity. Lifetime = the `immune_learn_ttl_min` setting (per class
+   General tab). This is the general, self-maintaining net for fire/frost/debuff/etc. immunity.
+   - **Seed exception:** `NS.ARCANE_IMMUNE` (npcID → true) pre-covers the handful of genuine
+     *Arcane-school*-immune mobs (Curator et al.) so they cost zero wasted GCDs from the first cast.
+     It's frozen TBC content, not a pattern to replicate for other schools.
 
 ## Settings schema mechanics
 

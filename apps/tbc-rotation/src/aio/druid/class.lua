@@ -236,48 +236,21 @@ local get_spell_mana_cost = NS.get_spell_mana_cost
 local try_cast = NS.try_cast
 local try_cast_fmt = NS.try_cast_fmt
 local is_spell_known = NS.is_spell_known
-local PLAYER_UNIT = NS.PLAYER_UNIT
 local TARGET_UNIT = NS.TARGET_UNIT
+local is_spell_immune = NS.is_spell_immune
 
 -- ============================================================================
--- FAERIE FIRE IMMUNITY TRACKING
+-- FAERIE FIRE IMMUNITY (via the shared learned-immunity tracker in core.lua)
 -- ============================================================================
-local FAERIE_FIRE_IMMUNE_TTL = 300
-local faerie_fire_immune_targets = {}
+-- Faerie Fire's immunity is spell-specific (an armor-debuff immunity), not a
+-- school immunity, so we track it by spellID -- otherwise FF resists would also
+-- mute Moonfire/Starfire (both also Arcane). core.lua's CLEU frame does the
+-- learning (IMMUNE misses, keyed by npcID); we just pass the FF cast ranks to
+-- query against the current target. Array of ranks: feral first, then balance.
 local FAERIE_FIRE_SPELL_IDS = {
-   [16857] = true, [17390] = true, [17391] = true, [17392] = true, [27011] = true,
-   [770] = true, [778] = true, [9749] = true, [9907] = true, [26993] = true,
+   16857, 17390, 17391, 17392, 27011, -- Faerie Fire (Feral)
+   770, 778, 9749, 9907, 26993,       -- Faerie Fire (caster/balance)
 }
-
-local function mark_faerie_fire_immune(target_guid)
-   if target_guid then
-      faerie_fire_immune_targets[target_guid] = GetTime() + FAERIE_FIRE_IMMUNE_TTL
-   end
-end
-
-local function is_faerie_fire_immune(unit)
-   local target_guid = _G.UnitGUID(unit or TARGET_UNIT)
-   if not target_guid then return false end
-   local expires = faerie_fire_immune_targets[target_guid]
-   if not expires then return false end
-   if GetTime() >= expires then
-      faerie_fire_immune_targets[target_guid] = nil
-      return false
-   end
-   return true
-end
-
-local player_guid = _G.UnitGUID(PLAYER_UNIT)
-local faerie_fire_cleu_frame = _G.CreateFrame("Frame")
-faerie_fire_cleu_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-faerie_fire_cleu_frame:SetScript("OnEvent", function()
-   local _, event, _, srcGUID, _, _, _, destGUID, _, _, _, spellID, _, _, missType = _G.CombatLogGetCurrentEventInfo()
-   player_guid = player_guid or _G.UnitGUID(PLAYER_UNIT)
-   if event ~= "SPELL_MISSED" or srcGUID ~= player_guid or missType ~= "IMMUNE" then return end
-   if FAERIE_FIRE_SPELL_IDS[spellID] then
-      mark_faerie_fire_immune(destGUID)
-   end
-end)
 
 -- ============================================================================
 -- GAME CONSTANTS
@@ -625,7 +598,7 @@ local function create_faerie_fire_strategy(refresh_window, spell_override, only_
       matches = function(context)
          if context.target_magic_immune then return false end
          if context.target_spell_reflect then return false end
-         if is_faerie_fire_immune(TARGET_UNIT) then return false end
+         if is_spell_immune(TARGET_UNIT, FAERIE_FIRE_SPELL_IDS) then return false end
          -- Dropdown: "all", "elites", "bosses", "off" (backward compat: true → all)
          local ff_mode = context.settings.maintain_faerie_fire
          if ff_mode == "off" or ff_mode == false or ff_mode == nil then return false end

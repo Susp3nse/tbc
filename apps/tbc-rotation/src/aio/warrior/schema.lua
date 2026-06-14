@@ -33,6 +33,21 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 		name = "General",
 		sections = {
 			{
+				header = "Immunity Learning",
+				settings = {
+					{
+						type = "slider",
+						key = "immune_learn_ttl_min",
+						default = 5,
+						min = 1,
+						max = 60,
+						label = "Learned Immunity Memory (min)",
+						tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.",
+						format = "%d min",
+					},
+				},
+			},
+			{
 				header = "Spec Selection",
 				settings = {
 					{

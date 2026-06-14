@@ -318,6 +318,89 @@ local function update_setting(key, value, changed_list, debug_mode)
 end
 
 -- ============================================================================
+-- LEARNED SPELL IMMUNITY (observed from the combat log)
+-- ----------------------------------------------------------------------------
+-- The aura checks above and the ARCANE_IMMUNE seed tables below are PREDICTIVE:
+-- they catch immunity we can see or already know. This layer is REACTIVE: when
+-- the game reports OUR OWN "SPELL_MISSED ... IMMUNE", we cache it so the rotation
+-- stops re-casting a spell a creature has already proven immune to.
+--   * Keyed by npcID (creature template), NOT GUID -- so the whole pack and every
+--     future spawn of that creature share one lesson (no relearning per mob), and
+--     memory stays tiny (creature-types, not spawns).
+--   * Keyed by spellID, NOT school -- Faerie Fire immunity (an armor-debuff
+--     immunity that happens to be Arcane) must never mute Moonfire/Starfire.
+-- Lifetime is the "immune_learn_ttl_min" setting (minutes); entries lazily expire.
+-- ============================================================================
+local DEFAULT_IMMUNE_TTL_MIN = 5
+local learned_immune = {} -- [npcID] = { [spellID] = expiry }
+
+local function npc_id_from_guid(guid)
+   -- Field 6 of a "Creature-…"/"Vehicle-…" GUID is the npcID. Player GUIDs have no
+   -- 6th field, so this returns nil for them -- PvP immunity stays aura-only.
+   if not guid then return nil end
+   return tonumber((select(6, _G.strsplit("-", guid))))
+end
+
+local function mark_spell_immune(npc_id, spell_id)
+   if not npc_id or not spell_id then return end
+   local ttl_min = cached_settings.immune_learn_ttl_min or DEFAULT_IMMUNE_TTL_MIN
+   local bucket = learned_immune[npc_id]
+   if not bucket then
+      bucket = {}
+      learned_immune[npc_id] = bucket
+   end
+   bucket[spell_id] = GetTime() + ttl_min * 60
+end
+
+-- spell_ids: a single spellID, or an array of ranks (returns true if ANY is immune).
+local function is_spell_immune(unit, spell_ids)
+   local npc_id = npc_id_from_guid(_G.UnitGUID(unit or TARGET_UNIT))
+   if not npc_id then return false end
+   local bucket = learned_immune[npc_id]
+   if not bucket then return false end
+   local now = GetTime()
+   if type(spell_ids) == "table" then
+      for i = 1, #spell_ids do
+         local id = spell_ids[i]
+         local expiry = bucket[id]
+         if expiry then
+            if now < expiry then return true end
+            bucket[id] = nil -- lazy prune
+         end
+      end
+      return false
+   end
+   local expiry = bucket[spell_ids]
+   if not expiry then return false end
+   if now >= expiry then
+      bucket[spell_ids] = nil -- lazy prune
+      return false
+   end
+   return true
+end
+
+NS.mark_spell_immune = mark_spell_immune
+NS.is_spell_immune = is_spell_immune
+
+local immune_learn_frame = _G.CreateFrame("Frame")
+immune_learn_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+immune_learn_frame:SetScript("OnEvent", function()
+   local _, event, _, srcGUID, _, _, _, destGUID, _, _, _, spellID, _, _, missType = _G.CombatLogGetCurrentEventInfo()
+   if event ~= "SPELL_MISSED" or missType ~= "IMMUNE" then return end
+   if srcGUID ~= _G.UnitGUID(PLAYER_UNIT) then return end
+   -- Only learn about the unit we are actually TARGETING. An AoE that clips an
+   -- immune off-target mob reports THAT mob's GUID (not the target's), but we have
+   -- no unit token to tell its intrinsic immunity from a transient aura, so we skip
+   -- it. Single-target spells -- the ones worth not re-casting -- always land on
+   -- the target, so nothing of value is lost and the aura guard below always runs.
+   if destGUID ~= _G.UnitGUID(TARGET_UNIT) then return end
+   -- Don't learn TRANSIENT immunity (Banish, Ice Block, Divine Shield, boss
+   -- damage-immunity phases) as if it were intrinsic -- that is the aura layer's job.
+   if has_total_immunity(TARGET_UNIT) then return end
+   mark_spell_immune(npc_id_from_guid(destGUID), spellID)
+end)
+
+-- ============================================================================
 -- SPELL VALIDATION SYSTEM
 -- ============================================================================
 local unavailable_spells = {}

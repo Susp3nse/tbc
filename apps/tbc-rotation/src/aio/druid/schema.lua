@@ -26,6 +26,10 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
+        { header = "Immunity Learning", settings = {
+            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
+              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
+        }},
         { header = "Shared Combat", settings = {
             { type = "checkbox", key = "mouseover", default = false, label = "Use @mouseover", tooltip = "Use mouseover targeting.", hidden = true },
             { type = "checkbox", key = "use_target_focus_behind", default = false, label = "Target Focus Behind Check", tooltip = "Treat 'behind' as 'target isn't targeting me' instead of geometric position. Bypasses the positional debounce." },
