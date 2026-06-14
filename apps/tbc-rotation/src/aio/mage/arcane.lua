@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local ttd_too_short = NS.ttd_too_short
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
@@ -101,8 +102,7 @@ local Arcane_IcyVeins = {
 
     matches = function(context, state)
         if not state.is_burning then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -123,8 +123,7 @@ local Arcane_ColdSnap = {
         if not state.is_burning then return false end
         -- Don't waste Cold Snap while Icy Veins is still active
         if context.icy_veins_active then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         local iv_cd = A.IcyVeins:GetCooldown() or 0
         if iv_cd < 20 then return false end
         return true
@@ -146,8 +145,7 @@ local Arcane_ArcanePower = {
 
     matches = function(context, state)
         if not state.is_burning then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -167,8 +165,7 @@ local Arcane_PresenceOfMind = {
 
     matches = function(context, state)
         if not state.is_burning then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -186,8 +183,7 @@ local Arcane_Racial = {
 
     matches = function(context, state)
         if not state.is_burning then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         if A.Berserking:IsReady(PLAYER_UNIT) then return true end
         if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
         return false

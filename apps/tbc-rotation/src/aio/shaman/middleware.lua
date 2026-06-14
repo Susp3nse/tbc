@@ -18,7 +18,6 @@ A = NS.A
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local Priority = NS.Priority
-local DetermineUsableObject = A.DetermineUsableObject
 local MultiUnits = A.MultiUnits
 local CONST = A.Const
 local GetTime = _G.GetTime
@@ -250,112 +249,34 @@ rotation_registry:register_middleware({
     end,
 })
 
--- ============================================================================
--- HEALTHSTONE (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Shaman_Healthstone",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS,  -- 300
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        local threshold = context.settings.healthstone_hp or 0
-        if threshold <= 0 then return false end
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local HealthStoneObject = DetermineUsableObject(PLAYER_UNIT, true, nil, true, nil,
-            A.HealthstoneMaster, A.HealthstoneMajor)
-        if HealthStoneObject then
-            return HealthStoneObject:Show(icon), format("[MW] Healthstone - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- HEALING POTION (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Shaman_HealingPotion",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS - 5,  -- 295
-
-    matches = function(context)
-        if not context.settings.use_healing_potion then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.healing_potion_hp or 25
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.SuperHealingPotion:IsExists() and A.SuperHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.SuperHealingPotion:Show(icon), format("[MW] Super Healing Potion - HP: %.0f%%", context.hp)
-        end
-        if A.MajorHealingPotion:IsExists() and A.MajorHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.MajorHealingPotion:Show(icon), format("[MW] Major Healing Potion - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- MANA POTION (Mana recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Shaman_ManaPotion",
-    priority = Priority.MIDDLEWARE.MANA_RECOVERY,  -- 280
-
-    matches = function(context)
-        if not context.settings.use_mana_potion then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.mana_potion_pct or 50
-        if context.mana_pct > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.SuperManaPotion:IsExists() and A.SuperManaPotion:IsReady(PLAYER_UNIT) then
-            return A.SuperManaPotion:Show(icon), format("[MW] Super Mana Potion - Mana: %.0f%%", context.mana_pct)
-        end
-        if A.MajorManaPotion:IsExists() and A.MajorManaPotion:IsReady(PLAYER_UNIT) then
-            return A.MajorManaPotion:Show(icon), format("[MW] Major Mana Potion - Mana: %.0f%%", context.mana_pct)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- DARK/DEMONIC RUNE (Mana recovery — separate CD from potion)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Shaman_DarkRune",
-    priority = Priority.MIDDLEWARE.MANA_RECOVERY - 5,  -- 275
-
-    matches = function(context)
-        if not context.settings.use_dark_rune then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.dark_rune_pct or 50
-        if context.mana_pct > threshold then return false end
-        local min_hp = context.settings.dark_rune_min_hp or 50
-        if context.hp < min_hp then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.DarkRune:IsExists() and A.DarkRune:IsReady(PLAYER_UNIT) then
-            return A.DarkRune:Show(icon), format("[MW] Dark Rune - Mana: %.0f%%", context.mana_pct)
-        end
-        if A.DemonicRune:IsExists() and A.DemonicRune:IsReady(PLAYER_UNIT) then
-            return A.DemonicRune:Show(icon), format("[MW] Demonic Rune - Mana: %.0f%%", context.mana_pct)
-        end
-        return nil
-    end,
+NS.register_recovery_middleware({
+    prefix = "Shaman",
+    healthstone = {
+        name = "Shaman_Healthstone",
+        priority = Priority.MIDDLEWARE.RECOVERY_ITEMS,
+        hp_default = 35,
+        actions = { A.HealthstoneMaster, A.HealthstoneMajor },
+    },
+    healing_potion = {
+        name = "Shaman_HealingPotion",
+        priority = Priority.MIDDLEWARE.RECOVERY_ITEMS - 5,
+        hp_default = 25,
+        actions = { A.SuperHealingPotion, A.MajorHealingPotion },
+    },
+    mana = {
+        potion = {
+            name = "Shaman_ManaPotion",
+            priority = Priority.MIDDLEWARE.MANA_RECOVERY,
+            pct_default = 50,
+            actions = { A.SuperManaPotion, A.MajorManaPotion },
+        },
+        rune = {
+            name = "Shaman_DarkRune",
+            priority = Priority.MIDDLEWARE.MANA_RECOVERY - 5,
+            pct_default = 50,
+            actions = { A.DarkRune, A.DemonicRune },
+        },
+    },
 })
 
 -- ============================================================================

@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local ttd_too_short = NS.ttd_too_short
 local SealOfBloodAction = NS.SealOfBloodAction
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -150,8 +151,7 @@ local Ret_AvengingWrath = {
         local mode = context.settings.ret_avenging_wrath or "burst"
         if mode == "never" then return false end
         -- Common guards for any firing mode
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         if context.forbearance_active then return false end
 
         if mode == "cooldown" then
@@ -177,8 +177,7 @@ local Ret_Racial = {
 
     matches = function(context, state)
         if not context.settings.use_racial then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 

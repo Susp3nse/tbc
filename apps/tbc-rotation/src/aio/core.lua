@@ -67,6 +67,7 @@ NS.SetToggle = function(...)
    end
    return nil
 end
+local SetToggle = NS.SetToggle
 
 -- Stub: overridden by dashboard.lua with real implementation
 if not NS.set_last_action then
@@ -207,20 +208,17 @@ local function get_spell_rage_cost(spell)
    return (cost and cost > 0 and power_type == 1) and cost or 0
 end
 
-local function get_spell_energy_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCost()
-   return (cost and cost > 0 and power_type == 3) and cost or 0
-end
-
-local function get_spell_focus_cost(spell)
-   local cost, power_type = spell:GetSpellPowerCost()
-   return (cost and cost > 0 and power_type == 2) and cost or 0
-end
-
 NS.get_spell_mana_cost = get_spell_mana_cost
 NS.get_spell_rage_cost = get_spell_rage_cost
-NS.get_spell_energy_cost = get_spell_energy_cost
-NS.get_spell_focus_cost = get_spell_focus_cost
+
+-- TTD gate: true when target will die sooner than the user's cd_min_ttd setting
+-- (so callers can skip major CDs on dying mobs). 0 = disabled.
+local function ttd_too_short(context)
+   local min_ttd = context.settings.cd_min_ttd or 0
+   return min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd
+end
+
+NS.ttd_too_short = ttd_too_short
 
 -- ============================================================================
 -- IMMUNITY SPELL IDS (from LibAuraTypes.lua TBC section)
@@ -471,6 +469,30 @@ local function build_settings_list()
 end
 
 build_settings_list()
+
+local RECOVERY_KEY_MIGRATIONS = {
+   { class = "HUNTER", old = "use_mana_rune", new = "use_dark_rune" },
+   { class = "HUNTER", old = "mana_rune_mana", new = "dark_rune_pct" },
+   { class = "DRUID", old = "mana_potion_mana", new = "mana_potion_pct" },
+   { class = "DRUID", old = "dark_rune_mana", new = "dark_rune_pct" },
+}
+
+local function migrate_recovery_keys()
+   local player_class = A.PlayerClass
+   for _, migration in ipairs(RECOVERY_KEY_MIGRATIONS) do
+      if migration.class == player_class then
+         local v = GetToggle(2, migration.old)
+         if v ~= nil then
+            if GetToggle(2, migration.new) == nil then
+               SetToggle({ 2, migration.new, nil, true }, v)
+            end
+            SetToggle({ 2, migration.old, nil, true }, nil)
+         end
+      end
+   end
+end
+
+migrate_recovery_keys()
 
 local function mark_settings_dirty()
    settings_dirty = true
@@ -1221,11 +1243,258 @@ local function create_combat_strategy(config)
    }
 end
 
+local function create_racial_strategy(opts)
+   opts = opts or {}
+   local prefix = opts.prefix or "RACIAL"
+   local spells = opts.spells or {}
+
+   return {
+      name = opts.name,
+      requires_combat = true,
+      is_gcd_gated = false,
+      is_burst = true,
+      setting_key = "use_racial",
+
+      matches = function(context)
+         if NS.ttd_too_short(context) then return false end
+         for i = 1, #spells do
+            local action = spells[i][1]
+            if action and action:IsReady(PLAYER_UNIT) then return true end
+         end
+         return false
+      end,
+
+      execute = function(icon)
+         for i = 1, #spells do
+            local action = spells[i][1]
+            if action and action:IsReady(PLAYER_UNIT) then
+               return action:Show(icon), "[" .. prefix .. "] " .. spells[i][2]
+            end
+         end
+         return nil
+      end,
+   }
+end
+
 --- Name wrapper: sets strategy.name at registration site
 local function named(n, s) s.name = n; return s end
 
 NS.create_combat_strategy = create_combat_strategy
+NS.create_racial_strategy = create_racial_strategy
 NS.named = named
+
+-- ============================================================================
+-- RECOVERY MIDDLEWARE FACTORY
+-- ============================================================================
+
+local DEFAULT_HEALING_POTION_LABELS = { "Super Healing Potion", "Major Healing Potion" }
+local DEFAULT_MANA_POTION_LABELS = { "Super Mana Potion", "Major Mana Potion" }
+local DEFAULT_RUNE_LABELS = { "Dark Rune", "Demonic Rune" }
+
+local function recovery_opt(opts, block, key, default_value)
+   if block and block[key] ~= nil then return block[key] end
+   if opts and opts[key] ~= nil then return opts[key] end
+   return default_value
+end
+
+local function recovery_threshold(context, key, default_value)
+   local value = context.settings[key]
+   if value ~= nil then return value end
+   return default_value or 0
+end
+
+local function recovery_context_ready(context, opts, block, use_combat_time)
+   if recovery_opt(opts, block, "skip_stealthed", true) and context.is_stealthed then return false end
+   if recovery_opt(opts, block, "require_combat", true) and not context.in_combat then return false end
+   if use_combat_time and recovery_opt(opts, block, "require_combat_time", true)
+      and (context.combat_time or 0) < 2 then
+      return false
+   end
+   if opts.extra_match and not opts.extra_match(context) then return false end
+   if block.extra_match and not block.extra_match(context) then return false end
+   return true
+end
+
+local function recovery_action(entry)
+   if not entry then return nil end
+   if entry.IsReady then return entry end
+   return entry.action or entry[1]
+end
+
+local function recovery_label(entry, labels, index, fallback)
+   if entry and not entry.IsReady then
+      return entry.label or entry[2] or (labels and labels[index]) or fallback
+   end
+   return (labels and labels[index]) or fallback
+end
+
+local function first_ready_recovery_action(actions, require_exists, labels, fallback)
+   if not actions then return nil end
+   for i = 1, #actions do
+      local entry = actions[i]
+      local action = recovery_action(entry)
+      if action and (not require_exists or action:IsExists()) and action:IsReady(PLAYER_UNIT) then
+         return action, recovery_label(entry, labels, i, fallback)
+      end
+   end
+   return nil
+end
+
+local function register_recovery_middleware(opts)
+   opts = opts or {}
+   local A_class = NS.A
+   if not A_class then
+      print("|cFFFF6600[Flux Recovery]|r Factory skipped: NS.A not available")
+      return
+   end
+
+   local prefix = opts.prefix or "Recovery"
+   local healthstone = opts.healthstone
+   local healing_potion = opts.healing_potion
+   local mana = opts.mana
+
+   if healthstone then
+      rotation_registry:register_middleware({
+         name = healthstone.name or (prefix .. "_Healthstone"),
+         priority = healthstone.priority or Priority.MIDDLEWARE.RECOVERY_ITEMS,
+         is_gcd_gated = healthstone.is_gcd_gated,
+
+         matches = function(context)
+            if not recovery_context_ready(context, opts, healthstone, false) then return false end
+            local threshold = recovery_threshold(context, healthstone.threshold_key or "healthstone_hp",
+               healthstone.hp_default)
+            if threshold <= 0 then return false end
+            if context.hp > threshold then return false end
+            return first_ready_recovery_action(healthstone.actions,
+               recovery_opt(opts, healthstone, "require_exists", true)) ~= nil
+         end,
+
+         execute = function(icon, context)
+            local threshold = recovery_threshold(context, healthstone.threshold_key or "healthstone_hp",
+               healthstone.hp_default)
+            if threshold <= 0 or context.hp > threshold then return nil end
+            local action = first_ready_recovery_action(healthstone.actions,
+               recovery_opt(opts, healthstone, "require_exists", true))
+            if action then
+               return action:Show(icon), format(healthstone.log_format or "[MW] Healthstone - HP: %.0f%%", context.hp)
+            end
+            return nil
+         end,
+      })
+   end
+
+   if healing_potion then
+      rotation_registry:register_middleware({
+         name = healing_potion.name or (prefix .. "_HealingPotion"),
+         priority = healing_potion.priority or (Priority.MIDDLEWARE.RECOVERY_ITEMS - 5),
+         is_gcd_gated = healing_potion.is_gcd_gated,
+
+         matches = function(context)
+            if not context.settings[healing_potion.enabled_key or "use_healing_potion"] then return false end
+            if not recovery_context_ready(context, opts, healing_potion, true) then return false end
+            local threshold = recovery_threshold(context, healing_potion.threshold_key or "healing_potion_hp",
+               healing_potion.hp_default)
+            if context.hp > threshold then return false end
+            return first_ready_recovery_action(healing_potion.actions,
+               recovery_opt(opts, healing_potion, "require_exists", true),
+               healing_potion.labels or DEFAULT_HEALING_POTION_LABELS, healing_potion.default_label) ~= nil
+         end,
+
+         execute = function(icon, context)
+            if not context.settings[healing_potion.enabled_key or "use_healing_potion"] then return nil end
+            local threshold = recovery_threshold(context, healing_potion.threshold_key or "healing_potion_hp",
+               healing_potion.hp_default)
+            if context.hp > threshold then return nil end
+            local action, label = first_ready_recovery_action(healing_potion.actions,
+               recovery_opt(opts, healing_potion, "require_exists", true),
+               healing_potion.labels or DEFAULT_HEALING_POTION_LABELS, healing_potion.default_label)
+            if action then
+               return action:Show(icon), format(healing_potion.log_format or "[MW] %s - HP: %.0f%%",
+                  label, context.hp)
+            end
+            return nil
+         end,
+      })
+   end
+
+   if mana and mana.potion then
+      local potion = mana.potion
+      rotation_registry:register_middleware({
+         name = potion.name or (prefix .. "_ManaPotion"),
+         priority = potion.priority,
+         is_gcd_gated = potion.is_gcd_gated,
+
+         matches = function(context)
+            if not context.settings[potion.enabled_key or "use_mana_potion"] then return false end
+            if not recovery_context_ready(context, opts, potion, true) then return false end
+            local threshold = recovery_threshold(context, potion.threshold_key or "mana_potion_pct",
+               potion.pct_default)
+            if context.mana_pct > threshold then return false end
+            return first_ready_recovery_action(potion.actions,
+               recovery_opt(opts, potion, "require_exists", true),
+               potion.labels or DEFAULT_MANA_POTION_LABELS, potion.default_label) ~= nil
+         end,
+
+         execute = function(icon, context)
+            if not context.settings[potion.enabled_key or "use_mana_potion"] then return nil end
+            local threshold = recovery_threshold(context, potion.threshold_key or "mana_potion_pct",
+               potion.pct_default)
+            if context.mana_pct > threshold then return nil end
+            local action, label = first_ready_recovery_action(potion.actions,
+               recovery_opt(opts, potion, "require_exists", true),
+               potion.labels or DEFAULT_MANA_POTION_LABELS, potion.default_label)
+            if action then
+               return action:Show(icon), format(potion.log_format or "[MW] %s - Mana: %.0f%%",
+                  label, context.mana_pct)
+            end
+            return nil
+         end,
+      })
+   end
+
+   if mana and mana.rune then
+      local rune = mana.rune
+      rotation_registry:register_middleware({
+         name = rune.name or (prefix .. "_DarkRune"),
+         priority = rune.priority,
+         is_gcd_gated = rune.is_gcd_gated,
+
+         matches = function(context)
+            if not context.settings[rune.enabled_key or "use_dark_rune"] then return false end
+            if not recovery_context_ready(context, opts, rune, true) then return false end
+            local threshold = recovery_threshold(context, rune.threshold_key or "dark_rune_pct",
+               rune.pct_default)
+            if context.mana_pct > threshold then return false end
+            local min_hp = recovery_threshold(context, rune.min_hp_key or "dark_rune_min_hp",
+               rune.min_hp_default or 50)
+            if context.hp < min_hp then return false end
+            return first_ready_recovery_action(rune.actions,
+               recovery_opt(opts, rune, "require_exists", true),
+               rune.labels or DEFAULT_RUNE_LABELS, rune.default_label) ~= nil
+         end,
+
+         execute = function(icon, context)
+            if not context.settings[rune.enabled_key or "use_dark_rune"] then return nil end
+            local threshold = recovery_threshold(context, rune.threshold_key or "dark_rune_pct",
+               rune.pct_default)
+            local min_hp = recovery_threshold(context, rune.min_hp_key or "dark_rune_min_hp",
+               rune.min_hp_default or 50)
+            if context.mana_pct > threshold or context.hp < min_hp then return nil end
+            local action, label = first_ready_recovery_action(rune.actions,
+               recovery_opt(opts, rune, "require_exists", true),
+               rune.labels or DEFAULT_RUNE_LABELS, rune.default_label)
+            if action then
+               return action:Show(icon), format(rune.log_format or "[MW] %s - Mana: %.0f%%",
+                  label, context.mana_pct)
+            end
+            return nil
+         end,
+      })
+   end
+
+end
+
+NS.register_recovery_middleware = register_recovery_middleware
 
 -- ============================================================================
 -- TRINKET MIDDLEWARE FACTORY
@@ -1265,8 +1534,7 @@ local function register_trinket_middleware()
          if not context.has_valid_enemy_target then return false end
          if should_auto_burst(context) == false then return false end
          -- TTD gate: skip trinkets on dying mobs (cd_min_ttd setting; 0 = disabled)
-         local min_ttd = context.settings.cd_min_ttd or 0
-         if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+         if ttd_too_short(context) then return false end
          local s = context.settings
          if s.trinket1_mode == "offensive" and Trinket1 and Trinket1:IsReady(PLAYER_UNIT) then return true end
          if s.trinket2_mode == "offensive" and Trinket2 and Trinket2:IsReady(PLAYER_UNIT) then return true end

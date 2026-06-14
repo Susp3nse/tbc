@@ -28,6 +28,8 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
+local ttd_too_short = NS.ttd_too_short
 local resolve_totem_spell = NS.resolve_totem_spell
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -399,8 +401,7 @@ local Enh_ShamanisticRage = {
     setting_key = "enh_use_shamanistic_rage",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         local threshold = context.settings.enh_shamanistic_rage_pct or 30
         if context.mana_pct > threshold then return false end
         return true
@@ -413,31 +414,11 @@ local Enh_ShamanisticRage = {
 }
 
 -- [2] Racial (off-GCD)
-local Enh_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
-        -- Enhancement uses AP Blood Fury or Berserking
-        if A.BloodFuryAP:IsReady(PLAYER_UNIT) then return true end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.BloodFuryAP:IsReady(PLAYER_UNIT) then
-            return A.BloodFuryAP:Show(icon), "[ENH] Blood Fury (AP)"
-        end
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[ENH] Berserking"
-        end
-        return nil
-    end,
+local ENH_RACIAL_SPELLS = {
+    { A.BloodFuryAP, "Blood Fury (AP)" },
+    { A.Berserking, "Berserking" },
 }
+local Enh_Racial = create_racial_strategy({ prefix = "ENH", spells = ENH_RACIAL_SPELLS })
 
 -- [4] Totem Management — base totems (fire, earth, water)
 -- Does NOT handle air slot if WF twist is active
@@ -786,8 +767,7 @@ local Enh_FireElemental = {
     setting_key = "enh_use_fire_elemental",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -810,8 +790,7 @@ local Enh_AoE = {
 
     execute = function(icon, context, state)
         -- Skip fire totems if FNT twist is managing the fire slot or Fire Elemental is active
-        local min_ttd = context.settings.cd_min_ttd or 0
-        local ttd_ok = min_ttd <= 0 or not context.ttd or context.ttd <= 0 or context.ttd >= min_ttd
+        local ttd_ok = not ttd_too_short(context)
         if ttd_ok and not context.settings.enh_twist_fire_nova and not context.fire_elemental_active then
             -- Only drop fire totems if fire slot is empty/expiring
             if not context.totem_fire_active or context.totem_fire_remaining < Constants.TOTEM_REFRESH_THRESHOLD then

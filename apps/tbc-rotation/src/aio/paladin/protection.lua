@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local ttd_too_short = NS.ttd_too_short
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
@@ -422,8 +423,7 @@ local Prot_AvengingWrath = {
     setting_key = "use_avenging_wrath",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         if context.forbearance_active then return false end
         return true
     end,
@@ -441,8 +441,7 @@ local Prot_Racial = {
     setting_key = "use_racial",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         if A.Stoneform:IsReady(PLAYER_UNIT) then return true end
         if context.hp < 60 and A.GiftOfTheNaaru and A.GiftOfTheNaaru:IsReady(PLAYER_UNIT) then return true end
         return false

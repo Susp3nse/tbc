@@ -69,9 +69,9 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "use_healing_potion", default = true, label = "Use Healing Potion", tooltip = "Use Healing Potion when HP drops below threshold." },
             { type = "slider", key = "healing_potion_hp", default = 25, min = 10, max = 40, label = "Healing Potion HP (%)", tooltip = "Use Healing Potion below this HP.", format = "%d%%" },
             { type = "checkbox", key = "use_mana_potion", default = true, label = "Use Mana Potion", tooltip = "Use Super Mana Potion when mana drops below threshold." },
-            { type = "slider", key = "mana_potion_mana", default = 20, min = 10, max = 50, label = "Mana Potion Mana (%)", tooltip = "Use Mana Potion below this mana %.", format = "%d%%" },
+            { type = "slider", key = "mana_potion_pct", default = 20, min = 10, max = 50, label = "Mana Potion Mana (%)", tooltip = "Use Mana Potion below this mana %.", format = "%d%%" },
             { type = "checkbox", key = "use_dark_rune", default = true, label = "Use Dark Rune", tooltip = "Use Dark Rune / Demonic Rune when mana drops below threshold. Costs HP.", wide = true },
-            { type = "slider", key = "dark_rune_mana", default = 30, min = 15, max = 60, label = "Dark Rune Mana (%)", tooltip = "Use Dark Rune below this mana %.", format = "%d%%" },
+            { type = "slider", key = "dark_rune_pct", default = 30, min = 15, max = 60, label = "Dark Rune Mana (%)", tooltip = "Use Dark Rune below this mana %.", format = "%d%%" },
             { type = "slider", key = "dark_rune_min_hp", default = 50, min = 25, max = 75, label = "Dark Rune Min HP (%)", tooltip = "Only use Dark Rune if HP is above this (rune costs 600-1000 HP).", format = "%d%%" },
         }},
         { header = "Defensive", settings = {

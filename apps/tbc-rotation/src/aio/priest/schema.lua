@@ -72,14 +72,13 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
               tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
         }},
-        { header = "Recovery Items", settings = {
-            { type = "slider", key = "healthstone_hp", default = 35, min = 0, max = 100, label = "Healthstone HP (%)",
-              tooltip = "Use Healthstone when HP drops below this. Set to 0 to disable.", format = "%d%%" },
-            { type = "checkbox", key = "use_healing_potion", default = true, label = "Use Healing Potion",
-              tooltip = "Use Healing Potion when HP drops low in combat." },
-            { type = "slider", key = "healing_potion_hp", default = 25, min = 10, max = 50, label = "Healing Potion HP (%)",
-              tooltip = "Use Healing Potion when HP drops below this.", format = "%d%%" },
-        }},
+        S.recovery({
+            header = "Recovery Items",
+            healthstone_hp = 35,
+            healing_potion_hp = 25,
+            healing_potion_toggle_tooltip = "Use Healing Potion when HP drops low in combat.",
+            healing_potion_tooltip = "Use Healing Potion when HP drops below this.",
+        }),
         S.burst(),
         S.dashboard(),
         S.debug(),
@@ -234,24 +233,23 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 6: Cooldowns & Mana
     [6] = { name = "CDs & Mana", sections = {
         S.trinkets("Use racial ability (Berserking, Arcane Torrent, etc.)."),
-        { header = "Mana Recovery", settings = {
+        { header = "Shadowfiend", settings = {
             { type = "checkbox", key = "use_shadowfiend", default = true, label = "Use Shadowfiend",
               tooltip = "Auto-use Shadowfiend for mana recovery." },
             { type = "slider", key = "shadowfiend_pct", default = 50, min = 20, max = 80, label = "Shadowfiend Mana%",
               tooltip = "Use when mana below this%.", format = "%d%%" },
-            { type = "checkbox", key = "use_mana_potion", default = true, label = "Use Mana Potion",
-              tooltip = "Auto-use Super Mana Potion for mana recovery." },
-            { type = "slider", key = "mana_potion_pct", default = 50, min = 10, max = 80, label = "Mana Potion Below%",
-              tooltip = "Use Mana Potion when mana drops below this.", format = "%d%%" },
         }},
-        { header = "Mana Recovery (cont.)", settings = {
-            { type = "checkbox", key = "use_dark_rune", default = true, label = "Use Dark Rune",
-              tooltip = "Auto-use Dark/Demonic Rune for mana (costs HP)." },
-            { type = "slider", key = "dark_rune_pct", default = 50, min = 10, max = 80, label = "Dark Rune Below%",
-              tooltip = "Use Dark Rune when mana drops below this.", format = "%d%%" },
-            { type = "slider", key = "dark_rune_min_hp", default = 50, min = 25, max = 75, label = "Dark Rune Min HP (%)",
-              tooltip = "Only use Dark Rune when HP is above this (it costs HP).", format = "%d%%" },
-        }},
+        S.mana_recovery({
+            mana_potion = true,
+            dark_rune = true,
+            mana_potion_pct = 50,
+            dark_rune_pct = 50,
+            mana_potion_toggle_tooltip = "Auto-use Super Mana Potion for mana recovery.",
+            mana_potion_tooltip = "Use Mana Potion when mana drops below this.",
+            dark_rune_toggle_tooltip = "Auto-use Dark/Demonic Rune for mana (costs HP).",
+            dark_rune_tooltip = "Use Dark Rune when mana drops below this.",
+            dark_rune_min_hp_tooltip = "Only use Dark Rune when HP is above this (it costs HP).",
+        }),
         { header = "Emergency", settings = {
             { type = "checkbox", key = "use_desperate_prayer", default = true, label = "Desperate Prayer",
               tooltip = "Use Desperate Prayer racial self-heal when HP low." },

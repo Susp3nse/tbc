@@ -26,6 +26,8 @@ local Constants = NS.Constants
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
+local ttd_too_short = NS.ttd_too_short
 local resolve_totem_spell = NS.resolve_totem_spell
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -81,8 +83,7 @@ local Ele_ElementalMastery = {
     setting_key = "ele_use_elemental_mastery",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         -- Hold EM for Chain Lightning (guaranteed-crit CL is optimal)
         local rot = context.settings.ele_rotation_type or "cl_clearcast"
         if context.settings.ele_em_hold_for_cl and rot ~= "lb_only" and state.chain_lightning_cd > 0 then
@@ -97,31 +98,11 @@ local Ele_ElementalMastery = {
 }
 
 -- [2] Racial (off-GCD)
-local Ele_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
-        -- Caster shaman uses SP Blood Fury or Berserking
-        if A.BloodFurySP:IsReady(PLAYER_UNIT) then return true end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.BloodFurySP:IsReady(PLAYER_UNIT) then
-            return A.BloodFurySP:Show(icon), "[ELE] Blood Fury (SP)"
-        end
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[ELE] Berserking"
-        end
-        return nil
-    end,
+local ELE_RACIAL_SPELLS = {
+    { A.BloodFurySP, "Blood Fury (SP)" },
+    { A.Berserking, "Berserking" },
 }
+local Ele_Racial = create_racial_strategy({ prefix = "ELE", spells = ELE_RACIAL_SPELLS })
 
 -- [4] Totem Management — drop/refresh configured totems
 local Ele_TotemManagement = {
@@ -222,8 +203,7 @@ local Ele_FireElemental = {
     setting_key = "ele_use_fire_elemental",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -344,8 +324,7 @@ local Ele_AoE = {
             end
         end
         -- Fire totems for AoE: only if fire slot is empty/expiring and no Fire Elemental
-        local min_ttd = context.settings.cd_min_ttd or 0
-        local ttd_ok = min_ttd <= 0 or not context.ttd or context.ttd <= 0 or context.ttd >= min_ttd
+        local ttd_ok = not ttd_too_short(context)
         if ttd_ok and not context.fire_elemental_active and (not context.totem_fire_active or context.totem_fire_remaining < Constants.TOTEM_REFRESH_THRESHOLD) then
             if A.FireNovaTotem:IsReady(PLAYER_UNIT) then
                 return try_cast(A.FireNovaTotem, icon, PLAYER_UNIT, "[ELE] Fire Nova Totem (AoE)")

@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 local is_spell_available = NS.is_spell_available
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -173,34 +174,12 @@ local Subtlety_Preparation = {
 }
 
 -- [5] Racial — off-GCD (Blood Fury, Berserking, Arcane Torrent)
-local Subtlety_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
-        if A.BloodFury:IsReady(PLAYER_UNIT) then return true end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.BloodFury:IsReady(PLAYER_UNIT) then
-            return A.BloodFury:Show(icon), "[SUBTLETY] Blood Fury"
-        end
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[SUBTLETY] Berserking"
-        end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-            return A.ArcaneTorrent:Show(icon), "[SUBTLETY] Arcane Torrent"
-        end
-        return nil
-    end,
+local SUBTLETY_RACIAL_SPELLS = {
+    { A.BloodFury, "Blood Fury" },
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
 }
+local Subtlety_Racial = create_racial_strategy({ prefix = "SUBTLETY", spells = SUBTLETY_RACIAL_SPELLS })
 
 -- [7] Ghostly Strike — secondary builder on CD, +15% dodge 7s (Subtlety talent)
 local Subtlety_GhostlyStrike = {

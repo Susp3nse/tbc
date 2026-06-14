@@ -19,7 +19,6 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local Priority = NS.Priority
 local Constants = NS.Constants
-local DetermineUsableObject = A.DetermineUsableObject
 
 local PLAYER_UNIT = "player"
 local TARGET_UNIT = "target"
@@ -48,56 +47,31 @@ rotation_registry:register_middleware({
     end,
 })
 
--- ============================================================================
--- HEALTHSTONE (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warlock_Healthstone",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        local threshold = context.settings.healthstone_hp or 0
-        if threshold <= 0 then return false end
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local HealthStoneObject = DetermineUsableObject(PLAYER_UNIT, true, nil, true, nil,
-            A.HealthstoneFel, A.HealthstoneMaster, A.HealthstoneMajor)
-        if HealthStoneObject then
-            return HealthStoneObject:Show(icon), format("[MW] Healthstone - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- HEALING POTION (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warlock_HealingPotion",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS - 5,
-
-    matches = function(context)
-        if not context.settings.use_healing_potion then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.healing_potion_hp or 25
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.SuperHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.SuperHealingPotion:Show(icon), format("[MW] Super Healing Potion - HP: %.0f%%", context.hp)
-        end
-        if A.MajorHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.MajorHealingPotion:Show(icon), format("[MW] Major Healing Potion - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
+NS.register_recovery_middleware({
+    prefix = "Warlock",
+    healthstone = {
+        hp_default = 35,
+        actions = { A.HealthstoneFel, A.HealthstoneMaster, A.HealthstoneMajor },
+    },
+    healing_potion = {
+        hp_default = 25,
+        actions = { A.SuperHealingPotion, A.MajorHealingPotion },
+    },
+    mana = {
+        potion = {
+            name = "Warlock_ManaPotion",
+            priority = Priority.MIDDLEWARE.MANA_RECOVERY - 5,
+            pct_default = 30,
+            actions = { A.SuperManaPotion },
+        },
+        rune = {
+            name = "Warlock_DarkRune",
+            priority = Priority.MIDDLEWARE.MANA_RECOVERY - 10,
+            pct_default = 30,
+            min_hp_default = 50,
+            actions = { A.DarkRune, A.DemonicRune },
+        },
+    },
 })
 
 -- ============================================================================
@@ -169,59 +143,6 @@ rotation_registry:register_middleware({
     execute = function(icon, context)
         if A.LifeTap:IsReady(PLAYER_UNIT) then
             return A.LifeTap:Show(icon), format("[MW] Life Tap - Mana: %.0f%% HP: %.0f%%", context.mana_pct, context.hp)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- MANA POTION (Mana recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warlock_ManaPotion",
-    priority = Priority.MIDDLEWARE.MANA_RECOVERY - 5,
-
-    matches = function(context)
-        if not context.settings.use_mana_potion then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.mana_potion_pct or 30
-        if context.mana_pct > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.SuperManaPotion:IsReady(PLAYER_UNIT) then
-            return A.SuperManaPotion:Show(icon), format("[MW] Super Mana Potion - Mana: %.0f%%", context.mana_pct)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- DARK/DEMONIC RUNE (Mana recovery — separate CD from potion)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warlock_DarkRune",
-    priority = Priority.MIDDLEWARE.MANA_RECOVERY - 10,
-
-    matches = function(context)
-        if not context.settings.use_dark_rune then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.dark_rune_pct or 30
-        if context.mana_pct > threshold then return false end
-        local min_hp = context.settings.dark_rune_min_hp or 50
-        if context.hp < min_hp then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.DarkRune:IsReady(PLAYER_UNIT) then
-            return A.DarkRune:Show(icon), format("[MW] Dark Rune - Mana: %.0f%%", context.mana_pct)
-        end
-        if A.DemonicRune:IsReady(PLAYER_UNIT) then
-            return A.DemonicRune:Show(icon), format("[MW] Demonic Rune - Mana: %.0f%%", context.mana_pct)
         end
         return nil
     end,

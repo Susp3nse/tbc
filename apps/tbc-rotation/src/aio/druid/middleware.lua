@@ -282,14 +282,14 @@ do
          local settings = context.settings
 
          -- Check mana potion (shares potion cooldown with healing pots)
-         if settings.use_mana_potion and context.mana_pct <= settings.mana_potion_mana then
+         if settings.use_mana_potion and context.mana_pct <= settings.mana_potion_pct then
             if A.SuperManaPotion:IsExists() and A.SuperManaPotion:IsReady(PLAYER_UNIT) then
                return true
             end
          end
 
          -- Check dark rune / demonic rune (own cooldown, separate from potions)
-         if settings.use_dark_rune and context.mana_pct <= settings.dark_rune_mana then
+         if settings.use_dark_rune and context.mana_pct <= settings.dark_rune_pct then
             if (A.DarkRune:IsExists() and A.DarkRune:IsReady(PLAYER_UNIT)) or
                (A.DemonicRune:IsExists() and A.DemonicRune:IsReady(PLAYER_UNIT)) then
                -- Dark Rune costs HP -- only if HP is safe
@@ -311,7 +311,7 @@ do
          schedule_reshift(stance)
 
          -- Super Mana Potion (try first -- no HP cost)
-         if settings.use_mana_potion and context.mana_pct <= settings.mana_potion_mana then
+         if settings.use_mana_potion and context.mana_pct <= settings.mana_potion_pct then
             if A.SuperManaPotion:IsExists() and A.SuperManaPotion:IsReady(PLAYER_UNIT) then
                local action = form_action(A.SuperManaPotion, stance)
                local result = action:Show(icon)
@@ -322,7 +322,7 @@ do
          end
 
          -- Dark Rune / Demonic Rune (costs 600-1000 HP for 900-1500 mana)
-         if settings.use_dark_rune and context.mana_pct <= settings.dark_rune_mana
+         if settings.use_dark_rune and context.mana_pct <= settings.dark_rune_pct
             and context.hp > settings.dark_rune_min_hp then
             if A.DarkRune:IsExists() and A.DarkRune:IsReady(PLAYER_UNIT) then
                local action = form_action(A.DarkRune, stance)

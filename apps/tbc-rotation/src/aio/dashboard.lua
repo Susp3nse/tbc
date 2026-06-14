@@ -735,6 +735,9 @@ local function update_dashboard()
     local source_context = NS.last_rotation_context
     local source_time = NS.last_rotation_context_time or 0
     if source_context and (GetTime() - source_time) <= 0.25 then
+        -- NOTE: when fresh, dash_context aliases the live reusable rotation context
+        -- (NS.last_rotation_context). Treat as READ-ONLY here -- writing it corrupts the
+        -- next rotation frame within the 0.25s window.
         dash_context = source_context
     else
         dash_context.settings = NS.cached_settings

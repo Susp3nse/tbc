@@ -58,4 +58,58 @@ _G.FluxAIO_SECTIONS = {
               tooltip = racial_tooltip or "Use racial ability during combat." },
         }}
     end,
+
+    recovery = function(opts)
+        opts = opts or {}
+        return { header = opts.header or "Recovery", settings = {
+            { type = "slider", key = "healthstone_hp", default = opts.healthstone_hp or 35,
+              min = opts.healthstone_min or 0, max = opts.healthstone_max or 100,
+              label = opts.healthstone_label or "Healthstone HP (%)",
+              tooltip = opts.healthstone_tooltip or "Use Healthstone when HP drops below this. Set to 0 to disable.",
+              format = opts.healthstone_format or "%d%%" },
+            { type = "checkbox", key = "use_healing_potion", default = opts.use_healing_potion ~= false,
+              label = opts.healing_potion_toggle_label or "Use Healing Potion",
+              tooltip = opts.healing_potion_toggle_tooltip or "Use healing potion when HP drops below threshold." },
+            { type = "slider", key = "healing_potion_hp", default = opts.healing_potion_hp or 25,
+              min = opts.healing_potion_min or 10, max = opts.healing_potion_max or 50,
+              label = opts.healing_potion_label or "Healing Potion HP (%)",
+              tooltip = opts.healing_potion_tooltip or "Use Healing Potion below this HP.",
+              format = opts.healing_potion_format or "%d%%" },
+        }}
+    end,
+
+    mana_recovery = function(opts)
+        opts = opts or {}
+        local settings = {}
+
+        if opts.mana_potion then
+            settings[#settings + 1] = { type = "checkbox", key = "use_mana_potion",
+              default = opts.use_mana_potion ~= false, label = opts.mana_potion_toggle_label or "Use Mana Potion",
+              tooltip = opts.mana_potion_toggle_tooltip or "Use Mana Potion when mana drops below threshold." }
+            settings[#settings + 1] = { type = "slider", key = "mana_potion_pct",
+              default = opts.mana_potion_pct or 50, min = opts.mana_potion_min or 10,
+              max = opts.mana_potion_max or 80, label = opts.mana_potion_label or "Mana Potion Below%",
+              tooltip = opts.mana_potion_tooltip or "Use Mana Potion below this mana %.",
+              format = opts.mana_potion_format or "%d%%" }
+        end
+
+        if opts.dark_rune then
+            settings[#settings + 1] = { type = "checkbox", key = "use_dark_rune",
+              default = opts.use_dark_rune ~= false, label = opts.dark_rune_toggle_label or "Use Dark Rune",
+              tooltip = opts.dark_rune_toggle_tooltip or "Use Dark Rune / Demonic Rune when mana drops below threshold. Costs HP.",
+              wide = opts.dark_rune_wide }
+            settings[#settings + 1] = { type = "slider", key = "dark_rune_pct",
+              default = opts.dark_rune_pct or 50, min = opts.dark_rune_min or 10,
+              max = opts.dark_rune_max or 80, label = opts.dark_rune_label or "Dark Rune Below%",
+              tooltip = opts.dark_rune_tooltip or "Use Dark Rune below this mana %.",
+              format = opts.dark_rune_format or "%d%%" }
+            settings[#settings + 1] = { type = "slider", key = "dark_rune_min_hp",
+              default = opts.dark_rune_min_hp or 50, min = opts.dark_rune_min_hp_min or 25,
+              max = opts.dark_rune_min_hp_max or 75, label = opts.dark_rune_min_hp_label or "Dark Rune Min HP (%)",
+              tooltip = opts.dark_rune_min_hp_tooltip or "Only use Dark Rune if HP is above this (rune costs 600-1000 HP).",
+              format = opts.dark_rune_min_hp_format or "%d%%" }
+        end
+
+        return { header = opts.header or "Mana Recovery", settings = settings }
+    end,
 }

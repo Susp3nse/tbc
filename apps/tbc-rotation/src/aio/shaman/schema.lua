@@ -98,14 +98,13 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "use_auto_tremor", default = true, label = "Auto Tremor Totem",
               tooltip = "Auto-drop Tremor Totem when fighting bosses/mobs that cast Fear, Charm, or Sleep." },
         }},
-        { header = "Recovery Items", settings = {
-            { type = "slider", key = "healthstone_hp", default = 35, min = 0, max = 100, label = "Healthstone HP (%)",
-              tooltip = "Use Healthstone when HP drops below this. Set to 0 to disable.", format = "%d%%" },
-            { type = "checkbox", key = "use_healing_potion", default = true, label = "Use Healing Potion",
-              tooltip = "Use Healing Potion when HP drops low in combat." },
-            { type = "slider", key = "healing_potion_hp", default = 25, min = 10, max = 50, label = "Healing Potion HP (%)",
-              tooltip = "Use Healing Potion when HP drops below this.", format = "%d%%" },
-        }},
+        S.recovery({
+            header = "Recovery Items",
+            healthstone_hp = 35,
+            healing_potion_hp = 25,
+            healing_potion_toggle_tooltip = "Use Healing Potion when HP drops low in combat.",
+            healing_potion_tooltip = "Use Healing Potion when HP drops below this.",
+        }),
         S.burst(),
         S.dashboard(),
         S.debug(),
@@ -357,20 +356,17 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     -- Tab 5: Cooldowns & Mana
     [5] = { name = "CDs & Mana", sections = {
         S.trinkets("Use racial ability (Blood Fury, Berserking, etc.) during burst."),
-        { header = "Mana Recovery", settings = {
-            { type = "checkbox", key = "use_mana_potion", default = true, label = "Use Mana Potion",
-              tooltip = "Auto-use Super Mana Potion for mana recovery." },
-            { type = "slider", key = "mana_potion_pct", default = 50, min = 10, max = 80, label = "Mana Potion Below%",
-              tooltip = "Use Mana Potion when mana drops below this.", format = "%d%%" },
-        }},
-        { header = "Mana Recovery (cont.)", settings = {
-            { type = "checkbox", key = "use_dark_rune", default = true, label = "Use Dark Rune",
-              tooltip = "Auto-use Dark/Demonic Rune for mana (costs HP)." },
-            { type = "slider", key = "dark_rune_pct", default = 50, min = 10, max = 80, label = "Dark Rune Below%",
-              tooltip = "Use Dark Rune when mana drops below this.", format = "%d%%" },
-            { type = "slider", key = "dark_rune_min_hp", default = 50, min = 25, max = 75, label = "Dark Rune Min HP (%)",
-              tooltip = "Only use Dark Rune when HP is above this (it costs HP).", format = "%d%%" },
-        }},
+        S.mana_recovery({
+            mana_potion = true,
+            dark_rune = true,
+            mana_potion_pct = 50,
+            dark_rune_pct = 50,
+            mana_potion_toggle_tooltip = "Auto-use Super Mana Potion for mana recovery.",
+            mana_potion_tooltip = "Use Mana Potion when mana drops below this.",
+            dark_rune_toggle_tooltip = "Auto-use Dark/Demonic Rune for mana (costs HP).",
+            dark_rune_tooltip = "Use Dark Rune when mana drops below this.",
+            dark_rune_min_hp_tooltip = "Only use Dark Rune when HP is above this (it costs HP).",
+        }),
     }},
 }
 

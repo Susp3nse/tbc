@@ -257,38 +257,14 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 					},
 				},
 			},
-			{
+			S.recovery({
 				header = "Recovery Items",
-				settings = {
-					{
-						type = "slider",
-						key = "healthstone_hp",
-						default = 35,
-						min = 0,
-						max = 100,
-						label = "Healthstone HP (%)",
-						tooltip = "Use Healthstone when HP drops below this. 0 = disable.",
-						format = "%d%%",
-					},
-					{
-						type = "checkbox",
-						key = "use_healing_potion",
-						default = true,
-						label = "Use Healing Potion",
-						tooltip = "Use Healing Potion when HP drops low in combat.",
-					},
-					{
-						type = "slider",
-						key = "healing_potion_hp",
-						default = 25,
-						min = 10,
-						max = 50,
-						label = "Healing Potion HP (%)",
-						tooltip = "Use Healing Potion when HP drops below this.",
-						format = "%d%%",
-					},
-				},
-			},
+				healthstone_hp = 35,
+				healthstone_tooltip = "Use Healthstone when HP drops below this. 0 = disable.",
+				healing_potion_hp = 25,
+				healing_potion_toggle_tooltip = "Use Healing Potion when HP drops low in combat.",
+				healing_potion_tooltip = "Use Healing Potion when HP drops below this.",
+			}),
 			{
 				header = "Out of Combat",
 				settings = {

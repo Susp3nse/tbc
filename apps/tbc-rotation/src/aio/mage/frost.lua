@@ -25,6 +25,8 @@ local A = NS.A
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
+local ttd_too_short = NS.ttd_too_short
 local is_spell_available = NS.is_spell_available
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -57,8 +59,7 @@ local Frost_IcyVeins = {
     setting_key = "frost_use_icy_veins",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -76,8 +77,7 @@ local Frost_WaterElemental = {
     setting_key = "frost_use_water_elemental",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return true
     end,
 
@@ -97,8 +97,7 @@ local Frost_ColdSnap = {
     matches = function(context, state)
         -- Don't waste Cold Snap while Icy Veins is still active
         if context.icy_veins_active then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         -- Use when major frost CDs are on long cooldown (maximize Cold Snap value)
         local iv_cd = A.IcyVeins:GetCooldown() or 0
         if iv_cd < 20 then return false end
@@ -116,30 +115,11 @@ local Frost_ColdSnap = {
 }
 
 -- [4] Racial (off-GCD)
-local Frost_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[FROST] Berserking"
-        end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-            return A.ArcaneTorrent:Show(icon), "[FROST] Arcane Torrent"
-        end
-        return nil
-    end,
+local FROST_RACIAL_SPELLS = {
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
 }
+local Frost_Racial = create_racial_strategy({ prefix = "FROST", spells = FROST_RACIAL_SPELLS })
 
 -- [6] AoE rotation (when enough enemies)
 local Frost_AoE = {

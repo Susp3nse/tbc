@@ -27,6 +27,8 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
+local ttd_too_short = NS.ttd_too_short
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
@@ -132,8 +134,7 @@ local Combat_BladeFlurry = {
     setting_key = "combat_use_blade_flurry",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return not state.blade_flurry_active
     end,
 
@@ -152,8 +153,7 @@ local Combat_AdrenalineRush = {
     setting_key = "combat_use_adrenaline_rush",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         return not state.adrenaline_rush_active
     end,
 
@@ -163,34 +163,12 @@ local Combat_AdrenalineRush = {
 }
 
 -- [5] Racial — off-GCD (Blood Fury, Berserking, Arcane Torrent)
-local Combat_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
-        if A.BloodFury:IsReady(PLAYER_UNIT) then return true end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.BloodFury:IsReady(PLAYER_UNIT) then
-            return A.BloodFury:Show(icon), "[COMBAT] Blood Fury"
-        end
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[COMBAT] Berserking"
-        end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-            return A.ArcaneTorrent:Show(icon), "[COMBAT] Arcane Torrent"
-        end
-        return nil
-    end,
+local COMBAT_RACIAL_SPELLS = {
+    { A.BloodFury, "Blood Fury" },
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
 }
+local Combat_Racial = create_racial_strategy({ prefix = "COMBAT", spells = COMBAT_RACIAL_SPELLS })
 
 -- [7] Expose Armor — at 5 CP, debuff not active
 local Combat_ExposeArmor = {

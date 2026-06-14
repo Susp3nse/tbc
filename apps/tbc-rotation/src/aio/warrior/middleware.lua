@@ -20,9 +20,9 @@ local Player = NS.Player
 local Unit = NS.Unit
 local MultiUnits = A.MultiUnits
 local rotation_registry = NS.rotation_registry
-local Priority = NS.Priority
 local Constants = NS.Constants
 local debug_print = NS.debug_print
+local ttd_too_short = NS.ttd_too_short
 local DetermineUsableObject = A.DetermineUsableObject
 local LoC = A.LossOfControl
 
@@ -430,56 +430,18 @@ rotation_registry:register_middleware({
     end,
 })
 
--- ============================================================================
--- HEALTHSTONE (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warrior_Healthstone",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        local threshold = context.settings.healthstone_hp or 0
-        if threshold <= 0 then return false end
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local HealthStoneObject = DetermineUsableObject(PLAYER_UNIT, true, nil, true, nil,
-            A.HealthstoneMaster, A.HealthstoneMajor)
-        if HealthStoneObject then
-            return HealthStoneObject:Show(icon), format("[MW] Healthstone - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
-})
-
--- ============================================================================
--- HEALING POTION (Recovery)
--- ============================================================================
-rotation_registry:register_middleware({
-    name = "Warrior_HealingPotion",
-    priority = Priority.MIDDLEWARE.RECOVERY_ITEMS - 5,
-
-    matches = function(context)
-        if not context.settings.use_healing_potion then return false end
-        if not context.in_combat then return false end
-        if context.combat_time < 2 then return false end
-        local threshold = context.settings.healing_potion_hp or 25
-        if context.hp > threshold then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        if A.SuperHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.SuperHealingPotion:Show(icon), format("[MW] Super Healing Potion - HP: %.0f%%", context.hp)
-        end
-        if A.MajorHealingPotion:IsReady(PLAYER_UNIT) then
-            return A.MajorHealingPotion:Show(icon), format("[MW] Major Healing Potion - HP: %.0f%%", context.hp)
-        end
-        return nil
-    end,
+NS.register_recovery_middleware({
+    prefix = "Warrior",
+    healthstone = {
+        name = "Warrior_Healthstone",
+        hp_default = 35,
+        actions = { A.HealthstoneMaster, A.HealthstoneMajor },
+    },
+    healing_potion = {
+        name = "Warrior_HealingPotion",
+        hp_default = 25,
+        actions = { A.SuperHealingPotion, A.MajorHealingPotion },
+    },
 })
 
 -- ============================================================================
@@ -793,8 +755,7 @@ rotation_registry:register_middleware({
         if not context.in_combat then return false end
         if not context.has_valid_enemy_target then return false end
         if context.death_wish_active then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
 
         local ps = context.settings.playstyle or "fury"
         if ps == "protection" then return false end
@@ -829,8 +790,7 @@ rotation_registry:register_middleware({
         if not context.in_combat then return false end
         if not context.has_valid_enemy_target then return false end
         if context.recklessness_active then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         local ps = context.settings.playstyle or "fury"
         if ps == "protection" then return false end
         local mode = context.settings[ps .. "_use_recklessness"] or "off"
@@ -870,8 +830,7 @@ rotation_registry:register_middleware({
         if not context.in_combat then return false end
         if not context.has_valid_enemy_target then return false end
         if not context.settings.use_racial then return false end
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         -- PvP: don't waste burst racials on CC'd or immune targets
         if context.is_pvp and context.settings.pvp_enabled and context.target_is_player then
             local cc_remain = Unit(TARGET_UNIT):InCC() or 0

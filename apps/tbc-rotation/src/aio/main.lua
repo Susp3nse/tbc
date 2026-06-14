@@ -63,52 +63,54 @@ local ctx_dump_parts = {}
 
 -- Suggestion system for A[1] icon
 local suggestion = { spell = nil }
-local last_validated_active = nil
 
 -- ============================================================================
 -- ROTATION REGISTRY EXECUTION METHODS
 -- ============================================================================
 
+-- Resolve force-bypass + auto-burst gating for a middleware/strategy entry.
+-- Returns: forced (bool), burst_blocked (bool). default_target differs per loop
+-- (middleware defaults to "player", strategies to TARGET_UNIT).
+local function resolve_forced(entry, context, default_target)
+   local forced = (context.force_burst and entry.is_burst)
+      or (context.force_defensive and entry.is_defensive)
+   -- Safety: even when forced, the spell must still be ready (CD, range, stance)
+   if forced and entry.spell then
+      if not entry.spell:IsReady(entry.spell_target or default_target) then forced = false end
+   end
+   local burst_blocked = entry.is_burst and (not forced) and context.auto_burst == false
+   return forced, burst_blocked
+end
+
 --- Executes middleware. Returns: result, log_message (optional)
 function rotation_registry:execute_middleware(icon, context)
    local debug_mode = context.settings and context.settings.debug_mode
    local debug_system = context.settings and context.settings.debug_system
-   local force_burst = context.force_burst
-   local force_defensive = context.force_defensive
-   local auto_burst = context.auto_burst
 
    for _, mw in ipairs(self.middleware) do
       if (not context.on_gcd and mw.is_gcd_gated ~= false)
          or (mw.is_gcd_gated == false) then
 
-      -- Force-bypass: skip matches() for tagged middleware when force flag active
-      local forced = (force_burst and mw.is_burst) or (force_defensive and mw.is_defensive)
-      -- Safety: even when forced, spell must still be ready (CD, range, stance)
-      if forced and mw.spell then
-         local target = mw.spell_target or "player"
-         if not mw.spell:IsReady(target) then forced = false end
-      end
-      -- Auto-burst gate: skip burst middleware when conditions configured but unmet
-      local burst_blocked = mw.is_burst and (not forced) and auto_burst == false
-      -- Setting key gate: skip if user disabled this middleware (forced bypasses, same as strategies)
-      local setting_ok = forced or not mw.setting_key or context.settings[mw.setting_key]
-      local matches = setting_ok and not burst_blocked and (forced or mw.matches(context))
+         local forced, burst_blocked = resolve_forced(mw, context, "player")
+         -- Setting key gate: skip if user disabled this middleware (forced bypasses, same as strategies)
+         local setting_ok = forced or not mw.setting_key or context.settings[mw.setting_key]
+         local matches = setting_ok and not burst_blocked and (forced or mw.matches(context))
 
-      if matches then
-         NS.last_action_target_unit = nil
-         local result, log_msg = mw.execute(icon, context)
-         if result then
-            if debug_mode and log_msg and debug_print then
-                debug_print(format("[MW] %s%s", forced and "[FORCED] " or "", log_msg))
+         if matches then
+            NS.last_action_target_unit = nil
+            local result, log_msg = mw.execute(icon, context)
+            if result then
+               if debug_mode and log_msg and debug_print then
+                  debug_print(format("[MW] %s%s", forced and "[FORCED] " or "", log_msg))
+               elseif debug_system and debug_print then
+                  debug_print(format("[MW] EXECUTED %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
+               end
+               set_last_action(mw.name, "MW", NS.last_action_target_unit or mw.spell_target or "player")
+               return result
             elseif debug_system and debug_print then
-               debug_print(format("[MW] EXECUTED %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
+               debug_print(format("[MW] NO_ACTION %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
             end
-            set_last_action(mw.name, "MW", NS.last_action_target_unit or mw.spell_target or "player")
-            return result
-         elseif debug_system and debug_print then
-            debug_print(format("[MW] NO_ACTION %s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or ""))
          end
-      end
       end
    end
 
@@ -128,9 +130,6 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
    local config = self.playstyle_config[playstyle]
    local config_prereqs = config and config.check_prerequisites
    local state = self:get_playstyle_state(playstyle, context)
-   local force_burst = context.force_burst
-   local force_defensive = context.force_defensive
-   local auto_burst = context.auto_burst
 
    -- Periodic context dump (gated by "Log Context" checkbox)
    if context.settings.log_context and context.in_combat and context.has_valid_enemy_target then
@@ -161,15 +160,7 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
 
    for _, strategy in ipairs(strategies) do
       if not context.on_gcd or strategy.is_gcd_gated == false then
-         -- Force-bypass: skip prerequisites and matches() for tagged strategies
-         local forced = (force_burst and strategy.is_burst) or (force_defensive and strategy.is_defensive)
-         -- Safety: even when forced, spell must still be ready (CD, range, stance)
-         if forced and strategy.spell then
-            local target = strategy.spell_target or TARGET_UNIT
-            if not strategy.spell:IsReady(target) then forced = false end
-         end
-         -- Auto-burst gate: skip burst strategies when conditions configured but unmet
-         local burst_blocked = strategy.is_burst and (not forced) and auto_burst == false
+         local forced, burst_blocked = resolve_forced(strategy, context, TARGET_UNIT)
          local passes = not burst_blocked and (forced or (
             self:check_prerequisites(strategy, context)
             and (not config_prereqs or config_prereqs(strategy, context))
@@ -346,10 +337,7 @@ A[3] = function(icon)
 
    -- Run active playstyle strategies (cat, bear, balance, resto, etc.)
    if active then
-      if active ~= last_validated_active then
-         rotation_registry:validate_playstyle_spells(active)
-         last_validated_active = active
-      end
+      rotation_registry:validate_playstyle_spells(active)
       local result = rotation_registry:execute_strategies(active, icon, context)
       if result then
          return result

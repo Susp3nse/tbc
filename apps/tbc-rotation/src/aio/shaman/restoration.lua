@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local ttd_too_short = NS.ttd_too_short
 local resolve_totem_spell = NS.resolve_totem_spell
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local format = string.format
@@ -363,8 +364,7 @@ local Resto_Racial = {
     setting_key = "use_racial",
 
     matches = function(context, state)
-        local min_ttd = context.settings.cd_min_ttd or 0
-        if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end
+        if ttd_too_short(context) then return false end
         -- Caster shaman uses SP Blood Fury or Berserking
         if A.BloodFurySP:IsReady(PLAYER_UNIT) then return true end
         if A.Berserking:IsReady(PLAYER_UNIT) then return true end
