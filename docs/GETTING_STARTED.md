@@ -94,7 +94,24 @@ pnpm test         # recursive tests (analyzer, rotation guardrails)
 
 Lua source has its own linter: `pnpm --filter @flux/tbc-rotation lint:lua` (luacheck).
 
-## 5. Where to go next
+## 5. Cut a release
+
+Releases are two commands bracketing one human step — you never hand-type a `git tag`:
+
+```bash
+pnpm release            # 1. bump the version + scaffold the changelog from your commits
+#                          2. curate apps/website/src/content/changelog/v<X.Y.Z>.md into player prose
+pnpm release:publish    # 3. validate → build → confirm → commit → tag → push (triggers the release)
+```
+
+`pnpm release` reads the conventional commits since the last tag, computes the next semver, bumps
+`apps/tbc-rotation/package.json`, and writes a draft changelog with `_TODO:` placeholders. You rewrite
+those into player-facing prose (that's the only manual step — your commit subjects are engineer-speak).
+`pnpm release:publish` refuses to proceed while any placeholder remains, so half-written notes can't
+ship. Preview either with `--dry-run`. Full detail + the PR-based variant: root
+[`AGENTS.md`](../AGENTS.md) → Release Workflow.
+
+## 6. Where to go next
 
 - **Architecture, conventions, release workflow:** root [`AGENTS.md`](../AGENTS.md).
 - **Touching a class rotation:** `apps/tbc-rotation/src/aio/<class>/AGENTS.md`.

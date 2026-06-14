@@ -279,17 +279,19 @@ without re-prompting.
    **single source** for the release notes: `release.yml` reads it as the GitHub Release body, which
    the Discord webhook reuses.
 
-5. **Commit and push** — `chore(workspace): release vX.Y.Z`, mentioning the PR number in the body.
-   Push to main.
-
-6. **Annotated tag** — `git tag -a vX.Y.Z -m "<short release notes>"` then `git push origin vX.Y.Z`.
-   Pushing the tag triggers `release.yml`, which builds the addon and creates the GitHub Release
-   using the **changelog entry** as the body (the tag message is only a fallback if that file is
-   missing). Annotated tags only.
+5. **Publish** — `corepack pnpm release:publish`. This wraps the whole irreversible tail in one
+   guarded command: it **validates** the curated changelog (refuses to proceed while `_TODO:`
+   placeholders or the scaffold note remain), verifies the build, prints the final notes and asks
+   `Publish vX.Y.Z? [y/N]`, then commits (`chore(workspace): release vX.Y.Z`), creates the annotated
+   tag from the changelog body, and pushes the branch + tag. The tag push triggers `release.yml`,
+   which builds the addon and creates the GitHub Release using the **changelog entry** as the body
+   (the tag message is only a fallback if that file is missing). Use `--dry-run` to preview and
+   `--yes` to skip the prompt; if the bump/changelog were already committed (e.g. via `release --pr`
+   + merge), it skips the commit and just tags the current HEAD.
 
 ### Hard rules
 - **Never tag without explicit user approval.** "Tag a release" in the request counts; absence of
-  that phrase means stop after step 5 and ask.
+  that phrase means stop after step 4 (curate) and ask before running `release:publish`.
 - **Annotated tags only** (`-a` + `-m`). Never lightweight tags.
 - **Tags are immutable releases** — never force-push or move an existing tag. To fix something, ship
   a new patch version.

@@ -7,6 +7,7 @@
     "build:website": "corepack pnpm --filter @flux/website build",
     "build:bot": "corepack pnpm --filter @flux/bot build",
     "release": "tsx tooling/release.ts",
+    "release:publish": "tsx tooling/publish.ts",
     "lint": "corepack pnpm exec oxlint apps packages tooling --deny-warnings",
     "lint:fix": "corepack pnpm exec oxlint apps packages tooling --fix",
     "format": "corepack pnpm exec oxfmt apps packages tooling",
