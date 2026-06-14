@@ -3,7 +3,7 @@
   "modulePrefix": "Menagerie_",
   "profileNamePrefix": "Menagerie ",
   "nameOverrides": { "ui": "UI" },
-  "defaultModuleOrder": 7,
+  "defaultModuleOrder": 8,
   "templateProfileKey": "__template__",
   "paths": {
     "aioDir": "src/aio",
@@ -16,13 +16,14 @@
     { "slot": "class", "source": "schema.lua", "order": 2 },
     { "slot": "shared", "source": "ui.lua", "order": 3 },
     { "slot": "shared", "source": "core.lua", "order": 4 },
-    { "slot": "class", "source": "class.lua", "order": 5 },
-    { "slot": "class", "source": "healing.lua", "order": 6 },
-    { "slot": "shared", "source": "settings.lua", "order": 6 },
-    { "slot": "class", "source": "middleware.lua", "order": 7 },
-    { "slot": "shared", "source": "debugpanel.lua", "order": 8 },
-    { "slot": "shared", "source": "dashboard.lua", "order": 8 },
-    { "slot": "shared", "source": "main.lua", "order": 9 }
+    { "slot": "shared", "source": "debug.lua", "order": 5 },
+    { "slot": "class", "source": "class.lua", "order": 6 },
+    { "slot": "class", "source": "healing.lua", "order": 7 },
+    { "slot": "shared", "source": "settings.lua", "order": 7 },
+    { "slot": "class", "source": "middleware.lua", "order": 8 },
+    { "slot": "shared", "source": "debugpanel.lua", "order": 9 },
+    { "slot": "shared", "source": "dashboard.lua", "order": 9 },
+    { "slot": "shared", "source": "main.lua", "order": 10 }
   ],
   "metadata": {
     "marker": "-- Menagerie - Core Module",

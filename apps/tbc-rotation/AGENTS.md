@@ -55,14 +55,15 @@ Each class folder contributes files into shared slots; the order is data-driven 
 2. `schema.lua` (class) — settings schema, `ProfileEnabled`
 3. `ui.lua` (shared) — ProfileUI generator (framework backing store)
 4. `core.lua` (shared) — namespace, settings, registry, constants, force flags, burst context
-5. `class.lua` (class) — actions, constants, `register_class()`
-6. `healing.lua` (class) **/** `settings.lua` (shared) — same order slot, no mutual deps
-7. `middleware.lua` (class) — shared middleware strategies
-8. `dashboard.lua` (shared) — combat overlay
-9. `main.lua` (shared, **always last**) — context creation, dispatcher, force-bypass
+5. `debug.lua` (shared) — debug log substrate, shared debug chrome/theme, `/mlog`
+6. `class.lua` (class) — actions, constants, `register_class()`
+7. `healing.lua` (class) **/** `settings.lua` (shared) — same order slot, no mutual deps
+8. `middleware.lua` (class) — shared middleware strategies
+9. `debugpanel.lua` (shared) **/** `dashboard.lua` (shared) — diagnostic and combat overlays
+10. `main.lua` (shared, **always last**) — context creation, dispatcher, force-bypass
 
 Remaining playstyle files in a class folder load at the class default order (`defaultModuleOrder`,
-currently 7) in filename order.
+currently 8) in filename order.
 
 ## AIO architecture
 
@@ -107,8 +108,10 @@ unmet (burst held).
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `common.lua`    | Loads first; shared low-level helpers used before core.                                                                                                           |
 | `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
+| `debug.lua`     | Shared debug substrate: structured debug log, log window, throttled `debug_print`, debug chrome/theme exports, `/mlog`.                                      |
 | `ui.lua`        | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                                                           |
 | `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/menagerie` slash commands.                                                                                    |
+| `debugpanel.lua`| Shared live diagnostic panel (`/mdebug`) with class-provided sections.                                                                                            |
 | `dashboard.lua` | Data-driven combat overlay.                                                                                                                                       |
 | `main.lua`      | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                                                             |
 
@@ -166,8 +169,10 @@ Per-class `schema.lua` defines `_G.Menagerie_SETTINGS_SCHEMA`. One schema drives
 
 ## Debugging
 
-- `debug_print(...)` (`core.lua`) — throttled per unique message; enable via the "Debug Mode"
+- `debug_print(...)` (`debug.lua`) — throttled per unique message; enable via the "Debug Mode"
   setting checkbox.
+- Debug log (`/mlog`) — structured log frame with copy/clear/resize and hover context.
+- Debug panel (`/mdebug`) — live state panel, enabled by the "Show Debug Panel" setting.
 - Combat dashboard (`/menagerie status`) — live priority/CDs/buffs overlay.
 - `src/sim/` — simulation harness that regression-checks rotation logic (`pnpm sim:hunter`, etc.).
 - `pnpm lint:lua` — static analysis of `src/aio` via `luacheck` (catches typo'd API names,
