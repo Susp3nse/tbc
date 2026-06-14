@@ -249,49 +249,27 @@ classes or unrelated apps. Each nested doc owns its own concerns and does not re
 
 ## Release Workflow
 
-> Cross-area orchestration, so it lives here. `apps/tbc-rotation/AGENTS.md` and
-> `apps/website/AGENTS.md` reference this section. **Only rotation code changes get a tag/release** —
-> website-only and `apps/discord-bot/`-only changes deploy via their own workflows
-> (`deploy-website.yml`, `deploy-bot.yml`) and need no tag.
+> Cross-area orchestration, so the canonical runbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).
+> `apps/tbc-rotation/AGENTS.md` and `apps/website/AGENTS.md` reference this section. **Only rotation
+> code changes get a tag/release** — website-only and `apps/discord-bot/`-only changes deploy via
+> their own workflows (`deploy-website.yml`, `deploy-bot.yml`) and need no tag.
 
-When the user says "review PR ##, merge, and tag a release" (or similar), perform every step below
-without re-prompting.
+The full step-by-step (from-main flow, PR variant, what CI does) is in
+[`docs/RELEASING.md`](docs/RELEASING.md). In short, a release is two commands around one human step:
 
-1. **Review** — `gh pr view <#>` and `gh pr diff <#>`. Summarize scope, flag risks (security,
-   breakage, unverified assumptions), give an LGTM or hold if something's off. Trivial / mechanical
-   PRs get a one-paragraph LGTM and proceed.
+```bash
+pnpm release            # bump version + scaffold the changelog from commits
+#                          ↳ curate apps/website/src/content/changelog/v<X.Y.Z>.md into player prose
+pnpm release:publish    # validate → build → confirm → commit → tag → push (CI cuts the Release)
+```
 
-2. **Merge** — `gh pr merge <#> --merge --delete-branch`. Always `--merge` (not `--squash` or
-   `--rebase`) so commit attribution is preserved on main. Then `git checkout main && git pull
-   origin main`.
-
-3. **Bump the single platform version** (semver: patch for bugfix, minor for new feature / new
-   setting, major for breaking change). There is **one** version — `apps/tbc-rotation/package.json`
-   `"version"`; the build injects it as `NS.VERSION`. **No per-class versions to touch.** Easiest:
-   run `corepack pnpm release` from main — it computes the bump from the conventional commits since
-   the last tag, bumps `package.json`, and scaffolds the changelog entry (step 4). Then verify the
-   build: `corepack pnpm --filter @flux/tbc-rotation build`.
-
-4. **Curate the changelog entry** — the changelog is an Astro content collection (one markdown file
-   per release at `apps/website/src/content/changelog/v<X.Y.Z>.md`; format in `apps/website/AGENTS.md`).
-   `pnpm release` scaffolds it from commit subjects grouped by scope — rewrite each bullet into
-   player-facing prose and drop non-player scopes (workspace/builder/analyzer). This file is the
-   **single source** for the release notes: `release.yml` reads it as the GitHub Release body, which
-   the Discord webhook reuses.
-
-5. **Publish** — `corepack pnpm release:publish`. This wraps the whole irreversible tail in one
-   guarded command: it **validates** the curated changelog (refuses to proceed while `_TODO:`
-   placeholders or the scaffold note remain), verifies the build, prints the final notes and asks
-   `Publish vX.Y.Z? [y/N]`, then commits (`chore(workspace): release vX.Y.Z`), creates the annotated
-   tag from the changelog body, and pushes the branch + tag. The tag push triggers `release.yml`,
-   which builds the addon and creates the GitHub Release using the **changelog entry** as the body
-   (the tag message is only a fallback if that file is missing). Use `--dry-run` to preview and
-   `--yes` to skip the prompt; if the bump/changelog were already committed (e.g. via `release --pr`
-   + merge), it skips the commit and just tags the current HEAD.
+When the user says "review PR ##, merge, and tag a release" (or similar), do it without re-prompting:
+`gh pr view`/`diff` → LGTM-or-hold → `gh pr merge <#> --merge --delete-branch` → `git checkout main
+&& git pull` → the release flow above. Details for each step: [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ### Hard rules
 - **Never tag without explicit user approval.** "Tag a release" in the request counts; absence of
-  that phrase means stop after step 4 (curate) and ask before running `release:publish`.
+  that phrase means stop after curating the changelog and ask before running `release:publish`.
 - **Annotated tags only** (`-a` + `-m`). Never lightweight tags.
 - **Tags are immutable releases** — never force-push or move an existing tag. To fix something, ship
   a new patch version.

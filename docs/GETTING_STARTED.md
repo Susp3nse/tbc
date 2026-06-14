@@ -108,8 +108,8 @@ pnpm release:publish    # 3. validate → build → confirm → commit → tag �
 `apps/tbc-rotation/package.json`, and writes a draft changelog with `_TODO:` placeholders. You rewrite
 those into player-facing prose (that's the only manual step — your commit subjects are engineer-speak).
 `pnpm release:publish` refuses to proceed while any placeholder remains, so half-written notes can't
-ship. Preview either with `--dry-run`. Full detail + the PR-based variant: root
-[`AGENTS.md`](../AGENTS.md) → Release Workflow.
+ship. Preview either with `--dry-run`. Full runbook — from-main flow, PR-based variant, CI behavior,
+hard rules: [`docs/RELEASING.md`](./RELEASING.md).
 
 ## 6. Where to go next
 
