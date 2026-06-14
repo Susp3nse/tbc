@@ -9,6 +9,9 @@ fix-vscode-claude.sh
 # Claude session data
 .claude/
 
+# Serena tool config (machine-local)
+.serena/
+
 # Git worktrees
 .worktrees/
 
