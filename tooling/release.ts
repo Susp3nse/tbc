@@ -184,7 +184,7 @@ if (openPr) {
 console.log(`
 Next steps:
   1. Curate ${path.relative(ROOT, changelogPath)} into player-facing prose.
-  2. Verify the build:  corepack pnpm --filter @flux/tbc-rotation build
+  2. Verify the build:  corepack pnpm --filter @menagerie/tbc-rotation build
   3. Merge, then tag:   git tag -a v${next} -m "<release notes>" && git push origin v${next}
      (the tag triggers release.yml, which uses the changelog entry as the Release + Discord body)
 `);

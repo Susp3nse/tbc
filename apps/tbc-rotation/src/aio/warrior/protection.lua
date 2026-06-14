@@ -10,14 +10,14 @@
 local A_global = _G.Action
 if not A_global or A_global.PlayerClass ~= "WARRIOR" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Protection]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Protection]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Protection]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Protection]|r Registry not found!")
     return
 end
 
@@ -756,4 +756,4 @@ end -- scope block
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Warrior]|r Protection module loaded")
+print("|cFF00FF00[Menagerie Warrior]|r Protection module loaded")

@@ -10,9 +10,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter Weave]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter Weave]|r Core module not loaded!")
     return
 end
 
@@ -601,7 +601,7 @@ local function OnCLEU()
 end
 
 if Listener and Listener.Add then
-    Listener:Add("FLUX_HUNTER_WEAVE_CLEU", "COMBAT_LOG_EVENT_UNFILTERED", OnCLEU)
+    Listener:Add("MENAGERIE_HUNTER_WEAVE_CLEU", "COMBAT_LOG_EVENT_UNFILTERED", OnCLEU)
 end
 
 local lastToggle = nil
@@ -620,4 +620,4 @@ watch:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
-print("|cFF00FF00[Flux AIO Hunter]|r Melee weave coach loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Melee weave coach loaded")

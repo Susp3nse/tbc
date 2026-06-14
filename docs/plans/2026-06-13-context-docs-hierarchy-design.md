@@ -178,7 +178,7 @@ Source material already exists: `docs/<CLASS>_RESEARCH.md` files + the class's `
 ## Appendix A — Phase 0 config-fix results & the pending type-error decision
 
 Applied & verified this session:
-- **#2** removed dead `@flux/log-analyzer` dep from `tbc-rotation` (its typecheck still passes).
+- **#2** removed dead `@menagerie/log-analyzer` dep from `tbc-rotation` (its typecheck still passes).
 - **#3** website `typecheck` = `astro check` (+ `@astrojs/check`); passes.
 - **#4** hardened `log-analyzer` CLI to ignore a stray `--`; both `cli -- <cmd>` and `cli <cmd>` now dispatch; help text corrected.
 - **#5** root `test` → `pnpm -r --if-present test`.

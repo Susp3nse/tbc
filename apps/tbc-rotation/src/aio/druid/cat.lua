@@ -10,15 +10,15 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Cat]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Cat]|r Core module not loaded!")
    return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Cat]|r Registry not found in Core!")
+   print("|cFFFF0000[Menagerie Cat]|r Registry not found in Core!")
    return
 end
 
@@ -62,7 +62,7 @@ local ENERGY_COST_BITE = get_spell_energy_cost(A.FerociousBite, 35)
 local ENERGY_COST_RAVAGE = get_spell_energy_cost(A.Ravage, 60)
 local ENERGY_COST_TIGERS_FURY = get_spell_energy_cost(A.TigersFury, 30)
 
-print("|cFFFF8800[Flux AIO]|r Energy costs: Rip=" .. ENERGY_COST_RIP .. ", Rake=" .. ENERGY_COST_RAKE .. ", Bite=" .. ENERGY_COST_BITE .. ", Mangle=" .. ENERGY_COST_MANGLE .. ", Shred=" .. ENERGY_COST_SHRED .. ", Ravage=" .. ENERGY_COST_RAVAGE .. ", Tigers=" .. ENERGY_COST_TIGERS_FURY)
+print("|cFFFF8800[Menagerie]|r Energy costs: Rip=" .. ENERGY_COST_RIP .. ", Rake=" .. ENERGY_COST_RAKE .. ", Bite=" .. ENERGY_COST_BITE .. ", Mangle=" .. ENERGY_COST_MANGLE .. ", Shred=" .. ENERGY_COST_SHRED .. ", Ravage=" .. ENERGY_COST_RAVAGE .. ", Tigers=" .. ENERGY_COST_TIGERS_FURY)
 
 -- Tick optimization: prefer Mangle over Shred in this energy range when tick imminent.
 -- At these energy levels, Shred leaves you too low to act after the tick, but Mangle doesn't.
@@ -132,7 +132,7 @@ local energy_tick = {
    last_tick_time = 0,
    last_shift_time = 0,
    confident = false,  -- True once we've detected at least one tick
-   debug = false,             -- off by default; toggle on with /fticks (prints "TICK NOW!" on each detection)
+   debug = false,             -- off by default; toggle on with /mticks (prints "TICK NOW!" on each detection)
 }
 
 -- Expose to NS so the dashboard can prefer this frame-level tracker over its own 10Hz one
@@ -1092,5 +1092,5 @@ rotation_registry:register("cat", {
 
 end  -- End Cat strategies scope block
 
-print("|cFF00FF00[Flux AIO Cat]|r 20 Cat strategies registered.")
-print("|cFFFF55FF[Flux AIO Cat]|r LATEST VERSION!! tick_debug=" .. tostring(energy_tick.debug) .. " (build 2026-05-11)")
+print("|cFF00FF00[Menagerie Cat]|r 20 Cat strategies registered.")
+print("|cFFFF55FF[Menagerie Cat]|r LATEST VERSION!! tick_debug=" .. tostring(energy_tick.debug) .. " (build 2026-05-11)")

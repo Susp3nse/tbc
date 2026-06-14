@@ -1,4 +1,4 @@
-﻿You are researching TBC (The Burning Crusade) WoW class rotations for a Lua rotation addon called Flux AIO.
+﻿You are researching TBC (The Burning Crusade) WoW class rotations for a Lua rotation addon called Menagerie.
 
 READ THESE TWO FILES FIRST:
 1. docs/MAGE_RESEARCH.md — This is your FORMAT REFERENCE. Match its structure, sections, and level of detail exactly.

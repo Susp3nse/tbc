@@ -1,6 +1,6 @@
 # Creating a New Class: Complete Implementation Guide
 
-This document captures every pattern, contract, and gotcha needed to add a new class (e.g. Mage) to the Flux AIO rotation system. It was written by exhaustively reading every file in the codebase.
+This document captures every pattern, contract, and gotcha needed to add a new class (e.g. Mage) to the Menagerie rotation system. It was written by exhaustively reading every file in the codebase.
 
 ---
 
@@ -60,10 +60,10 @@ The build system (`rotation/build.js`) auto-discovers class directories under `s
 **How it works:**
 1. `discoverClasses(aioDir)` scans for subdirectories → finds `druid/`, `hunter/`, `mage/`
 2. `discoverModules(className, aioDir)` collects shared modules + class modules
-3. Each module gets a `Name` (e.g. `Flux_Mage_Schema`) and an `Order` value
+3. Each module gets a `Name` (e.g. `Menagerie_Mage_Schema`) and an `Order` value
 4. Modules are compiled into TMW CodeSnippets in the output `TellMeWhen.lua`
 
-**Profile naming**: By default, `"Flux Mage"` (capitalized class name). Override in `builder.config.local.json` under `"profiles"`.
+**Profile naming**: By default, `"Menagerie Mage"` (capitalized class name). Override in `builder.config.local.json` under `"profiles"`.
 
 **Build commands**:
 ```bash
@@ -82,9 +82,9 @@ The build system enforces this order via `ORDER_MAP`. You cannot change it witho
 
 | Order | File | Slot | What It Does |
 |-------|------|------|-------------|
-| 1 | `schema.lua` | class | Defines `_G.FluxAIO_SETTINGS_SCHEMA`, enables profile |
+| 1 | `schema.lua` | class | Defines `_G.Menagerie_SETTINGS_SCHEMA`, enables profile |
 | 2 | `ui.lua` | shared | Generates `A.Data.ProfileUI[2]` from schema |
-| 3 | `core.lua` | shared | Creates `_G.FluxAIO` namespace, registry, utilities |
+| 3 | `core.lua` | shared | Creates `_G.Menagerie` namespace, registry, utilities |
 | 4 | `class.lua` | class | Defines `Action[PlayerClass]`, registers class, sets `NS.A` |
 | 5 | `healing.lua` | class | Healing utilities (if needed, same order as settings) |
 | 5 | `settings.lua` | shared | Custom tabbed settings UI + minimap button |
@@ -94,8 +94,8 @@ The build system enforces this order via `ORDER_MAP`. You cannot change it witho
 | 8 | `main.lua` | shared | Context creation, rotation dispatcher (ALWAYS LAST) |
 
 **Key insight**: `schema.lua` loads BEFORE `core.lua`. This means:
-- `schema.lua` can only use `_G.Action` (the base framework), NOT `_G.FluxAIO`
-- `class.lua` loads AFTER `core.lua`, so it CAN use `_G.FluxAIO`
+- `schema.lua` can only use `_G.Action` (the base framework), NOT `_G.Menagerie`
+- `class.lua` loads AFTER `core.lua`, so it CAN use `_G.Menagerie`
 - All playstyle modules load after `class.lua` and can use everything
 
 ---
@@ -123,7 +123,7 @@ This is **required**. Without it, `core.lua` will refuse to load and print an er
 
 ### 4c. Define the Settings Schema
 ```lua
-_G.FluxAIO_SETTINGS_SCHEMA = {
+_G.Menagerie_SETTINGS_SCHEMA = {
     [1] = { name = "General", sections = {
         { header = "Section Name", settings = {
             { type = "checkbox", key = "setting_key", default = true,
@@ -175,9 +175,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "MAGE" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Mage]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Mage]|r Core module not loaded!")
     return
 end
 ```
@@ -281,7 +281,7 @@ local function validate_playstyle_spells(playstyle)
     end
 
     -- Print results (copy pattern from Druid/Hunter)
-    print("|cFF00FF00[Flux AIO]|r Switched to " .. playstyle .. " playstyle")
+    print("|cFF00FF00[Menagerie]|r Switched to " .. playstyle .. " playstyle")
     -- ... print missing/optional
 end
 
@@ -329,12 +329,12 @@ rotation_registry:register_class({
 | `get_active_playstyle` | function(context) → string/nil | YES | Returns active playstyle based on game state |
 | `get_idle_playstyle` | function(context) → string/nil | NO | Returns idle playstyle or nil |
 | `extend_context` | function(ctx) | NO | Adds class fields to context each frame |
-| `gap_handler` | function(icon, ctx) → result | NO | Called by `/flux gap` — fires best gap closer |
+| `gap_handler` | function(icon, ctx) → result | NO | Called by `/menagerie gap` — fires best gap closer |
 | `dashboard` | table | NO | Dashboard config (see [Combat Dashboard](#combat-dashboard)) |
 
 ### gap_handler
 
-Optional function for classes with gap closers. Called when `/flux gap` is active. Returns a result if successful (consumed on first fire), nil otherwise.
+Optional function for classes with gap closers. Called when `/menagerie gap` is active. Returns a result if successful (consumed on first fire), nil otherwise.
 
 ```lua
 gap_handler = function(icon, context)
@@ -399,14 +399,14 @@ Middleware runs every frame BEFORE playstyle strategies. Use it for cross-playst
 
 ### Boilerplate
 ```lua
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Mage Middleware]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Mage Middleware]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Mage Middleware]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Mage Middleware]|r Registry not found!")
     return
 end
 
@@ -421,7 +421,7 @@ local PLAYER_UNIT = "player"
 rotation_registry:register_middleware({
     name = "Mage_RecoveryItems",
     priority = Priority.MIDDLEWARE.RECOVERY_ITEMS,  -- Use predefined priorities
-    is_defensive = true,  -- Optional: tagged for /flux def force-fire
+    is_defensive = true,  -- Optional: tagged for /menagerie def force-fire
 
     matches = function(context)
         -- Return true if this middleware should execute
@@ -470,13 +470,13 @@ Each playstyle (e.g. `fire.lua`, `frost.lua`) contains strategies for that spec.
 
 ### Boilerplate
 ```lua
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Fire]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Fire]|r Core module not loaded!")
     return
 end
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Fire]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Fire]|r Registry not found!")
     return
 end
 
@@ -549,8 +549,8 @@ end  -- End scope block
 | `is_gcd_gated` | bool/nil | If false, strategy runs even during GCD (for off-GCD abilities) |
 | `should_suggest` | function(context) → bool | For idle playstyle suggestion system (A[1] icon) |
 | `suggestion_spell` | Action | Spell to show on A[1] when should_suggest returns true |
-| `is_burst` | bool/nil | If true, `/flux burst` force-fires this strategy (bypasses `matches()`) |
-| `is_defensive` | bool/nil | If true, `/flux def` force-fires this strategy (bypasses `matches()`) |
+| `is_burst` | bool/nil | If true, `/menagerie burst` force-fires this strategy (bypasses `matches()`) |
+| `is_defensive` | bool/nil | If true, `/menagerie def` force-fires this strategy (bypasses `matches()`) |
 
 **Built-in prerequisite checks** (from `rotation_registry:check_prerequisites`):
 - `requires_combat` — checked against `context.in_combat`
@@ -606,26 +606,26 @@ These files are class-agnostic and serve all classes:
 
 | File | Purpose |
 |------|---------|
-| `core.lua` | Namespace (`_G.FluxAIO`), settings cache, registry, utilities, force flags, burst context |
+| `core.lua` | Namespace (`_G.Menagerie`), settings cache, registry, utilities, force flags, burst context |
 | `main.lua` | Context creation, rotation dispatcher (A[3]), suggestion icon (A[1]), force-bypass logic |
-| `ui.lua` | Generates `A.Data.ProfileUI[2]` from `_G.FluxAIO_SETTINGS_SCHEMA` |
-| `settings.lua` | Custom tabbed settings UI, movable settings button, `/flux` slash commands |
+| `ui.lua` | Generates `A.Data.ProfileUI[2]` from `_G.Menagerie_SETTINGS_SCHEMA` |
+| `settings.lua` | Custom tabbed settings UI, movable settings button, `/menagerie` slash commands |
 | `dashboard.lua` | Shared combat dashboard overlay (data-driven, reads class `dashboard` config) |
 
 **You should not need to modify these** when adding a new class. They read from the schema and class config dynamically.
 
 The one exception: if you need a new `Priority.MIDDLEWARE.*` constant, add it to `core.lua`.
 
-### Slash Commands (`/flux`)
+### Slash Commands (`/menagerie`)
 
 | Command | Behavior |
 |---|---|
-| `/flux` | Toggle settings UI |
-| `/flux burst` | Force offensive CDs for 3s (fires all `is_burst` tagged entries) |
-| `/flux def` | Force defensive CDs for 3s (fires all `is_defensive` tagged entries) |
-| `/flux gap` | Fire best gap closer (consumed on first success, uses `gap_handler`) |
-| `/flux status` | Toggle combat dashboard |
-| `/flux help` | Print command list |
+| `/menagerie` | Toggle settings UI |
+| `/menagerie burst` | Force offensive CDs for 3s (fires all `is_burst` tagged entries) |
+| `/menagerie def` | Force defensive CDs for 3s (fires all `is_defensive` tagged entries) |
+| `/menagerie gap` | Fire best gap closer (consumed on first success, uses `gap_handler`) |
+| `/menagerie status` | Toggle combat dashboard |
+| `/menagerie help` | Print command list |
 
 ### Burst Context System
 
@@ -642,7 +642,7 @@ These settings go in a "Dashboard" tab of each class's schema. Burst-tagged midd
 
 ### Force-Bypass Dispatch (main.lua)
 
-When `/flux burst` or `/flux def` is active:
+When `/menagerie burst` or `/menagerie def` is active:
 1. The dispatch loop checks `is_burst`/`is_defensive` on each middleware and strategy
 2. If tagged and flag active: **bypasses `matches()` and `check_prerequisites()`**
 3. If the entry has a `spell` property, `IsReady()` is still checked at dispatch level (CD, range, stance respected). Entries without `spell` rely on `execute()` checking `IsReady()` internally via `try_cast` or explicit guard
@@ -795,7 +795,7 @@ The context table is created fresh each frame by `main.lua:create_context()` and
 ### How Settings Flow
 
 ```
-schema.lua defines _G.FluxAIO_SETTINGS_SCHEMA
+schema.lua defines _G.Menagerie_SETTINGS_SCHEMA
     ↓
 ui.lua reads schema → generates A.Data.ProfileUI[2] (framework backing store)
     ↓
@@ -866,7 +866,7 @@ rotation_registry:register_middleware({
 
 ## 13. Common Utility Functions
 
-All available on `NS` (the `_G.FluxAIO` namespace):
+All available on `NS` (the `_G.Menagerie` namespace):
 
 ### Casting Helpers
 ```lua

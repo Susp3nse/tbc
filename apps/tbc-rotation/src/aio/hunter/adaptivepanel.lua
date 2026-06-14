@@ -11,9 +11,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter Adaptive Panel]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter Adaptive Panel]|r Core module not loaded!")
     return
 end
 -- HunterAdaptive may not be loaded yet (Order 7 unstable sort). Late-bind in Refresh().
@@ -171,7 +171,7 @@ function Panel:Create()
     self.rows.weaponBase = row("Weapon")
     self.rows.haste      = row("Haste")
     self.rows.sqwPing    = row("SQW / Ping")
-    self.rows.lat        = row("Flux lat")
+    self.rows.lat        = row("Menagerie lat")
     spacer()
 
     header("API SANITY")
@@ -458,4 +458,4 @@ watch:SetScript("OnUpdate", function(self, e)
     end
 end)
 
-print("|cFF00FF00[Flux AIO Hunter]|r Adaptive panel loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Adaptive panel loaded")

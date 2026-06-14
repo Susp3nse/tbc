@@ -1,5 +1,5 @@
 -- Warrior Settings Schema
--- Defines _G.FluxAIO_SETTINGS_SCHEMA for Warrior class
+-- Defines _G.Menagerie_SETTINGS_SCHEMA for Warrior class
 -- Must load before ui.lua, core.lua, and settings.lua
 
 local _G = _G
@@ -11,7 +11,7 @@ end
 if A.PlayerClass ~= "WARRIOR" then
 	return
 end
-local S = _G.FluxAIO_SECTIONS
+local S = _G.Menagerie_SECTIONS
 
 -- Enable this profile
 A.Data.ProfileEnabled[A.CurrentProfile] = true
@@ -27,7 +27,7 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 -- Keys are snake_case -- the same string used everywhere:
 --   GetToggle(2, key), SetToggle({2, key, ...}), cached_settings[key], context.settings[key]
 
-_G.FluxAIO_SETTINGS_SCHEMA = {
+_G.Menagerie_SETTINGS_SCHEMA = {
 	-- Tab 1: General
 	[1] = {
 		name = "General",
@@ -1179,4 +1179,4 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 	},
 }
 
-print("|cFF00FF00[Flux AIO]|r Warrior schema loaded")
+print("|cFF00FF00[Menagerie]|r Warrior schema loaded")

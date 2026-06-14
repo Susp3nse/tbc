@@ -10,19 +10,19 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Resto]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Resto]|r Core module not loaded!")
    return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Resto]|r Registry not found in Core!")
+   print("|cFFFF0000[Menagerie Resto]|r Registry not found in Core!")
    return
 end
 if not NS.scan_healing_targets then
-   print("|cFFFF0000[Flux AIO Resto]|r Healing module not loaded!")
+   print("|cFFFF0000[Menagerie Resto]|r Healing module not loaded!")
    return
 end
 
@@ -456,4 +456,4 @@ do
 
 end  -- End Resto strategies do...end block
 
-print("|cFF00FF00[Flux AIO Resto]|r 13 Tree of Life strategies + 1 middleware registered.")
+print("|cFF00FF00[Menagerie Resto]|r 13 Tree of Life strategies + 1 middleware registered.")

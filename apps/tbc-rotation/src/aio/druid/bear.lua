@@ -10,15 +10,15 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Bear]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Bear]|r Core module not loaded!")
    return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Bear]|r Registry not found in Core!")
+   print("|cFFFF0000[Menagerie Bear]|r Registry not found in Core!")
    return
 end
 
@@ -1141,4 +1141,4 @@ do
 
 end  -- End Bear strategies do...end block
 
-print("|cFF00FF00[Flux AIO Bear]|r 15 Bear strategies registered.")
+print("|cFF00FF00[Menagerie Bear]|r 15 Bear strategies registered.")

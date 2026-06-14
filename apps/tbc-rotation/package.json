@@ -1,23 +1,22 @@
 {
-  "name": "@flux/tbc-rotation",
+  "name": "@menagerie/tbc-rotation",
   "version": "1.16.0",
   "private": true,
   "type": "module",
-  "main": "dist/build.js",
   "scripts": {
-    "compile": "corepack pnpm --filter @flux/tmw-profile-builder build && tsc -p tsconfig.json",
+    "build:engine": "corepack pnpm --filter @menagerie/tmw-profile-builder build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint:lua": "luacheck src/aio",
     "test": "tsx test/guardrails.test.ts",
-    "build": "corepack pnpm run compile && node dist/build.js",
-    "build:sync": "corepack pnpm run compile && node dist/build.js --sync",
-    "build:all": "corepack pnpm run compile && node dist/build.js --all",
+    "build": "corepack pnpm run build:engine && tsx build.ts",
+    "build:sync": "corepack pnpm run build:engine && tsx build.ts --sync",
+    "build:all": "corepack pnpm run build:engine && tsx build.ts --all",
     "sim:hunter": "tsx src/sim/hunter-adaptive-sim.ts",
-    "watch": "corepack pnpm run compile && node dist/dev-watch.js",
-    "watch:log": "corepack pnpm run compile && node -e \"require('fs').mkdirSync('.logs',{recursive:true})\" && node dist/dev-watch.js > .logs/dev-watch.log 2> .logs/dev-watch.err.log"
+    "watch": "corepack pnpm run build:engine && tsx dev-watch.ts",
+    "watch:log": "corepack pnpm run build:engine && node -e \"require('fs').mkdirSync('.logs',{recursive:true})\" && tsx dev-watch.ts > .logs/dev-watch.log 2> .logs/dev-watch.err.log"
   },
   "dependencies": {
-    "@flux/tmw-profile-builder": "workspace:*"
+    "@menagerie/tmw-profile-builder": "workspace:*"
   },
   "excludeClasses": []
 }

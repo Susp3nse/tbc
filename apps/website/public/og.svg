@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#08080a"/>
+  <rect width="1200" height="630" fill="#16130f"/>
   <!-- Subtle grid pattern -->
   <defs>
     <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
-      <path d="M40 0H0v40" fill="none" stroke="#1e1e26" stroke-width="0.5"/>
+      <path d="M40 0H0v40" fill="none" stroke="#332b20" stroke-width="0.5"/>
     </pattern>
   </defs>
   <rect width="1200" height="630" fill="url(#g)" opacity="0.5"/>
   <!-- Accent glow -->
-  <ellipse cx="600" cy="315" rx="300" ry="200" fill="#6c63ff" opacity="0.06"/>
+  <ellipse cx="600" cy="315" rx="300" ry="200" fill="#e08a3c" opacity="0.08"/>
   <!-- Title -->
-  <text x="600" y="270" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="82" fill="#dcdce4">Flux <tspan fill="#6c63ff">AIO</tspan></text>
+  <text x="600" y="270" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="82" fill="#ece3d2">Mena<tspan fill="#e08a3c">gerie</tspan></text>
   <!-- Tagline -->
-  <text x="600" y="340" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400" font-size="30" fill="#9494a8">Multi-class WoW TBC rotation addon</text>
+  <text x="600" y="340" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400" font-size="30" fill="#b3a587">Multi-class WoW TBC rotation addon</text>
   <!-- Class badges -->
   <text x="520" y="410" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="600" font-size="24" fill="#ff7d0a">Druid</text>
-  <text x="600" y="410" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="600" font-size="20" fill="#1e1e26">|</text>
+  <text x="600" y="410" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="600" font-size="20" fill="#332b20">|</text>
   <text x="680" y="410" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="600" font-size="24" fill="#abd473">Hunter</text>
 </svg>

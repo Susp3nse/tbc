@@ -8,9 +8,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "PRIEST" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Priest Holy]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Priest Holy]|r Core module not loaded!")
     return
 end
 
@@ -381,4 +381,4 @@ rotation_registry:register("holy", {
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Priest]|r Holy rotation loaded (17 strategies)")
+print("|cFF00FF00[Menagerie Priest]|r Holy rotation loaded (17 strategies)")

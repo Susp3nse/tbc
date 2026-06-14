@@ -1,10 +1,10 @@
--- Static analysis for the hand-written Flux AIO rotation Lua.
+-- Static analysis for the hand-written Menagerie rotation Lua.
 --
 -- Catches the "simple bugs" that otherwise only surface on an in-game reload:
 -- typo'd API names, accidental globals, unused/shadowed locals. It does NOT run
 -- the rotation; it is pure static analysis against the global surface below.
 --
--- Run:  corepack pnpm --filter @flux/tbc-rotation lint:lua
+-- Run:  corepack pnpm --filter @menagerie/tbc-rotation lint:lua
 -- Needs the `luacheck` binary (brew install luacheck  /  luarocks install luacheck).
 
 std = "lua51" -- WoW's embedded interpreter
@@ -23,19 +23,19 @@ unused_args = false
 include_files = { "src/aio/**/*.lua" }
 exclude_files = { "output", "src/tmw-template.lua", "**/dist" }
 
--- Globals the addon itself owns (read + write). Adding a new `_G.Flux*` global
--- or `/flux` slash command? Add it here.
+-- Globals the addon itself owns (read + write). Adding a new `_G.Menagerie*` global
+-- or `/menagerie` slash command? Add it here.
 globals = {
-  "FluxAIO",
-  "FluxAIO_ResyncFired",
-  "FluxAIO_SECTIONS",
-  "FluxAIO_SETTINGS_SCHEMA",
-  "FluxAIOClipDumps",
-  "SLASH_FLUXAIO1",
-  "SLASH_FLUXAIO2",
-  "SLASH_FLUXLOG1",
-  "SLASH_FLUXLOG2",
-  "SLASH_FLUXTICKS1",
+  "Menagerie",
+  "Menagerie_ResyncFired",
+  "Menagerie_SECTIONS",
+  "Menagerie_SETTINGS_SCHEMA",
+  "MenagerieClipDumps",
+  "SLASH_MENAGERIE1",
+  "SLASH_MENAGERIE2",
+  "SLASH_MENAGERIELOG1",
+  "SLASH_MENAGERIELOG2",
+  "SLASH_MENAGERIETICKS1",
   "SlashCmdList",
   "UISpecialFrames",
 }

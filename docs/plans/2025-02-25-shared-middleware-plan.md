@@ -125,13 +125,13 @@ git commit -m "build: add shared recovery/threat/interrupt to load order"
 This module provides `NS.register_recovery_middleware(class_name, config)` which generates Healthstone, Healing Potion, Mana Potion, and Dark Rune middleware entries.
 
 ```lua
--- Flux AIO - Shared Recovery Item Middleware
+-- Menagerie - Shared Recovery Item Middleware
 -- Provides factory for common consumable middleware (Healthstone, Healing Potion, Mana Potion, Dark Rune)
 -- Classes call NS.register_recovery_middleware() from their middleware.lua
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Recovery]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Recovery]|r Core module not loaded!")
     return
 end
 
@@ -559,13 +559,13 @@ git commit -m "refactor(warrior): migrate recovery items to shared factory"
 **Step 1: Write the shared threat module**
 
 ```lua
--- Flux AIO - Shared Threat Awareness Middleware
+-- Menagerie - Shared Threat Awareness Middleware
 -- Monitors threat levels and takes configurable action (dump, stop DPS, or ignore)
 -- Classes call NS.register_threat_middleware() from their middleware.lua
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Threat]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Threat]|r Core module not loaded!")
     return
 end
 
@@ -881,13 +881,13 @@ This module provides:
 4. Priority caster nameplate scanner (`NS.find_priority_caster()`) — shared across all classes
 
 ```lua
--- Flux AIO - Shared Interrupt Awareness
+-- Menagerie - Shared Interrupt Awareness
 -- Provides priority cast database, smart interrupt decisions, and tab-target state machine
 -- Classes keep their own kick implementation but use shared decision/targeting logic
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Interrupt]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Interrupt]|r Core module not loaded!")
     return
 end
 

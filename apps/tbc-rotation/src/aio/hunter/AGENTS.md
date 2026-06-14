@@ -39,7 +39,7 @@ Around that engine, `CombatRotation` (in `rotation.lua`) layers: pool-resource g
 ## Gotchas
 
 - **Don't clip Auto Shot.** The bulk of Hunter DPS is Auto Shot; the entire adaptive/clip system exists so specials are only cast when they fit before the next auto. Changes to shot selection must respect `shoot_timer`.
-- **Adaptive is a WoWsims port** — if you change shot priority logic, you're diverging from a validated simulation. Treat `adaptive.lua` as the source of truth and prefer `pnpm --filter @flux/tbc-rotation sim:hunter` to validate.
+- **Adaptive is a WoWsims port** — if you change shot priority logic, you're diverging from a validated simulation. Treat `adaptive.lua` as the source of truth and prefer `pnpm --filter @menagerie/tbc-rotation sim:hunter` to validate.
 - **Order-7 late binding:** `adaptivepanel.lua` and others may load before `adaptive.lua` (Order 7 alphabetical sort is unstable), so they late-bind `NS.HunterAdaptive` at refresh time rather than at load.
 - **Weapon-type shoot:** there are separate Bow/Crossbow/Gun/Throw auto-shoot Actions; the right one is selected by equipped ranged weapon.
 - Melee weave is **coach-only** (read-only traffic light) — it does not automate Raptor Strike; the rotation only queues a manual raptor when the user opts in.

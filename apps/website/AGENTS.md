@@ -1,19 +1,19 @@
-# website — Flux AIO Distribution Site
+# website — Menagerie Distribution Site
 
 > Scope: the static marketing/docs site. Read the root `AGENTS.md` first for global behavior + the
 > workspace map.
 
 An **Astro** static site (`output: 'static'`) that distributes the addon and documents the classes.
-Deployed to GitHub Pages at `https://flux-rotations.github.io/tbc` (`base: '/tbc'` — use the `url()`
+Deployed to GitHub Pages at `https://menagerie.dev` (`base: '/tbc'` — use the `url()`
 helper from `src/config.ts` for internal links, never bare absolute paths).
 
 ## Commands
 
 ```bash
-pnpm --filter @flux/website dev        # local dev server
-pnpm --filter @flux/website build      # static build → apps/website/dist
-pnpm --filter @flux/website preview     # preview the built site
-pnpm --filter @flux/website typecheck  # astro check
+pnpm --filter @menagerie/website dev        # local dev server
+pnpm --filter @menagerie/website build      # static build → apps/website/dist
+pnpm --filter @menagerie/website preview     # preview the built site
+pnpm --filter @menagerie/website typecheck  # astro check
 ```
 
 ## Layout

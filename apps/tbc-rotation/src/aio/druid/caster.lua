@@ -15,15 +15,15 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-	print("|cFFFF0000[Flux AIO Caster]|r Core module not loaded!")
+	print("|cFFFF0000[Menagerie Caster]|r Core module not loaded!")
 	return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-	print("|cFFFF0000[Flux AIO Caster]|r Registry not found in Core!")
+	print("|cFFFF0000[Menagerie Caster]|r Registry not found in Core!")
 	return
 end
 -- Import commonly used references
@@ -389,4 +389,4 @@ do
 	})
 end
 
-print("|cFF00FF00[Flux AIO Caster]|r 8 Caster strategies registered.")
+print("|cFF00FF00[Menagerie Caster]|r 8 Caster strategies registered.")

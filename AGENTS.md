@@ -1,4 +1,4 @@
-# Flux AIO — Repository Guide (root)
+# Menagerie — Repository Guide (root)
 
 > This is the **canonical** context doc for the whole workspace. `CLAUDE.md` is a symlink to it.
 > It carries only **global** concerns: how to work here, the workspace map, cross-cutting rules,
@@ -186,7 +186,7 @@ You have unlimited stamina. The human does not. Use your persistence wisely—lo
 
 ## What this repo is
 
-**Flux AIO** — a multi-class WoW TBC (The Burning Crusade) rotation addon, plus the tooling that
+**Menagerie** — a multi-class WoW TBC (The Burning Crusade) rotation addon, plus the tooling that
 builds, distributes, and supports it. It is a **pnpm + corepack monorepo** (ESM, TypeScript run via
 `tsx`/`tsc`). The headline product is a Lua addon; the TypeScript exists to build and support it.
 
@@ -197,7 +197,6 @@ builds, distributes, and supports it. It is a **pnpm + corepack monorepo** (ESM,
 | `apps/tbc-rotation/` | The WoW TBC rotation addon (Lua source + a thin Node build layer → one `output/TellMeWhen.lua`). One app per game version. | `apps/tbc-rotation/AGENTS.md` |
 | `apps/tbc-rotation/src/aio/<class>/` | Per-class rotation modules (9 classes). | `src/aio/<class>/AGENTS.md` |
 | `apps/website/` | Astro static site for distributing scripts + docs. | `apps/website/AGENTS.md` |
-| `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude. | `apps/discord-bot/AGENTS.md` |
 | `packages/tmw-profile-builder/` | Reusable, content-agnostic TMW build/watch/sync engine (ships compiled `dist/`). | `packages/tmw-profile-builder/AGENTS.md` |
 | `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library + CLI (`tsx`-run). | `packages/log-analyzer/AGENTS.md` |
 | `docs/` | Research, plans, API stubs/reference. `docs/<CLASS>_RESEARCH.md`, `docs/NEW_CLASS_GUIDE.md`, `docs/plans/`. | — |
@@ -235,24 +234,24 @@ classes or unrelated apps. Each nested doc owns its own concerns and does not re
     in-game label). There are **no per-class versions** — one version covers the whole rotation.
     Bump it with `pnpm release` (or by hand in `package.json`); the build does the rest.
   - `BUILD_NUMBER` / `BUILD_LABEL` — an **ephemeral per-session** counter the
-    `@flux/tmw-profile-builder` engine injects into the compiled output. It is a local dev aid (it
+    `@menagerie/tmw-profile-builder` engine injects into the compiled output. It is a local dev aid (it
     confirms a fresh sync loaded after `/reload`), not a release version. See
     `packages/tmw-profile-builder/AGENTS.md`.
 
 ## Testing expectations
 
 - Analyzer changes: add/adjust tests under `packages/log-analyzer/test/` and run
-  `pnpm --filter @flux/log-analyzer test`.
-- Rotation changes: at minimum `pnpm --filter @flux/tbc-rotation build` must succeed; use the sim
-  harness (`pnpm --filter @flux/tbc-rotation sim:hunter`, etc.) when touching supported sim paths.
+  `pnpm --filter @menagerie/log-analyzer test`.
+- Rotation changes: at minimum `pnpm --filter @menagerie/tbc-rotation build` must succeed; use the sim
+  harness (`pnpm --filter @menagerie/tbc-rotation sim:hunter`, etc.) when touching supported sim paths.
 - Before pushing non-trivial TS changes: `pnpm check` should be green.
 
 ## Release Workflow
 
 > Cross-area orchestration, so the canonical runbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).
 > `apps/tbc-rotation/AGENTS.md` and `apps/website/AGENTS.md` reference this section. **Only rotation
-> code changes get a tag/release** — website-only and `apps/discord-bot/`-only changes deploy via
-> their own workflows (`deploy-website.yml`, `deploy-bot.yml`) and need no tag.
+> code changes get a tag/release** — website-only changes deploy via their own workflow
+> (`deploy-website.yml`) and need no tag.
 
 The full step-by-step (from-main flow, PR variant, what CI does) is in
 [`docs/RELEASING.md`](docs/RELEASING.md). In short, a release is two commands around one human step:

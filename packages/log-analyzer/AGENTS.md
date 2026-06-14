@@ -15,12 +15,12 @@ Run via the `cli` script. **Invocation form matters**: `parseArgs` skips a stray
 not bury them after extra `--` separators.
 
 ```bash
-corepack pnpm --filter @flux/log-analyzer cli discover --expansion tbc
-corepack pnpm --filter @flux/log-analyzer cli fetch --boss <encounterID> --class Druid --spec Feral --count 10
-corepack pnpm --filter @flux/log-analyzer cli fetch --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
-corepack pnpm --filter @flux/log-analyzer cli fetch --report <code> --trash
-corepack pnpm --filter @flux/log-analyzer cli analyze --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
-corepack pnpm --filter @flux/log-analyzer cli compare --baseline <file> --yours <file>
+corepack pnpm --filter @menagerie/log-analyzer cli discover --expansion tbc
+corepack pnpm --filter @menagerie/log-analyzer cli fetch --boss <encounterID> --class Druid --spec Feral --count 10
+corepack pnpm --filter @menagerie/log-analyzer cli fetch --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
+corepack pnpm --filter @menagerie/log-analyzer cli fetch --report <code> --trash
+corepack pnpm --filter @menagerie/log-analyzer cli analyze --report <code> --fight <id> [--player <name>] [--class Druid --spec Feral]
+corepack pnpm --filter @menagerie/log-analyzer cli compare --baseline <file> --yours <file>
 ```
 
 - `discover` — list encounter IDs for an expansion (default `tbc`).
@@ -58,6 +58,6 @@ test/               process-fight + compare tests (tsx)
 ## Tests
 
 ```bash
-pnpm --filter @flux/log-analyzer test       # process-fight + compare tests
-pnpm --filter @flux/log-analyzer typecheck
+pnpm --filter @menagerie/log-analyzer test       # process-fight + compare tests
+pnpm --filter @menagerie/log-analyzer typecheck
 ```

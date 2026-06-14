@@ -10,14 +10,14 @@
 local A_global = _G.Action
 if not A_global or A_global.PlayerClass ~= "WARLOCK" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Destruction]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Destruction]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Destruction]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Destruction]|r Registry not found!")
     return
 end
 
@@ -275,4 +275,4 @@ end -- scope block
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Warlock]|r Destruction module loaded")
+print("|cFF00FF00[Menagerie Warlock]|r Destruction module loaded")

@@ -11,9 +11,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "SHAMAN" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Shaman]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Shaman]|r Core module not loaded!")
     return
 end
 
@@ -92,12 +92,12 @@ Action[A.PlayerClass] = {
     -- (not before) so /startattack is the LAST command in the assembled macro
     -- -- guarantees auto-attack ends ON regardless of whether the framework
     -- appends /cast Auto Attack (which would otherwise toggle it off).
-    -- The trailing /run callback into FluxAIO_ResyncFired (defined in
+    -- The trailing /run callback into Menagerie_ResyncFired (defined in
     -- enhancement.lua) lets us confirm via debug log that the macro actually
     -- executed in-game — not just that we recommended it on the icon.
     -- Logic source: enhanceshaman.com/pages/guide/sync_stagger
     SwingResync = Create({ Type = "Spell", ID = 6603, Desc = "Swing Resync",
-        Click = { macroafter = "/cleartarget\n/targetlasttarget\n/startattack\n/run if FluxAIO_ResyncFired then FluxAIO_ResyncFired() end\n" } }),
+        Click = { macroafter = "/cleartarget\n/targetlasttarget\n/startattack\n/run if Menagerie_ResyncFired then Menagerie_ResyncFired() end\n" } }),
 
     -- Utility
     Purge       = Create({ Type = "Spell", ID = 370, useMaxRank = true }),
@@ -417,4 +417,4 @@ rotation_registry:register_class({
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Shaman]|r Class module loaded")
+print("|cFF00FF00[Menagerie Shaman]|r Class module loaded")

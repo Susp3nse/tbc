@@ -27,13 +27,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build rotation
-        run: pnpm --filter @flux/tbc-rotation build
+        run: pnpm --filter @menagerie/tbc-rotation build
 
       - name: Resolve release notes
         id: tag_msg
         # Single source of truth: the changelog content-collection entry for this tag
         # (apps/website/src/content/changelog/<tag>.md). Strip the YAML frontmatter and use the
-        # markdown body as the GitHub Release body — which the Discord webhook below also reuses.
+        # markdown body as the GitHub Release body.
         # Fall back to the annotated tag message if the changelog file is missing.
         env:
           TAG: ${{ github.ref_name }}
@@ -56,39 +56,3 @@ jobs:
         with:
           body: ${{ steps.tag_msg.outputs.body }}
           files: apps/tbc-rotation/output/TellMeWhen.lua
-
-      - name: Notify Discord
-        if: success()
-        continue-on-error: true
-        env:
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          RELEASE_NOTES: ${{ steps.tag_msg.outputs.body }}
-        run: |
-          BODY=$(jq -nc \
-            --arg tag "${{ github.ref_name }}" \
-            --arg repo "${{ github.repository }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg notes "$RELEASE_NOTES" \
-            '{
-              action: "published",
-              release: {
-                tag_name: $tag,
-                name: $tag,
-                html_url: "https://github.com/\($repo)/releases/tag/\($tag)",
-                body: $notes,
-                published_at: $now,
-                author: {
-                  login: $actor,
-                  avatar_url: "https://github.com/\($actor).png",
-                  html_url: "https://github.com/\($actor)"
-                }
-              }
-            }')
-          SIG="sha256=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')"
-          curl -s -X POST "http://${VPS_HOST}:3000/webhook/github" \
-            -H "Content-Type: application/json" \
-            -H "X-Hub-Signature-256: ${SIG}" \
-            -H "X-GitHub-Event: release" \
-            -d "$BODY"

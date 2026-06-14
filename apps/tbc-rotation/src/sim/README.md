@@ -11,27 +11,27 @@ test the failure modes that are painful to isolate in raid:
 Run all built-in scenarios:
 
 ```powershell
-corepack pnpm --filter @flux/tbc-rotation sim:hunter
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter
 ```
 
 Trace one scenario:
 
 ```powershell
-corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15
 ```
 
 Run an ad-hoc speed:
 
 ```powershell
-corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --speed 1.05 --duration 20
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --speed 1.05 --duration 20
 ```
 
 Disable spells or start them on cooldown:
 
 ```powershell
-corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15 --no-arcane
-corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15 --no-multi --no-arcane
-corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15 --multi-start-cd 4
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15 --no-arcane
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15 --no-multi --no-arcane
+corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15 --multi-start-cd 4
 ```
 
 The simulator reads clip budgets directly from `adaptive.lua`, so bucket budget

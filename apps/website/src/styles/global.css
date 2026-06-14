@@ -1,17 +1,18 @@
 :root {
-  --bg: #08080a;
-  --bg-raised: #0c0c0f;
-  --bg-hover: #131316;
-  --border: #1e1e26;
-  --text: #dcdce4;
-  --text-dim: #9494a8;
-  --text-faint: #787892;
-  --accent: #6c63ff;
-  --accent-hover: #8078ff;
-  --accent-dark: #6058f0;
-  --accent-bg: #141327;
-  --accent-border: #211f47;
-  --green: #34d399;
+  --bg: #16130f;
+  --bg-raised: #1e1a14;
+  --bg-hover: #26201a;
+  --border: #332b20;
+  --text: #ece3d2;
+  --text-dim: #b3a587;
+  --text-faint: #8c7f6a;
+  --accent: #e08a3c;
+  --accent-hover: #f3a55a;
+  --accent-dark: #c5722a;
+  --accent-bg: #241a10;
+  --accent-border: #43321d;
+  --teal: #4fa3a0;
+  --green: #7fae54;
   --druid: #ff7d0a;
   --hunter: #abd473;
   --mage: #69ccf0;
@@ -21,7 +22,7 @@
   --shaman: #0070dd;
   --warlock: #9482c9;
   --warrior: #c79c6e;
-  --gold: #fbbf24;
+  --gold: #e6b84a;
   --red: #f87171;
   --blue: #60a5fa;
 }
@@ -46,7 +47,7 @@ body {
     'Segoe UI',
     sans-serif;
   background: var(--bg)
-    radial-gradient(ellipse at 50% 0%, rgba(108, 99, 255, 0.08) 0%, transparent 60%) no-repeat;
+    radial-gradient(ellipse at 50% 0%, rgba(224, 138, 60, 0.08) 0%, transparent 60%) no-repeat;
   color: var(--text);
   line-height: 1.5;
   font-size: 14px;
@@ -107,9 +108,6 @@ h3 {
   color: var(--text);
   letter-spacing: -0.02em;
   margin-right: auto;
-}
-.nav-logo span {
-  color: var(--accent);
 }
 .nav-links {
   display: flex;
@@ -246,10 +244,6 @@ h3 {
   font-size: 2.25rem;
   letter-spacing: -0.03em;
   margin-bottom: 0.25rem;
-}
-.hero h1 span {
-  color: var(--accent);
-  text-shadow: 0 0 30px rgba(108, 99, 255, 0.4);
 }
 .hero .tagline {
   font-size: 0.95rem;
@@ -770,6 +764,18 @@ code {
   gap: 1.25rem;
   justify-content: center;
   margin-bottom: 0.5rem;
+}
+.footer-credit {
+  margin-top: 0.35rem;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+}
+.footer-credit a {
+  color: var(--text-dim);
+  text-decoration: underline;
+}
+.footer-credit a:hover {
+  color: var(--accent);
 }
 .footer-links a {
   color: var(--text-dim);

@@ -1,5 +1,5 @@
 -- Hunter Settings Schema
--- Defines _G.FluxAIO_SETTINGS_SCHEMA for Hunter class
+-- Defines _G.Menagerie_SETTINGS_SCHEMA for Hunter class
 -- Must load before ui.lua, core.lua, and settings.lua
 
 local _G = _G
@@ -7,7 +7,7 @@ local A = _G.Action
 
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
-local S = _G.FluxAIO_SECTIONS
+local S = _G.Menagerie_SECTIONS
 
 -- Enable this profile
 A.Data.ProfileEnabled[A.CurrentProfile] = true
@@ -23,7 +23,7 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 -- Keys are snake_case -- the same string used everywhere:
 --   GetToggle(2, key), SetToggle({2, key, ...}), cached_settings[key], context.settings[key]
 
-_G.FluxAIO_SETTINGS_SCHEMA = {
+_G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
         { header = "Immunity Learning", settings = {
@@ -69,7 +69,7 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     [2] = { name = "Rotation", sections = {
         { header = "Adaptive Engine", settings = {
             { type = "checkbox", key = "inhouse_swingshot", default = false, label = "In-House SwingShot",
-              tooltip = "Use Flux's own Auto Shot clock for Adaptive DPS. Falls back to Action's GetSwingShoot() while unsynced." },
+              tooltip = "Use Menagerie's own Auto Shot clock for Adaptive DPS. Falls back to Action's GetSwingShoot() while unsynced." },
             { type = "slider", key = "adaptive_exec_pad_ms", default = 100, min = 0, max = 250, label = "Adaptive Cast Pad (ms)",
               tooltip = "Safety time added to Adaptive's cast-vs-auto clip check. Raise if logs show borderline recommendations clipping; lower if Adaptive waits too much.", format = "%d ms" },
             { type = "slider_decimal", key = "weapon_speed", default = 2.9, min = 1.5, max = 4, precision = 1, label = "Weapon Speed (sec)",
@@ -244,4 +244,4 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
     }},
 }
 
-print("|cFF00FF00[Flux AIO]|r Hunter schema loaded")
+print("|cFF00FF00[Menagerie]|r Hunter schema loaded")

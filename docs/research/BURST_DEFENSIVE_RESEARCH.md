@@ -1,6 +1,6 @@
 # Burst & Defensive Cooldown Research (TBC Classic)
 
-> Per-playstyle breakdown of what should fire during `/flux burst` and `/flux def`.
+> Per-playstyle breakdown of what should fire during `/menagerie burst` and `/menagerie def`.
 > Sources: Wowhead TBC Classic, Icy Veins TBC Classic, Warcraft Tavern, wowtbc.gg
 >
 > **Burst** = amplify output (DPS → damage, Tank → threat, Healer → healing throughput)
@@ -527,8 +527,8 @@
 
 ### Trinkets
 - `trinket1_mode` / `trinket2_mode`: `"off"` | `"offensive"` | `"defensive"`
-- **Offensive:** fires during `/flux burst` (before named burst entries + racial)
-- **Defensive:** fires during `/flux def` (after named defensive entries)
+- **Offensive:** fires during `/menagerie burst` (before named burst entries + racial)
+- **Defensive:** fires during `/menagerie def` (after named defensive entries)
 - Centralized in `core.lua` via `try_burst_trinket` / `try_defensive_trinket`
 
 ### Racials (auto-fired after burst entries)
@@ -537,12 +537,12 @@
 - Centralized in `core.lua` via `try_racial`
 
 ### Auto-Burst Conditions
-Schema checkboxes control when burst fires automatically without `/flux burst`:
+Schema checkboxes control when burst fires automatically without `/menagerie burst`:
 - `burst_in_combat` — always burst
 - `burst_on_pull` — first 5s of combat
 - `burst_on_execute` — target HP < 20%
 - `burst_on_bloodlust` — during Bloodlust/Heroism/Drums
 
 ### Execution Order
-**`/flux burst`:** Offensive trinket → Named burst entries → DPS racial
-**`/flux def`:** Named defensive entries → Defensive trinket
+**`/menagerie burst`:** Offensive trinket → Named burst entries → DPS racial
+**`/menagerie def`:** Named defensive entries → Defensive trinket

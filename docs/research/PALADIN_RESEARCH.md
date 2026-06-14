@@ -398,7 +398,7 @@ Seal of Blood/Martyr resident (up most of the cycle)
   → Repeat
 ```
 
-Flux implementation: `Ret_MaintainBlood` (resident Blood), `Ret_PrepCommand` (prep in the
+Menagerie implementation: `Ret_MaintainBlood` (resident Blood), `Ret_PrepCommand` (prep in the
 short lead, gated by `PREP_LEAD_BUFFER`), `Ret_TwistBlood` (Command → Blood in the window).
 
 ### Vengeance Talent

@@ -10,14 +10,14 @@
 local A_global = _G.Action
 if not A_global or A_global.PlayerClass ~= "SHAMAN" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Enhancement]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Enhancement]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Enhancement]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Enhancement]|r Registry not found!")
     return
 end
 
@@ -83,10 +83,10 @@ end
 -- Macro-side hook so we can confirm the resync macro actually ran in-game
 -- (icon being :Show()n only means we recommended it; the macro fires when
 -- the player presses their rotation keybind while the icon is current). The
--- macro's macroafter has "/run if FluxAIO_ResyncFired then FluxAIO_ResyncFired() end"
+-- macro's macroafter has "/run if Menagerie_ResyncFired then Menagerie_ResyncFired() end"
 -- appended — that calls back into this function. Gated on debug_mode so
 -- normal play doesn't spam.
-_G.FluxAIO_ResyncFired = function()
+_G.Menagerie_ResyncFired = function()
     if not NS.cached_settings or not NS.cached_settings.debug_mode then return end
     NS.debug_print("sync-macro",
         format("[SYNC] Macro fired @ %.2f (since-show=%.2fs)",
@@ -830,4 +830,4 @@ end -- scope block
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Shaman]|r Enhancement module loaded")
+print("|cFF00FF00[Menagerie Shaman]|r Enhancement module loaded")

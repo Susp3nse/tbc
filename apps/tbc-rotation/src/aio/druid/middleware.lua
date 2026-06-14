@@ -15,15 +15,15 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Middleware]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Middleware]|r Core module not loaded!")
    return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Middleware]|r Registry not found in Core!")
+   print("|cFFFF0000[Menagerie Middleware]|r Registry not found in Core!")
    return
 end
 -- Import commonly used references
@@ -385,4 +385,4 @@ end
 -- Shared trinket middleware (burst + defensive, schema-driven)
 NS.register_trinket_middleware()
 
-print("|cFF00FF00[Flux AIO Middleware]|r " .. #rotation_registry.middleware .. " middleware handlers registered.")
+print("|cFF00FF00[Menagerie Middleware]|r " .. #rotation_registry.middleware .. " middleware handlers registered.")

@@ -8,9 +8,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter Rotation]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter Rotation]|r Core module not loaded!")
     return
 end
 
@@ -295,7 +295,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
             local min_ttd = s.cd_min_ttd or 0
             local ttd_ok = min_ttd == 0 or not context.ttd or context.ttd <= 0 or context.ttd >= min_ttd
 
-            -- [R-2] Tranquilizing Shot (enrage dispel) — Flux by-ID list (enrages
+            -- [R-2] Tranquilizing Shot (enrage dispel) — Menagerie by-ID list (enrages
             -- are self-buffs on the creature) OR the framework's "Enrage" category.
             if A.TranquilizingShot:IsReady(unit)
                and ((Unit(unit):HasBuffs(Constants.TRANQ_ENRAGE, nil, true) or 0) > 0
@@ -387,7 +387,7 @@ strategies[#strategies + 1] = named("CombatRotation", {
             end
 
             -- Manual-only Raptor queue window. The main rotation must not
-            -- auto-prequeue Raptor from fuzzy close range; use /flux raptor
+            -- auto-prequeue Raptor from fuzzy close range; use /menagerie raptor
             -- when intentionally weaving in.
             if is_force_active and is_force_active("force_raptor") and RaptorQueueReady(unit)
                 and (inMeleeRange == true or (targetRange > 0 and targetRange <= 7)) then
@@ -633,4 +633,4 @@ rotation_registry:register("ranged", strategies)
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Hunter]|r Rotation module loaded (" .. #strategies .. " strategies)")
+print("|cFF00FF00[Menagerie Hunter]|r Rotation module loaded (" .. #strategies .. " strategies)")

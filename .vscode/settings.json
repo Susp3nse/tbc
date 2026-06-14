@@ -48,9 +48,7 @@
   },
 
   // --- Lua Language Server ---
-  "Lua.workspace.library": [
-    "${workspaceFolder}/docs/api"
-  ],
+  "Lua.workspace.library": ["${workspaceFolder}/docs/api"],
   "Lua.runtime.version": "Lua 5.1",
   "Lua.diagnostics.globals": [
     "_G",
@@ -123,10 +121,10 @@
     "C_Timer",
 
     "SlashCmdList",
-    "SLASH_FLUXLOG1",
-    "SLASH_FLUXLOG2",
-    "SLASH_FLUXAIO1",
-    "SLASH_FLUXAIO2",
+    "SLASH_MENAGERIELOG1",
+    "SLASH_MENAGERIELOG2",
+    "SLASH_MENAGERIE1",
+    "SLASH_MENAGERIE2",
 
     "RAID_CLASS_COLORS",
     "INVSLOT_HEAD",

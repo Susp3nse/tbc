@@ -43,7 +43,7 @@
 
 ```json
 {
-  "name": "@flux/log-analyzer",
+  "name": "@menagerie/log-analyzer",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -1592,7 +1592,7 @@ Update `log-analyzer/package.json`:
 
 ```json
 {
-  "name": "@flux/log-analyzer",
+  "name": "@menagerie/log-analyzer",
   "version": "0.1.0",
   "private": true,
   "type": "module",

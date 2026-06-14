@@ -39,9 +39,9 @@ export type BuilderPaths = {
  * the consuming app supplies these (see apps/tbc-rotation/builder.config.json).
  */
 export type BuildConventions = {
-  /** Prefix for generated TMW snippet names, e.g. "Flux_". */
+  /** Prefix for generated TMW snippet names, e.g. "Menagerie_". */
   modulePrefix: string;
-  /** Profile display-name prefix, e.g. "Flux ". Also used to detect managed profiles for stale purge. */
+  /** Profile display-name prefix, e.g. "Menagerie ". Also used to detect managed profiles for stale purge. */
   profileNamePrefix: string;
   /** Per-source-file name casing overrides, e.g. { ui: "UI" }. */
   nameOverrides: Record<string, string>;

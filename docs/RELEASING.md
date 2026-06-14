@@ -1,14 +1,14 @@
 # Releasing
 
-The single canonical runbook for cutting a Flux AIO release. The root [`AGENTS.md`](../AGENTS.md)
+The single canonical runbook for cutting a Menagerie release. The root [`AGENTS.md`](../AGENTS.md)
 → Release Workflow and [`GETTING_STARTED.md`](./GETTING_STARTED.md) §5 both point here; the steps
 live only in this file.
 
 ## Scope — what gets a release
 
-**Only rotation code changes get a tag/release.** Website-only and `apps/discord-bot/`-only changes
-deploy through their own workflows (`deploy-website.yml`, `deploy-bot.yml`) and need no tag or version
-bump. Doc-only PRs that happen to touch the rotation tree don't need a bump either.
+**Only rotation code changes get a tag/release.** Website-only changes deploy through their own
+workflow (`deploy-website.yml`) and need no tag or version bump. Doc-only PRs that happen to touch
+the rotation tree don't need a bump either.
 
 There is **one** platform version — `apps/tbc-rotation/package.json` `"version"`, injected into the
 build as `NS.VERSION`. No per-class versions exist.
@@ -21,7 +21,7 @@ Two commands bracketing one human step. You never hand-type a `git tag`.
 pnpm release            # 1. bump version + scaffold the changelog from your commits
 #                          2. curate the scaffolded changelog into player-facing prose
 pnpm release:publish    # 3. validate → build → confirm → commit → tag → push
-#                          4. CI (release.yml) cuts the GitHub Release + pings Discord
+#                          4. CI (release.yml) cuts the GitHub Release
 ```
 
 ### 0. Land the work on `main` first
@@ -49,8 +49,8 @@ Open the new `apps/website/src/content/changelog/v<X.Y.Z>.md` and:
 - Drop non-player scopes (workspace / builder / analyzer).
 - Delete the `<!-- SCAFFOLDED by … -->` comment.
 
-This file is the **single source** for the release notes — the website renders it, `release.yml`
-uses it as the GitHub Release body, and the Discord webhook reuses that. Body format lives in
+This file is the **single source** for the release notes — the website renders it and `release.yml`
+uses it as the GitHub Release body. Body format lives in
 [`apps/website/AGENTS.md`](../apps/website/AGENTS.md).
 
 ### 3. Publish — `pnpm release:publish`
@@ -59,7 +59,7 @@ Wraps the whole irreversible tail in one guarded command:
 
 - **Validates** the changelog — hard-fails while any `_TODO:` placeholder or the scaffold note
   remains, so half-written notes can't ship.
-- **Builds** the rotation (`@flux/tbc-rotation build`); aborts on failure.
+- **Builds** the rotation (`@menagerie/tbc-rotation build`); aborts on failure.
 - Prints the final notes and prompts `Publish vX.Y.Z? [y/N]`.
 - On `y`: commits `chore(workspace): release vX.Y.Z`, creates the **annotated** tag from the changelog
   body, and pushes branch + tag.
@@ -71,7 +71,7 @@ Wraps the whole irreversible tail in one guarded command:
 
 The tag push triggers `release.yml`, which builds the addon, creates the GitHub Release using
 `v<X.Y.Z>.md` as the body (the annotated tag message is only a fallback if the file is missing),
-attaches `TellMeWhen.lua`, and notifies Discord. Nothing to do by hand.
+and attaches `TellMeWhen.lua`. Nothing to do by hand.
 
 ## Variant — PR-based review
 

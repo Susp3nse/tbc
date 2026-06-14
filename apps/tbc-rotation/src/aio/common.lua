@@ -4,11 +4,11 @@
 
 local _G = _G
 
-_G.FluxAIO_SECTIONS = {
+_G.Menagerie_SECTIONS = {
     dashboard = function()
         return { header = "Dashboard", settings = {
             { type = "checkbox", key = "show_dashboard", default = false, label = "Show Dashboard",
-              tooltip = "Display the combat dashboard overlay (/flux status)." },
+              tooltip = "Display the combat dashboard overlay (/menagerie status)." },
         }}
     end,
 

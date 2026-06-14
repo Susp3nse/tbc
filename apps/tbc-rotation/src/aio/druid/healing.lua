@@ -7,18 +7,18 @@
 -- Always access settings through context.settings in matches/execute.
 -- ============================================================
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Healing]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Healing]|r Core module not loaded!")
    return
 end
 
 if not NS.Constants then
-   print("|cFFFF0000[Flux AIO Healing]|r Constants not found in Core!")
+   print("|cFFFF0000[Menagerie Healing]|r Constants not found in Core!")
    return
 end
 if not NS.HEALING_TOUCH_RANKS then
-   print("|cFFFF0000[Flux AIO Healing]|r Healing ranks not found in Core!")
+   print("|cFFFF0000[Menagerie Healing]|r Healing ranks not found in Core!")
    return
 end
 
@@ -416,4 +416,4 @@ NS.cast_best_heal_rank = cast_best_heal_rank
 NS.PARTY_UNITS = PARTY_UNITS
 NS.RAID_UNITS = RAID_UNITS
 
-print("|cFF00FF00[Flux AIO Healing]|r Healing utilities loaded.")
+print("|cFF00FF00[Menagerie Healing]|r Healing utilities loaded.")

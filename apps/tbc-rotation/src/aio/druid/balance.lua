@@ -10,15 +10,15 @@
 -- ============================================================
 
 -- Get namespace from Core module
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Balance]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Balance]|r Core module not loaded!")
    return
 end
 
 -- Validate dependencies
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Balance]|r Registry not found in Core!")
+   print("|cFFFF0000[Menagerie Balance]|r Registry not found in Core!")
    return
 end
 
@@ -302,4 +302,4 @@ do
 
 end  -- End Balance strategies do...end block
 
-print("|cFF00FF00[Flux AIO Balance]|r 6 Balance strategies registered.")
+print("|cFF00FF00[Menagerie Balance]|r 6 Balance strategies registered.")

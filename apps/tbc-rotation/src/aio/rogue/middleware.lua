@@ -8,9 +8,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "ROGUE" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Rogue Middleware]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Rogue Middleware]|r Core module not loaded!")
     return
 end
 
@@ -217,4 +217,4 @@ NS.register_trinket_middleware()
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Rogue]|r Middleware module loaded (9 entries)")
+print("|cFF00FF00[Menagerie Rogue]|r Middleware module loaded (9 entries)")

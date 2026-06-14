@@ -11,14 +11,13 @@ it ships **no** naming/load-order/path defaults. The consuming app owns those in
 ## Ships compiled
 
 Built to `dist/` (`pnpm build` = `tsc`) and consumed via the package `exports` map
-(`@flux/tmw-profile-builder` → `dist/index.js`, types `dist/index.d.ts`). Consumers run the compiled
-output — e.g. the rotation's `build.ts` imports `createBuildContext` + `runCli` from here, and the
-discord-bot copies this `dist/` into its temp workspace. **Rebuild `dist/` after changing `src/`** or
-consumers run stale code.
+(`@menagerie/tmw-profile-builder` → `dist/index.js`, types `dist/index.d.ts`). Consumers run the compiled
+output — e.g. the rotation's `build.ts` imports `createBuildContext` + `runCli` from here.
+**Rebuild `dist/` after changing `src/`** or consumers run stale code.
 
 ```bash
-pnpm --filter @flux/tmw-profile-builder build       # tsc → dist/
-pnpm --filter @flux/tmw-profile-builder typecheck
+pnpm --filter @menagerie/tmw-profile-builder build       # tsc → dist/
+pnpm --filter @menagerie/tmw-profile-builder typecheck
 ```
 
 ## The config contract

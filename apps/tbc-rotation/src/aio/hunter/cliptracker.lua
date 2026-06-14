@@ -20,9 +20,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter ClipTracker]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter ClipTracker]|r Core module not loaded!")
     return
 end
 
@@ -1342,13 +1342,13 @@ local function deepcopy(t, seen)
 end
 
 function ClipTracker:DumpToSavedVar()
-    _G.FluxAIOClipDumps = _G.FluxAIOClipDumps or {}
-    table.insert(_G.FluxAIOClipDumps, {
+    _G.MenagerieClipDumps = _G.MenagerieClipDumps or {}
+    table.insert(_G.MenagerieClipDumps, {
         time    = date("%Y-%m-%d %H:%M:%S"),
         entries = deepcopy(self.ClipLog),
         stats   = deepcopy(self.CombatStats),
     })
-    return #_G.FluxAIOClipDumps
+    return #_G.MenagerieClipDumps
 end
 
 -- ============================================================================
@@ -1357,4 +1357,4 @@ end
 
 NS.HunterClipTracker = ClipTracker
 
-print("|cFF00FF00[Flux AIO Hunter]|r Clip Tracker loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Clip Tracker loaded")

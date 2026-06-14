@@ -3,9 +3,9 @@
   "compilerOptions": {
     "module": "NodeNext",
     "rootDir": ".",
-    "outDir": "dist",
+    "noEmit": true,
     "types": ["node"]
   },
   "include": ["*.ts", "src/**/*.ts"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["node_modules"]
 }

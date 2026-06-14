@@ -1,6 +1,6 @@
--- Flux AIO - Custom Settings UI
+-- Menagerie - Custom Settings UI
 -- Tabbed settings frame with minimap button
--- Generic: reads from _G.FluxAIO_SETTINGS_SCHEMA and class_config
+-- Generic: reads from _G.Menagerie_SETTINGS_SCHEMA and class_config
 
 -- ============================================================================
 -- FRAMEWORK VALIDATION
@@ -11,15 +11,15 @@ local tinsert = table.insert
 local format = string.format
 local floor, max, min = math.floor, math.max, math.min
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Settings]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Settings]|r Core module not loaded!")
     return
 end
 
 local A = NS.A
 if not A then
-    print("|cFFFF0000[Flux AIO Settings]|r Action framework not available!")
+    print("|cFFFF0000[Menagerie Settings]|r Action framework not available!")
     return
 end
 
@@ -469,7 +469,7 @@ end
 -- ============================================================================
 -- TAB DEFINITIONS (from shared schema)
 -- ============================================================================
-local TAB_DEFS = _G.FluxAIO_SETTINGS_SCHEMA
+local TAB_DEFS = _G.Menagerie_SETTINGS_SCHEMA
 
 -- ============================================================================
 -- TAB PANEL BUILDER
@@ -622,7 +622,7 @@ end
 -- MAIN FRAME
 -- ============================================================================
 local function create_main_frame()
-    local f = CreateFrame("Frame", "FluxAIOSettingsFrame", UIParent, "BackdropTemplate")
+    local f = CreateFrame("Frame", "MenagerieSettingsFrame", UIParent, "BackdropTemplate")
     f:SetSize(THEME.frame_w, THEME.frame_h)
     f:SetPoint("CENTER")
     f:SetBackdrop(BACKDROP_THIN)
@@ -731,7 +731,7 @@ local function create_main_frame()
 
     f.content_top = tab_y - THEME.tab_h - 1
 
-    tinsert(UISpecialFrames, "FluxAIOSettingsFrame")
+    tinsert(UISpecialFrames, "MenagerieSettingsFrame")
 
     f:SetScript("OnHide", function() close_active_dropdown() end)
     f:Hide()
@@ -820,7 +820,7 @@ local function create_settings_button()
         GameTooltip:SetText(addon_title_colored, 1, 1, 1)
         GameTooltip:AddLine("Left-click to open settings", 1, 1, 1)
         GameTooltip:AddLine("Drag to move", 0.7, 0.7, 0.7)
-        GameTooltip:AddLine("/flux help for commands", 0.5, 0.5, 0.5)
+        GameTooltip:AddLine("/menagerie help for commands", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", GameTooltip_Hide)
@@ -857,9 +857,9 @@ create_settings_button()
 -- ============================================================================
 -- SLASH COMMANDS
 -- ============================================================================
-SLASH_FLUXAIO1 = "/flux"
-SLASH_FLUXAIO2 = "/faio"
-SlashCmdList["FLUXAIO"] = function(msg)
+SLASH_MENAGERIE1 = "/menagerie"
+SLASH_MENAGERIE2 = "/maio"
+SlashCmdList["MENAGERIE"] = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
 
     if msg == "" then
@@ -870,27 +870,27 @@ SlashCmdList["FLUXAIO"] = function(msg)
     if msg == "burst" then
         NS.set_force_flag("force_burst")
         NS.show_notification("BURST", 3.0, { 1.0, 0.5, 0.1 })
-        print(format("|cff%s[Flux AIO]|r |cFFFFFF00Burst|r cooldowns activated!", class_hex))
+        print(format("|cff%s[Menagerie]|r |cFFFFFF00Burst|r cooldowns activated!", class_hex))
         return
     end
 
     if msg == "defensive" or msg == "def" then
         NS.set_force_flag("force_defensive")
         NS.show_notification("DEFENSIVE", 3.0, { 0.3, 0.7, 1.0 })
-        print(format("|cff%s[Flux AIO]|r |cFFFFFF00Defensive|r cooldowns activated!", class_hex))
+        print(format("|cff%s[Menagerie]|r |cFFFFFF00Defensive|r cooldowns activated!", class_hex))
         return
     end
 
     if msg == "gap" then
         NS.set_force_flag("force_gap")
-        print(format("|cff%s[Flux AIO]|r |cFFFFFF00Gap closer|r activated!", class_hex))
+        print(format("|cff%s[Menagerie]|r |cFFFFFF00Gap closer|r activated!", class_hex))
         return
     end
 
     if msg == "raptor" and class_name == "Hunter" then
         NS.set_force_flag("force_raptor")
         NS.show_notification("RAPTOR", 3.0, { 0.67, 0.83, 0.45 })
-        print(format("|cff%s[Flux AIO]|r |cFFFFFF00Manual Raptor queue|r activated!", class_hex))
+        print(format("|cff%s[Menagerie]|r |cFFFFFF00Manual Raptor queue|r activated!", class_hex))
         return
     end
 
@@ -898,23 +898,23 @@ SlashCmdList["FLUXAIO"] = function(msg)
         if NS.toggle_dashboard then
             NS.toggle_dashboard()
         else
-            print(format("|cff%s[Flux AIO]|r Dashboard not yet loaded.", class_hex))
+            print(format("|cff%s[Menagerie]|r Dashboard not yet loaded.", class_hex))
         end
         return
     end
 
     if msg == "help" then
-        print(format("|cff%s[Flux AIO]|r Slash commands:", class_hex))
-        print("  /flux           - Open settings")
-        print("  /flux burst     - Force burst cooldowns")
-        print("  /flux def       - Force defensive cooldowns")
-        print("  /flux gap       - Use gap closer")
+        print(format("|cff%s[Menagerie]|r Slash commands:", class_hex))
+        print("  /menagerie           - Open settings")
+        print("  /menagerie burst     - Force burst cooldowns")
+        print("  /menagerie def       - Force defensive cooldowns")
+        print("  /menagerie gap       - Use gap closer")
         if class_name == "Hunter" then
-            print("  /flux raptor    - Force one manual Raptor queue window")
+            print("  /menagerie raptor    - Force one manual Raptor queue window")
         end
-        print("  /flux status    - Toggle combat dashboard")
-        print("  /fticks         - Toggle cat energy-tick debug print")
-        print("  /flux help      - Show this help")
+        print("  /menagerie status    - Toggle combat dashboard")
+        print("  /mticks         - Toggle cat energy-tick debug print")
+        print("  /menagerie help      - Show this help")
         return
     end
 
@@ -923,20 +923,20 @@ SlashCmdList["FLUXAIO"] = function(msg)
 end
 
 -- Dedicated tick-debug toggle (kept as its own slash so it can't be intercepted
--- by /flux's default-to-open-UI behaviour).
-SLASH_FLUXTICKS1 = "/fticks"
-SlashCmdList["FLUXTICKS"] = function()
+-- by /menagerie's default-to-open-UI behaviour).
+SLASH_MENAGERIETICKS1 = "/mticks"
+SlashCmdList["MENAGERIETICKS"] = function()
     local ett = NS.energy_tick_tracker
     if not ett then
-        print(format("|cff%s[Flux AIO]|r Energy tick tracker not loaded (cat only).", class_hex))
+        print(format("|cff%s[Menagerie]|r Energy tick tracker not loaded (cat only).", class_hex))
         return
     end
     ett.debug = not ett.debug
-    print(format("|cff%s[Flux AIO]|r Tick debug print %s.", class_hex,
+    print(format("|cff%s[Menagerie]|r Tick debug print %s.", class_hex,
         ett.debug and "|cFF55FF55ON|r" or "|cFFFF5555OFF|r"))
 end
 
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Settings]|r Custom UI loaded! Use minimap button or /flux")
+print("|cFF00FF00[Menagerie Settings]|r Custom UI loaded! Use minimap button or /menagerie")

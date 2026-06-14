@@ -1,4 +1,4 @@
--- Flux AIO - Core Module
+-- Menagerie - Core Module
 -- Generic rotation engine: namespace, settings, utilities, registry
 -- Class-agnostic: class files register via rotation_registry:register_class()
 
@@ -13,7 +13,7 @@ local GetTime = _G.GetTime
 local A = _G.Action
 
 if not A then
-   print("|cFFFF0000[Flux AIO]|r Action/Textfiles framework not loaded!")
+   print("|cFFFF0000[Menagerie]|r Action/Textfiles framework not loaded!")
    return
 end
 
@@ -37,16 +37,16 @@ if not _G.GetSpellInfo then
 end
 
 if not A.Data.ProfileEnabled[A.CurrentProfile] then
-   print("|cFFFF0000[Flux AIO]|r WARNING: ProfileEnabled is not set!")
-   print("|cFFFF0000[Flux AIO]|r Did you install the schema snippet first?")
+   print("|cFFFF0000[Menagerie]|r WARNING: ProfileEnabled is not set!")
+   print("|cFFFF0000[Menagerie]|r Did you install the schema snippet first?")
    return
 end
 
 -- ============================================================================
 -- GLOBAL NAMESPACE CREATION
 -- ============================================================================
-_G.FluxAIO = _G.FluxAIO or {}
-local NS = _G.FluxAIO
+_G.Menagerie = _G.Menagerie or {}
+local NS = _G.Menagerie
 
 -- Base framework references (available before class Actions are defined)
 local Player = A.Player
@@ -97,7 +97,7 @@ end
 NS.format_class_version = format_class_version
 
 -- ============================================================================
--- FORCE COMMAND FLAGS (set by /flux slash commands)
+-- FORCE COMMAND FLAGS (set by /menagerie slash commands)
 -- ============================================================================
 -- Values are expiry timestamps (GetTime() + duration). Zero = inactive.
 -- Checked each frame by execute_middleware/execute_strategies in main.lua.
@@ -133,7 +133,7 @@ NS.clear_force_flag = clear_force_flag
 local CreateFrame = _G.CreateFrame
 local UIParent = _G.UIParent
 
-local notif_frame = CreateFrame("Frame", "FluxAIONotification", UIParent)
+local notif_frame = CreateFrame("Frame", "MenagerieNotification", UIParent)
 notif_frame:SetSize(300, 40)
 notif_frame:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 notif_frame:SetFrameStrata("HIGH")
@@ -450,7 +450,7 @@ NS.is_spell_available = is_spell_available
 -- ============================================================================
 -- REFRESH SETTINGS (schema-driven)
 -- ============================================================================
-local SETTINGS_SCHEMA = _G.FluxAIO_SETTINGS_SCHEMA
+local SETTINGS_SCHEMA = _G.Menagerie_SETTINGS_SCHEMA
 
 local function build_settings_list()
    for i = 1, #settings_list do settings_list[i] = nil end
@@ -527,9 +527,9 @@ local function refresh_settings(force)
    end
 
    if debug_mode and #changed_list > 0 then
-      print("|cFF00FFFF[Flux AIO]|r Settings changed at " .. format("%.1f", now))
+      print("|cFF00FFFF[Menagerie]|r Settings changed at " .. format("%.1f", now))
       for _, change in ipairs(changed_list) do
-         print("|cFF00FFFF[Flux AIO]|r   " .. change)
+         print("|cFF00FFFF[Menagerie]|r   " .. change)
       end
    end
 
@@ -561,6 +561,23 @@ local DBG_BACKDROP = {
    edgeSize = 1,
 }
 
+-- Per-category line colors (whole-line, applied via SMF:AddMessage). Plain text is
+-- still stored uncolored in debug_log_lines, so Copy stays clean.
+local DBG_CAT = {
+   forced = { 1.00, 0.62, 0.22 },  -- orange  -- forced/burst lines (highest priority to spot)
+   ctx    = { 0.58, 0.58, 0.659 }, -- dim     -- periodic context dumps
+   mw     = { 0.42, 0.82, 0.95 },  -- cyan    -- middleware
+   action = { 0.86, 0.86, 0.894 }, -- text    -- playstyle action lines (default)
+}
+
+local sfind = string.find
+local function debug_line_color(line)
+   if sfind(line, "FORCED", 1, true) then return DBG_CAT.forced end
+   if sfind(line, "CTX", 1, true) then return DBG_CAT.ctx end
+   if sfind(line, "[MW]", 1, true) then return DBG_CAT.mw end
+   return DBG_CAT.action
+end
+
 local function create_debug_button(parent, text, width)
    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
    btn:SetSize(width, 22)
@@ -587,7 +604,7 @@ end
 local function CreateDebugLogFrame()
    if DebugLogFrame then return DebugLogFrame end
 
-   local f = CreateFrame("Frame", "FluxAIODebugFrame", UIParent, "BackdropTemplate")
+   local f = CreateFrame("Frame", "MenagerieDebugFrame", UIParent, "BackdropTemplate")
    f:SetSize(500, 300)
    f:SetPoint("TOPLEFT", 50, -100)
    f:SetBackdrop(DBG_BACKDROP)
@@ -604,7 +621,7 @@ local function CreateDebugLogFrame()
    -- Title
    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
    title:SetPoint("TOPLEFT", 12, -8)
-   title:SetText("Flux AIO Debug Log")
+   title:SetText("Menagerie Debug Log")
    title:SetTextColor(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3])
 
    -- Close button
@@ -626,45 +643,83 @@ local function CreateDebugLogFrame()
    sep:SetHeight(1)
    sep:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
 
-   -- Action buttons
-   local copyBtn = create_debug_button(f, "Copy", 60)
-   copyBtn:SetPoint("TOPRIGHT", -70, -5)
+   -- Message log. A ScrollingMessageFrame (the widget chat windows use): it keeps its
+   -- own line buffer, self-trims, supports per-line color, and appends one line at a
+   -- time -- no re-concatenating/re-rendering the whole buffer on every new line.
+   local smf = CreateFrame("ScrollingMessageFrame", nil, f)
+   smf:SetPoint("TOPLEFT", 10, -34)
+   smf:SetPoint("BOTTOMRIGHT", -22, 30)
+   smf:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+   smf:SetJustifyH("LEFT")
+   smf:SetSpacing(1)
+   smf:SetFading(false)
+   smf:SetMaxLines(MAX_LOG_LINES)
+   smf:SetTextColor(DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3])
+   smf:EnableMouseWheel(true)
+   f.smf = smf
 
-   local clearBtn = create_debug_button(f, "Clear", 60)
-   clearBtn:SetPoint("TOPRIGHT", -6, -5)
+   -- Themed scrollbar (so you can see where top/bottom of the content is)
+   local scrollbar = CreateFrame("Slider", nil, f)
+   scrollbar:SetPoint("TOPRIGHT", -6, -34)
+   scrollbar:SetPoint("BOTTOMRIGHT", -6, 30)
+   scrollbar:SetWidth(10)
+   scrollbar:SetOrientation("VERTICAL")
+   scrollbar:SetValueStep(1)
+   scrollbar:SetObeyStepOnDrag(true)
+   scrollbar:SetMinMaxValues(0, 0)
+   scrollbar:SetValue(0)
+   f.scrollbar = scrollbar
 
-   -- Scroll frame
-   local scrollFrame = CreateFrame("ScrollFrame", nil, f)
-   scrollFrame:SetPoint("TOPLEFT", 8, -32)
-   scrollFrame:SetPoint("BOTTOMRIGHT", -8, 28)
-   scrollFrame:EnableMouseWheel(true)
-   f.scrollFrame = scrollFrame
+   local track = scrollbar:CreateTexture(nil, "BACKGROUND")
+   track:SetAllPoints()
+   track:SetColorTexture(DBG_THEME.bg_widget[1], DBG_THEME.bg_widget[2], DBG_THEME.bg_widget[3], 0.6)
 
-   local contentFrame = CreateFrame("Frame", nil, scrollFrame)
-   contentFrame:SetWidth(scrollFrame:GetWidth() or 460)
-   contentFrame:SetHeight(1)
-   scrollFrame:SetScrollChild(contentFrame)
-   f.contentFrame = contentFrame
+   local thumb = scrollbar:CreateTexture(nil, "OVERLAY")
+   thumb:SetColorTexture(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.85)
+   thumb:SetSize(10, 40)
+   scrollbar:SetThumbTexture(thumb)
 
-   scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-      local cur = self:GetVerticalScroll()
-      local mx = self:GetVerticalScrollRange()
-      self:SetVerticalScroll(math.max(0, math.min(mx, cur - delta * 30)))
+   -- Keep the scrollbar in sync with the SMF. SMF scroll offset = lines scrolled up
+   -- from the bottom (0 = newest at bottom). We map slider value so the thumb sits at
+   -- the bottom when viewing newest, top when viewing oldest.
+   local LINE_H = 11
+   local syncing = false
+   local function sync_scrollbar()
+      local num = smf:GetNumMessages() or 0
+      local visible = math.max(1, math.floor((smf:GetHeight() or 200) / LINE_H))
+      local max_offset = math.max(0, num - visible)
+      syncing = true
+      scrollbar:SetMinMaxValues(0, max_offset)
+      scrollbar:SetValue(max_offset - (smf:GetScrollOffset() or 0))
+      syncing = false
+      if max_offset <= 0 then scrollbar:Hide() else scrollbar:Show() end
+   end
+   f.SyncScrollbar = sync_scrollbar
+
+   scrollbar:SetScript("OnValueChanged", function(self, value)
+      if syncing then return end
+      local _, max_offset = self:GetMinMaxValues()
+      smf:SetScrollOffset(math.max(0, math.floor(max_offset - value + 0.5)))
    end)
 
-   local textDisplay = contentFrame:CreateFontString(nil, "OVERLAY")
-   textDisplay:SetFont("Fonts\\FRIZQT__.TTF", 8, "")
-   textDisplay:SetPoint("TOPLEFT", 4, 0)
-   textDisplay:SetPoint("TOPRIGHT", -4, 0)
-   textDisplay:SetJustifyH("LEFT")
-   textDisplay:SetJustifyV("TOP")
-   textDisplay:SetWordWrap(true)
-   textDisplay:SetSpacing(2)
-   textDisplay:SetTextColor(DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3])
-   f.textDisplay = textDisplay
+   smf:SetScript("OnMouseWheel", function(self, delta)
+      if delta > 0 then
+         self:ScrollUp(); self:ScrollUp(); self:ScrollUp()
+      else
+         self:ScrollDown(); self:ScrollDown(); self:ScrollDown()
+      end
+      sync_scrollbar()
+   end)
+
+   -- Action buttons live in the bottom toolbar (clear of the close X and resize grip)
+   local clearBtn = create_debug_button(f, "Clear", 58)
+   clearBtn:SetPoint("BOTTOMRIGHT", -18, 5)
+
+   local copyBtn = create_debug_button(f, "Copy", 58)
+   copyBtn:SetPoint("BOTTOMRIGHT", -80, 5)
 
    -- Copy popup
-   local copyPopup = CreateFrame("Frame", "FluxAIOCopyPopup", UIParent, "BackdropTemplate")
+   local copyPopup = CreateFrame("Frame", "MenagerieCopyPopup", UIParent, "BackdropTemplate")
    copyPopup:SetSize(450, 200)
    copyPopup:SetPoint("CENTER")
    copyPopup:SetBackdrop(DBG_BACKDROP)
@@ -729,8 +784,8 @@ local function CreateDebugLogFrame()
 
    clearBtn:SetScript("OnClick", function()
       for i = 1, #debug_log_lines do debug_log_lines[i] = nil end
-      textDisplay:SetText("")
-      contentFrame:SetHeight(1)
+      smf:Clear()
+      sync_scrollbar()
    end)
 
    -- Resize grip
@@ -749,17 +804,17 @@ local function CreateDebugLogFrame()
    resizeBtn:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
    resizeBtn:SetScript("OnMouseUp", function()
       f:StopMovingOrSizing()
-      contentFrame:SetWidth(scrollFrame:GetWidth() - 10)
-      textDisplay:SetWidth(scrollFrame:GetWidth() - 10)
+      sync_scrollbar()
    end)
    f:SetResizeBounds(300, 150, 800, 600)
 
    -- Hint text
    local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
    hint:SetPoint("BOTTOMLEFT", 8, 8)
-   hint:SetText("/fluxlog to toggle")
+   hint:SetText("/menagerielog to toggle")
    hint:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
 
+   sync_scrollbar()
    f:Hide()
    DebugLogFrame = f
    NS.DebugLogFrame = f
@@ -781,40 +836,36 @@ local function AddDebugLogLine(text)
    tinsert(debug_log_lines, text)
    trim_debug_log()
 
-   if DebugLogFrame and DebugLogFrame:IsShown() then
-      local logText = tconcat(debug_log_lines, "\n")
-      DebugLogFrame.textDisplay:SetText(logText)
-      local textHeight = DebugLogFrame.textDisplay:GetStringHeight() or 1
-      DebugLogFrame.contentFrame:SetHeight(textHeight + 10)
-      C_Timer.After(0.01, function()
-         if DebugLogFrame and DebugLogFrame.scrollFrame then
-            DebugLogFrame.scrollFrame:SetVerticalScroll(DebugLogFrame.scrollFrame:GetVerticalScrollRange())
-         end
-      end)
+   local f = DebugLogFrame
+   if f and f:IsShown() and f.smf then
+      local follow = f.smf:AtBottom()
+      local c = debug_line_color(text)
+      f.smf:AddMessage(text, c[1], c[2], c[3])
+      if follow then f.smf:ScrollToBottom() end
+      f.SyncScrollbar()
    end
 end
 
 local function RefreshDebugLogFrame()
-   if DebugLogFrame and DebugLogFrame.textDisplay then
-      local logText = tconcat(debug_log_lines, "\n")
-      DebugLogFrame.textDisplay:SetText(logText)
-      local textHeight = DebugLogFrame.textDisplay:GetStringHeight() or 1
-      DebugLogFrame.contentFrame:SetHeight(textHeight + 10)
-      C_Timer.After(0.05, function()
-         if DebugLogFrame and DebugLogFrame.scrollFrame then
-            DebugLogFrame.scrollFrame:SetVerticalScroll(DebugLogFrame.scrollFrame:GetVerticalScrollRange())
-         end
-      end)
+   local f = DebugLogFrame
+   if not (f and f.smf) then return end
+   f.smf:Clear()
+   for i = 1, #debug_log_lines do
+      local line = debug_log_lines[i]
+      local c = debug_line_color(line)
+      f.smf:AddMessage(line, c[1], c[2], c[3])
    end
+   f.smf:ScrollToBottom()
+   f.SyncScrollbar()
 end
 
 NS.CreateDebugLogFrame = CreateDebugLogFrame
 NS.RefreshDebugLogFrame = RefreshDebugLogFrame
 
--- /fluxlog slash command
-SLASH_FLUXLOG1 = "/fluxlog"
-SLASH_FLUXLOG2 = "/flog"
-SlashCmdList["FLUXLOG"] = function()
+-- /menagerielog slash command
+SLASH_MENAGERIELOG1 = "/menagerielog"
+SLASH_MENAGERIELOG2 = "/mlog"
+SlashCmdList["MENAGERIELOG"] = function()
    if not DebugLogFrame then
       CreateDebugLogFrame()
    end
@@ -1127,7 +1178,7 @@ function rotation_registry:validate_playstyle_spells(playstyle)
    end
 
    local label = (cc.playstyle_labels and cc.playstyle_labels[playstyle]) or playstyle
-   print("|cFF00FF00[Flux AIO]|r Switched to " .. label .. " playstyle")
+   print("|cFF00FF00[Menagerie]|r Switched to " .. label .. " playstyle")
 
    -- Spell-availability chatter is opt-out (handy while leveling). The
    -- unavailable_spells table is already populated above, so is_spell_available
@@ -1135,28 +1186,28 @@ function rotation_registry:validate_playstyle_spells(playstyle)
    if cached_settings.suppress_spell_warnings then return end
 
    if #missing_spells > 0 then
-      print("|cFFFF0000[Flux AIO]|r MISSING REQUIRED SPELLS:")
+      print("|cFFFF0000[Menagerie]|r MISSING REQUIRED SPELLS:")
       for _, spell_name in ipairs(missing_spells) do
-         print("|cFFFF0000[Flux AIO]|r   - " .. spell_name)
+         print("|cFFFF0000[Menagerie]|r   - " .. spell_name)
       end
    end
 
    if #optional_missing > 0 then
-      print("|cFFFF8800[Flux AIO]|r Optional spells not available (will be skipped):")
+      print("|cFFFF8800[Menagerie]|r Optional spells not available (will be skipped):")
       for _, spell_name in ipairs(optional_missing) do
-         print("|cFFFF8800[Flux AIO]|r   - " .. spell_name)
+         print("|cFFFF8800[Menagerie]|r   - " .. spell_name)
       end
    end
 
    if #missing_spells == 0 and #optional_missing == 0 then
-      print("|cFF00FF00[Flux AIO]|r All spells available!")
+      print("|cFF00FF00[Menagerie]|r All spells available!")
    end
 end
 
 function rotation_registry:register(playstyle, strategies, config)
    local map = self.strategy_maps[playstyle]
    if not map then
-      print("|cFFFF0000[Flux AIO]|r ERROR: Unknown playstyle: " .. tostring(playstyle))
+      print("|cFFFF0000[Menagerie]|r ERROR: Unknown playstyle: " .. tostring(playstyle))
       return
    end
 
@@ -1344,7 +1395,7 @@ local function register_recovery_middleware(opts)
    opts = opts or {}
    local A_class = NS.A
    if not A_class then
-      print("|cFFFF6600[Flux Recovery]|r Factory skipped: NS.A not available")
+      print("|cFFFF6600[Menagerie Recovery]|r Factory skipped: NS.A not available")
       return
    end
 
@@ -1510,7 +1561,7 @@ local DEFENSIVE_TRINKET_HP = 35
 local function register_trinket_middleware()
    local A_class = NS.A
    if not A_class then
-      print("|cFFFF6600[Flux Trinket]|r Factory skipped: NS.A not available")
+      print("|cFFFF6600[Menagerie Trinket]|r Factory skipped: NS.A not available")
       return
    end
 
@@ -1518,11 +1569,11 @@ local function register_trinket_middleware()
    local Trinket2 = A_class.Trinket2
 
    if not Trinket1 and not Trinket2 then
-      print("|cFFFF6600[Flux Trinket]|r No framework trinkets found (A.Trinket1/A.Trinket2)")
+      print("|cFFFF6600[Menagerie Trinket]|r No framework trinkets found (A.Trinket1/A.Trinket2)")
       return
    end
 
-   -- Offensive trinkets: fire during burst windows or /flux burst
+   -- Offensive trinkets: fire during burst windows or /menagerie burst
    rotation_registry:register_middleware({
       name = "Trinkets_Burst",
       priority = 80,
@@ -1553,7 +1604,7 @@ local function register_trinket_middleware()
       end,
    })
 
-   -- Defensive trinkets: fire at low HP or /flux def
+   -- Defensive trinkets: fire at low HP or /menagerie def
    rotation_registry:register_middleware({
       name = "Trinkets_Defensive",
       priority = 290,
@@ -1581,7 +1632,7 @@ local function register_trinket_middleware()
       end,
    })
 
-   print("|cFF00FF00[Flux Trinket]|r Middleware registered")
+   print("|cFF00FF00[Menagerie Trinket]|r Middleware registered")
 end
 
 NS.register_trinket_middleware = register_trinket_middleware
@@ -1589,4 +1640,4 @@ NS.register_trinket_middleware = register_trinket_middleware
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Core]|r Module loaded")
+print("|cFF00FF00[Menagerie Core]|r Module loaded")

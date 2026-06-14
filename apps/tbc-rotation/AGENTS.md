@@ -1,4 +1,4 @@
-# tbc-rotation — Flux AIO Addon
+# tbc-rotation — Menagerie Addon
 
 > Scope: the WoW TBC rotation addon and its build layer. Read the root `AGENTS.md` first for
 > global behavior + the workspace map. Per-class rotation detail lives in each class folder's
@@ -9,26 +9,25 @@
 A multi-class WoW TBC rotation addon written in **Lua**, built on the GGL Action/Textfiles
 framework. The TypeScript here (`build.ts`, `dev-watch.ts`) is **only a build layer** — it bundles
 the per-class Lua modules into one TMW profile. The single output is `output/TellMeWhen.lua`
-(gitignored). This is **not** a TS/React app; do not treat `dist/` or `output/` as product code.
+(gitignored). This is **not** a TS/React app; do not treat `output/` as product code.
 
 ## Build / watch / sync
 
 ```bash
-corepack pnpm --filter @flux/tbc-rotation build       # compile → output/TellMeWhen.lua
-corepack pnpm --filter @flux/tbc-rotation build:sync   # build + sync to SavedVariables
-corepack pnpm --filter @flux/tbc-rotation build:all    # build + sync
-corepack pnpm --filter @flux/tbc-rotation watch        # auto-rebuild + sync on save
-corepack pnpm --filter @flux/tbc-rotation watch:log    # watch, logs in .logs/
+corepack pnpm --filter @menagerie/tbc-rotation build       # compile → output/TellMeWhen.lua
+corepack pnpm --filter @menagerie/tbc-rotation build:sync   # build + sync to SavedVariables
+corepack pnpm --filter @menagerie/tbc-rotation build:all    # build + sync
+corepack pnpm --filter @menagerie/tbc-rotation watch        # auto-rebuild + sync on save
+corepack pnpm --filter @menagerie/tbc-rotation watch:log    # watch, logs in .logs/
 ```
 
-`build`/`watch` first run `compile` (builds the `@flux/tmw-profile-builder` package, then `tsc`),
-then run the compiled `dist/build.js` / `dist/dev-watch.js`. `build.ts` is a thin wrapper: it
-builds a `BuildContext` via `createBuildContext({ projectRoot })` and dispatches to the package's
-`runCli`. The build/watch/sync **engine itself** lives in `packages/tmw-profile-builder/` — see
-that package's `AGENTS.md`. This app only owns the _config_ (below) and the Lua source.
+`build`/`watch` first run `build:engine` (builds the `@menagerie/tmw-profile-builder` package, whose
+compiled `dist/` is consumed here), then run `build.ts` / `dev-watch.ts` directly via `tsx` — the app
+itself no longer compiles to a `dist/`. `build.ts` is a thin wrapper: it builds a `BuildContext` via
+`createBuildContext({ projectRoot })` and dispatches to the package's `runCli`. The build/watch/sync
+**engine itself** lives in `packages/tmw-profile-builder/` — see that package's `AGENTS.md`. This app
+only owns the _config_ (below) and the Lua source.
 
-- `ROTATION_ROOT` env var overrides the project root. The discord-bot uses it to build in a temp
-  workspace against a copied-out `dist/build.js` — this is why the rotation ships a compiled `dist`.
 - Sync targets (SavedVariables paths) live in `builder.config.local.json` (gitignored;
   see `builder.config.local.example.json`). Never commit real local paths.
 
@@ -67,7 +66,7 @@ currently 7) in filename order.
 
 ## AIO architecture
 
-All modules share the `_G.FluxAIO` namespace (aliased `local NS = _G.FluxAIO`). `NS.A`, `NS.Player`,
+All modules share the `_G.Menagerie` namespace (aliased `local NS = _G.Menagerie`). `NS.A`, `NS.Player`,
 `NS.Unit`, `NS.rotation_registry`, `NS.Constants` are the common handles.
 
 **Strategy Registry pattern** (`rotation_registry` in `core.lua`, dispatched in `main.lua`):
@@ -92,7 +91,7 @@ player state (stance/hp/mana/energy/rage/cp/in_combat/is_stealthed), target stat
 enemy_count), `context.settings` (cached from UI toggles), plus per-class fields from
 `extend_context`.
 
-**Force-bypass & burst context** — `/flux burst` and `/flux def` set force flags
+**Force-bypass & burst context** — `/menagerie burst` and `/menagerie def` set force flags
 (`is_force_active`) that skip `matches()` + `check_prerequisites()` for tagged entries, but if a
 `spell` is set `IsReady()` is still checked (CD/range/stance respected). `should_auto_burst(context)`
 gates _automatic_ burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_pull`,
@@ -100,7 +99,7 @@ gates _automatic_ burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_
 unmet (burst held).
 
 **Dashboard** — shared combat overlay (`dashboard.lua`), driven by the `dashboard` table passed to
-`register_class()`. Toggled via the `show_dashboard` setting or `/flux status`.
+`register_class()`. Toggled via the `show_dashboard` setting or `/menagerie status`.
 
 ## Shared modules (`src/aio/*.lua`)
 
@@ -109,7 +108,7 @@ unmet (burst held).
 | `common.lua`    | Loads first; shared low-level helpers used before core.                                                                                                           |
 | `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
 | `ui.lua`        | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                                                           |
-| `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/flux` slash commands.                                                                                         |
+| `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/menagerie` slash commands.                                                                                    |
 | `dashboard.lua` | Data-driven combat overlay.                                                                                                                                       |
 | `main.lua`      | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                                                             |
 
@@ -136,7 +135,7 @@ precisely so that's unnecessary.
 
 ## Settings schema mechanics
 
-Per-class `schema.lua` defines `_G.FluxAIO_SETTINGS_SCHEMA`. One schema drives **three** consumers:
+Per-class `schema.lua` defines `_G.Menagerie_SETTINGS_SCHEMA`. One schema drives **three** consumers:
 `ui.lua` (ProfileUI backing store), `settings.lua` (tabbed UI), and `core.lua`
 (`refresh_settings()` → `cached_settings`). Keys are **snake_case everywhere**: `GetToggle(2, key)`,
 `SetToggle({2, key, ...})`, `cached_settings[key]`, `context.settings[key]`.
@@ -150,26 +149,26 @@ Per-class `schema.lua` defines `_G.FluxAIO_SETTINGS_SCHEMA`. One schema drives *
 - **Never capture settings at load time** — settings change at runtime. Read through
   `context.settings.<key>` inside `matches`/`execute`, never `A.GetToggle(...)` at module level.
 - Frame-rate sensitive: the rotation runs every frame; avoid allocations in hot paths.
-- Class modules gate on `A.PlayerClass`; shared modules gate on `_G.FluxAIO` existing.
+- Class modules gate on `A.PlayerClass`; shared modules gate on `_G.Menagerie` existing.
 - **File naming**: lowercase single words only — no underscores/hyphens/spaces (e.g. `cat.lua`,
   `cliptracker.lua`). Enforced by the build.
 
-## Slash commands (`/flux`)
+## Slash commands (`/menagerie`)
 
-| Command        | Behavior                                                             |
-| -------------- | -------------------------------------------------------------------- |
-| `/flux`        | Toggle settings UI                                                   |
-| `/flux burst`  | Force offensive CDs for 3s (fires `is_burst` entries)                |
-| `/flux def`    | Force defensive CDs for 3s (fires `is_defensive` entries)            |
-| `/flux gap`    | Fire best gap closer (consumed on first success, uses `gap_handler`) |
-| `/flux status` | Toggle combat dashboard                                              |
-| `/flux help`   | Print command list                                                   |
+| Command             | Behavior                                                             |
+| ------------------- | -------------------------------------------------------------------- |
+| `/menagerie`        | Toggle settings UI                                                   |
+| `/menagerie burst`  | Force offensive CDs for 3s (fires `is_burst` entries)                |
+| `/menagerie def`    | Force defensive CDs for 3s (fires `is_defensive` entries)            |
+| `/menagerie gap`    | Fire best gap closer (consumed on first success, uses `gap_handler`) |
+| `/menagerie status` | Toggle combat dashboard                                              |
+| `/menagerie help`   | Print command list                                                   |
 
 ## Debugging
 
 - `debug_print(...)` (`core.lua`) — throttled per unique message; enable via the "Debug Mode"
   setting checkbox.
-- Combat dashboard (`/flux status`) — live priority/CDs/buffs overlay.
+- Combat dashboard (`/menagerie status`) — live priority/CDs/buffs overlay.
 - `src/sim/` — simulation harness that regression-checks rotation logic (`pnpm sim:hunter`, etc.).
 - `pnpm lint:lua` — static analysis of `src/aio` via `luacheck` (catches typo'd API names,
   accidental globals, unused/shadowed locals before an in-game reload). Config + the WoW/Action

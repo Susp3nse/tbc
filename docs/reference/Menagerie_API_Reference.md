@@ -1,4 +1,4 @@
-# Flux AIO API Reference
+# Menagerie API Reference
 
 > **Auto-generated from source** — `rotation/source/aio/core.lua`, `main.lua`, `common.lua`, `dashboard.lua`, `settings.lua`
 >
@@ -41,10 +41,10 @@
 
 ## Namespace Overview
 
-All Flux AIO modules share the `_G.FluxAIO` namespace, aliased as `NS` locally in every file:
+All Menagerie modules share the `_G.Menagerie` namespace, aliased as `NS` locally in every file:
 
 ```lua
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 local A = NS.A
 local Player = NS.Player
 local Unit = NS.Unit
@@ -280,7 +280,7 @@ end
 ```lua
 NS.refresh_settings()
 ```
-Rebuilds `cached_settings` from `_G.FluxAIO_SETTINGS_SCHEMA`. Called every frame by `main.lua`. Throttled to 0.05s intervals.
+Rebuilds `cached_settings` from `_G.Menagerie_SETTINGS_SCHEMA`. Called every frame by `main.lua`. Throttled to 0.05s intervals.
 
 ---
 
@@ -311,7 +311,7 @@ Batch validation. Each entry: `{spell, name, required, note}`. Populates `unavai
 
 ## Force Flag System
 
-Supports `/flux burst`, `/flux def`, `/flux gap` slash commands. Flags expire after 3 seconds.
+Supports `/menagerie burst`, `/menagerie def`, `/menagerie gap` slash commands. Flags expire after 3 seconds.
 
 ```lua
 NS.force_burst = 0       -- expiry timestamp
@@ -380,7 +380,7 @@ NS.AddDebugLogLine(text)
 NS.DebugLogFrame           -- frame reference (after creation)
 ```
 
-Toggle with `/fluxlog` or `/flog`.
+Toggle with `/menagerielog` or `/mlog`.
 
 ---
 
@@ -490,8 +490,8 @@ A strategy is a table registered via `rotation_registry:register(playstyle, stra
     requires_enemy = true,       -- skips if no valid enemy target
 
     -- Optional behavior flags:
-    is_burst = true,             -- /flux burst force-fires (bypasses matches)
-    is_defensive = true,         -- /flux def force-fires
+    is_burst = true,             -- /menagerie burst force-fires (bypasses matches)
+    is_defensive = true,         -- /menagerie def force-fires
     is_gcd_gated = true,         -- default true; false for off-GCD abilities
     is_auto_form = true,         -- suppressed during PVE combat
 
@@ -525,8 +525,8 @@ Middleware is a table registered via `rotation_registry:register_middleware()`.
     end,
 
     -- Optional:
-    is_burst = true,                   -- /flux burst force-fires
-    is_defensive = true,               -- /flux def force-fires
+    is_burst = true,                   -- /menagerie burst force-fires
+    is_defensive = true,               -- /menagerie def force-fires
     is_gcd_gated = true,               -- default true
     spell = A.SomeSpell,               -- auto-checks IsReady()
     spell_target = "player",           -- target for IsReady (default "player")
@@ -672,13 +672,13 @@ Every frame, TMW calls `A[3](icon)`:
 1. refresh_settings()           -- sync UI toggles -> cached_settings (0.05s throttle)
 2. create_context(icon)         -- build base context table
 3. extend_context(ctx)          -- class adds stance, energy, etc.
-4. /flux gap check              -- if active, call gap_handler and return
+4. /menagerie gap check              -- if active, call gap_handler and return
 5. execute_middleware(icon, ctx) -- shared: recovery, CDs, dispels, self-buffs
    |                              returns first non-nil result
    |-- for each middleware (priority desc):
        |-- skip if on_gcd (unless is_gcd_gated=false)
-       |-- force-bypass if /flux burst + is_burst (skip matches, check spell)
-       |-- force-bypass if /flux def + is_defensive (skip matches, check spell)
+       |-- force-bypass if /menagerie burst + is_burst (skip matches, check spell)
+       |-- force-bypass if /menagerie def + is_defensive (skip matches, check spell)
        |-- call matches(context) -> if truthy, call execute(icon, context)
 6. get_active_playstyle(ctx)    -- determine combat form/spec
 7. get_idle_playstyle(ctx)      -- determine idle form
@@ -689,7 +689,7 @@ Every frame, TMW calls `A[3](icon)`:
     |-- for each strategy (priority desc):
         |-- skip if on_gcd (unless is_gcd_gated=false)
         |-- check_prerequisites(strategy, context) -> auto-checks
-        |-- force-bypass if /flux burst/def + tagged
+        |-- force-bypass if /menagerie burst/def + tagged
         |-- call matches(context, state) -> if truthy, call execute(icon, context, state)
 ```
 
@@ -720,7 +720,7 @@ rotation_registry:register_class({
     end,
 
     gap_handler = function(icon, context)
-        -- /flux gap handler. Return spell:Show(icon) or nil
+        -- /menagerie gap handler. Return spell:Show(icon) or nil
     end,
 
     dashboard = {
@@ -767,12 +767,12 @@ end
 
 ## Settings Schema
 
-Settings are defined in per-class `schema.lua` files via `_G.FluxAIO_SETTINGS_SCHEMA`.
+Settings are defined in per-class `schema.lua` files via `_G.Menagerie_SETTINGS_SCHEMA`.
 
 ### Schema Structure
 
 ```lua
-_G.FluxAIO_SETTINGS_SCHEMA = {
+_G.Menagerie_SETTINGS_SCHEMA = {
     class = "DRUID",
     tabs = {
         {
@@ -812,13 +812,13 @@ _G.FluxAIO_SETTINGS_SCHEMA = {
 
 ### Common Shared Sections
 
-`_G.FluxAIO_SECTIONS` (defined in `common.lua`) provides reusable section factories:
+`_G.Menagerie_SECTIONS` (defined in `common.lua`) provides reusable section factories:
 
 ```lua
-_G.FluxAIO_SECTIONS.dashboard()           --> { header, settings } for dashboard toggle
-_G.FluxAIO_SECTIONS.burst()               --> { header, settings } for burst conditions
-_G.FluxAIO_SECTIONS.debug()               --> { header, settings } for debug toggles
-_G.FluxAIO_SECTIONS.trinkets(tooltip)     --> { header, settings } for trinket/racial modes
+_G.Menagerie_SECTIONS.dashboard()           --> { header, settings } for dashboard toggle
+_G.Menagerie_SECTIONS.burst()               --> { header, settings } for burst conditions
+_G.Menagerie_SECTIONS.debug()               --> { header, settings } for debug toggles
+_G.Menagerie_SECTIONS.trinkets(tooltip)     --> { header, settings } for trinket/racial modes
 ```
 
 ### Keys Are snake_case Everywhere
@@ -857,7 +857,7 @@ Called by `main.lua` every frame to populate the "Priority" display.
 ```lua
 NS.toggle_dashboard()
 ```
-Toggles dashboard visibility. Creates frame on first call. Used by `/flux status`.
+Toggles dashboard visibility. Creates frame on first call. Used by `/menagerie status`.
 
 ---
 
@@ -866,7 +866,7 @@ Toggles dashboard visibility. Creates frame on first call. Used by `/flux status
 ```lua
 NS.toggle_settings()
 ```
-Toggles the custom tabbed settings frame. Used by `/flux` command and minimap button.
+Toggles the custom tabbed settings frame. Used by `/menagerie` command and minimap button.
 
 ```lua
 NS.settings_frame  -- frame reference (after creation)
@@ -1066,10 +1066,10 @@ NS.register_interrupt_capability(class_name, config)
 
 | Command | Handler | Description |
 |---------|---------|-------------|
-| `/flux` | `NS.toggle_settings()` | Toggle settings UI |
-| `/flux burst` | `NS.set_force_flag("force_burst")` | Force offensive CDs for 3s |
-| `/flux def` | `NS.set_force_flag("force_defensive")` | Force defensive CDs for 3s |
-| `/flux gap` | `NS.set_force_flag("force_gap")` | Fire gap closer (consumed on first success) |
-| `/flux status` | `NS.toggle_dashboard()` | Toggle combat dashboard |
-| `/flux help` | — | Print command list |
-| `/fluxlog` | `NS.CreateDebugLogFrame()` | Toggle debug log window |
+| `/menagerie` | `NS.toggle_settings()` | Toggle settings UI |
+| `/menagerie burst` | `NS.set_force_flag("force_burst")` | Force offensive CDs for 3s |
+| `/menagerie def` | `NS.set_force_flag("force_defensive")` | Force defensive CDs for 3s |
+| `/menagerie gap` | `NS.set_force_flag("force_gap")` | Fire gap closer (consumed on first success) |
+| `/menagerie status` | `NS.toggle_dashboard()` | Toggle combat dashboard |
+| `/menagerie help` | — | Print command list |
+| `/menagerielog` | `NS.CreateDebugLogFrame()` | Toggle debug log window |

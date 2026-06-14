@@ -1,8 +1,8 @@
-# Flux AIO
+# Menagerie
 
 A multi-class WoW TBC rotation addon built on the GGL Action/Textfiles framework, covering all nine classes.
 
-**Website & Docs** — [flux-rotations.github.io/tbc](https://flux-rotations.github.io/tbc)
+**Website & Docs** — [menagerie.dev](https://menagerie.dev)
 
 ## Project Structure
 
@@ -12,7 +12,6 @@ This is a pnpm monorepo. New here? Start with **[docs/GETTING_STARTED.md](docs/G
 |---------|-------------|
 | `apps/tbc-rotation/` | TBC rotation addon (Lua source under `src/aio/`; one app per game version) |
 | `apps/website/` | Static site for script distribution and documentation (Astro) |
-| `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude AI |
 | `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library and CLI |
 | `packages/tmw-profile-builder/` | Reusable TMW profile build, watch, and SavedVariables sync library |
 
@@ -34,17 +33,17 @@ pnpm test
 ### Rotation Log Analysis
 
 ```bash
-pnpm --filter @flux/log-analyzer analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
+pnpm --filter @menagerie/log-analyzer analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
 ```
 
 ### Building the Rotation
 
 ```bash
-pnpm --filter @flux/tbc-rotation build        # Compile to apps/tbc-rotation/output/TellMeWhen.lua
-pnpm --filter @flux/tbc-rotation build:sync   # Build + sync to SavedVariables (requires builder.config.local.json)
-pnpm --filter @flux/tbc-rotation build:all    # Build + sync
-pnpm --filter @flux/tbc-rotation watch        # Watch mode: auto-rebuild + sync on save
-pnpm --filter @flux/tbc-rotation watch:log    # Watch mode with logs in apps/tbc-rotation/.logs/
+pnpm --filter @menagerie/tbc-rotation build        # Compile to apps/tbc-rotation/output/TellMeWhen.lua
+pnpm --filter @menagerie/tbc-rotation build:sync   # Build + sync to SavedVariables (requires builder.config.local.json)
+pnpm --filter @menagerie/tbc-rotation build:all    # Build + sync
+pnpm --filter @menagerie/tbc-rotation watch        # Watch mode: auto-rebuild + sync on save
+pnpm --filter @menagerie/tbc-rotation watch:log    # Watch mode with logs in apps/tbc-rotation/.logs/
 ```
 
 Each game version is its own app. The TBC app holds its compiled rotation tree under `apps/tbc-rotation/src/aio/` and its simulation harness under `apps/tbc-rotation/src/sim/`. Future expansions get their own app (e.g. `apps/mop-rotation`), each with its own template, build, and output.
@@ -52,15 +51,8 @@ Each game version is its own app. The TBC app holds its compiled rotation tree u
 ### Running the Website
 
 ```bash
-pnpm --filter @flux/website dev
-pnpm --filter @flux/website build
-```
-
-### Running the Discord Bot
-
-```bash
-pnpm --filter @flux/bot register   # Register slash commands
-pnpm --filter @flux/bot start      # Start the bot
+pnpm --filter @menagerie/website dev
+pnpm --filter @menagerie/website build
 ```
 
 ## Architecture
@@ -78,4 +70,11 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 All nine TBC classes: **Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior**.
 Each lives under `apps/tbc-rotation/src/aio/<class>/` and registers its own specs/forms. See the
-[class pages](https://flux-rotations.github.io/tbc) for per-spec coverage.
+[class pages](https://menagerie.dev) for per-spec coverage.
+
+## Credits
+
+**Menagerie is a fork of the original [Flux AIO](https://github.com/flux-rotations/tbc)** TBC rotation
+addon. Full attribution to the upstream project and its author(s) lives in [`NOTICE`](NOTICE). The
+rebrand changed the name, namespace, and hosting; the rotation logic descends directly from that
+work — credit for the foundation belongs upstream.

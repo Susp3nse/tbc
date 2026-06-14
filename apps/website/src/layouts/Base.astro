@@ -8,7 +8,7 @@ interface Props {
 }
 
 const { title, description = 'Multi-class WoW TBC rotation addon.' } = Astro.props;
-const pageTitle = `${title} | Flux AIO`;
+const pageTitle = `${title} | Menagerie`;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
 const path = Astro.url.pathname.replace(/\/$/, '');
 const isActive = (href: string) => path === url(href).replace(/\/$/, '') || path.startsWith(url(href).replace(/\/$/, '') + '/');
@@ -24,18 +24,18 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
 
   <!-- SEO -->
   <meta name="description" content={description} />
-  <meta name="author" content="Flux AIO" />
+  <meta name="author" content="Menagerie" />
   <meta name="keywords" content="WoW, TBC, rotation, addon, druid, hunter, mage, paladin, priest, rogue, shaman, warlock, warrior, TellMeWhen, classic" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href={canonicalUrl.href} />
-  <meta name="theme-color" content="#6c63ff" />
+  <meta name="theme-color" content="#e08a3c" />
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Flux AIO" />
+  <meta property="og:site_name" content="Menagerie" />
   <meta property="og:title" content={pageTitle} />
   <meta property="og:description" content={description} />
   <meta property="og:url" content={canonicalUrl.href} />
@@ -52,13 +52,13 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
 <body>
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a href={url('/')} class="nav-logo">Flux <span>AIO</span></a>
+      <a href={url('/')} class="nav-logo">Menagerie</a>
       <button class:list={["nav-classes-btn", { active: isClassPage }]} aria-expanded="false">Classes</button>
       <div class="nav-links">
         <a href={url('/guides/installation')} class:list={["nav-link", { active: isActive('/guides/installation') }]}>Install</a>
         <a href={url('/changelog')} class:list={["nav-link", { active: isActive('/changelog') }]}>Changelog</a>
         <a href={url('/faq')} class:list={["nav-link", { active: isActive('/faq') }]}>FAQ</a>
-        <a href={config.discord} class="nav-link" target="_blank">Discord</a>
+        <a href={config.github} class="nav-link" target="_blank">GitHub</a>
       </div>
       <button class="hamburger-btn" aria-label="Menu" aria-expanded="false">
         <span class="hamburger-bar"></span>
@@ -92,9 +92,9 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
     <div class="footer-links">
       <a href={config.downloadUrl}>Download</a>
       <a href={config.github} target="_blank">GitHub</a>
-      <a href={config.discord} target="_blank">Discord</a>
     </div>
-    <p>Flux AIO &mdash; WoW TBC rotation addon</p>
+    <p>Menagerie &mdash; WoW TBC rotation addon</p>
+    <p class="footer-credit">Forked from Flux AIO &mdash; see <a href={`${config.github}/blob/main/NOTICE`} target="_blank">NOTICE</a></p>
   </footer>
 
   <script is:inline>

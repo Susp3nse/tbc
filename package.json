@@ -1,11 +1,10 @@
 {
-  "name": "gg-rotations",
+  "name": "menagerie",
   "private": true,
   "scripts": {
-    "build:rotation": "corepack pnpm --filter @flux/tbc-rotation build",
-    "build:rotation:sync": "corepack pnpm --filter @flux/tbc-rotation watch:log",
-    "build:website": "corepack pnpm --filter @flux/website build",
-    "build:bot": "corepack pnpm --filter @flux/bot build",
+    "build:rotation": "corepack pnpm --filter @menagerie/tbc-rotation build",
+    "build:rotation:sync": "corepack pnpm --filter @menagerie/tbc-rotation watch:log",
+    "build:website": "corepack pnpm --filter @menagerie/website build",
     "release": "tsx tooling/release.ts",
     "release:publish": "tsx tooling/publish.ts",
     "lint": "corepack pnpm exec oxlint apps packages tooling --deny-warnings",

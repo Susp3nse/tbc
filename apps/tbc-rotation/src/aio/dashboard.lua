@@ -1,6 +1,6 @@
--- Flux AIO - Combat Dashboard
+-- Menagerie - Combat Dashboard
 -- Shared, data-driven dashboard — classes register configs, this module renders.
--- Toggle via "Show Dashboard" setting or /flux status
+-- Toggle via "Show Dashboard" setting or /menagerie status
 
 local _G = _G
 local format = string.format
@@ -26,9 +26,9 @@ local UnitIsUnit = _G.UnitIsUnit
 local UnitDetailedThreatSituation = _G.UnitDetailedThreatSituation
 local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Dashboard]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Dashboard]|r Core module not loaded!")
     return
 end
 
@@ -164,7 +164,7 @@ local MAX_CUSTOM_LINES = 6
 local UPDATE_INTERVAL = 0.1
 local TOGGLE_CHECK_INTERVAL = 0.5
 
-local FRAME_WIDTH = 170
+local FRAME_WIDTH = 200
 local ICON_SIZE = 20
 local ICON_GAP = 4
 local ICON_STEP = ICON_SIZE + ICON_GAP   -- 24px per icon cell
@@ -364,7 +364,7 @@ local function create_dashboard()
     if dashboard_frame then return dashboard_frame end
 
     -- Aggressively clean up stale frame from previous /reload
-    local stale = _G["FluxAIODashboard"]
+    local stale = _G["MenagerieDashboard"]
     if stale then
         stale:Hide()
         stale:SetAlpha(0)
@@ -383,7 +383,7 @@ local function create_dashboard()
         stale:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, 5000)
     end
 
-    local f = CreateFrame("Frame", "FluxAIODashboard", UIParent, "BackdropTemplate")
+    local f = CreateFrame("Frame", "MenagerieDashboard", UIParent, "BackdropTemplate")
     f:SetSize(FRAME_WIDTH, 300)
     f:SetBackdrop(BACKDROP_THIN)
     f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
@@ -1513,4 +1513,4 @@ end)
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Dashboard]|r Module loaded")
+print("|cFF00FF00[Menagerie Dashboard]|r Module loaded")

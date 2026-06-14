@@ -1,6 +1,6 @@
 # Getting Started
 
-A practical onboarding tour for the Flux AIO monorepo — clone to first build, the everyday dev loop,
+A practical onboarding tour for the Menagerie monorepo — clone to first build, the everyday dev loop,
 and where to read next. For deep architecture and conventions, see the root [`AGENTS.md`](../AGENTS.md)
 (symlinked as `CLAUDE.md`) and the per-area `AGENTS.md` files it indexes.
 
@@ -26,7 +26,6 @@ Everything else exists to build, ship, and support it.
 |------|------------|
 | `apps/tbc-rotation/` | The addon. Modular Lua under `src/aio/<class>/` compiled to one `output/TellMeWhen.lua`. |
 | `apps/website/` | Astro static site — distribution + docs + changelog. |
-| `apps/discord-bot/` | Discord bot for personalized rotation tweaks via Claude. |
 | `packages/tmw-profile-builder/` | The build/watch/sync engine the rotation app drives (ships compiled `dist/`). |
 | `packages/log-analyzer/` | Warcraft Logs analyzer library + CLI. |
 
@@ -42,9 +41,9 @@ entry points. (The root `package.json` also exposes shortcuts like `pnpm build:r
 ### Build the rotation
 
 ```bash
-pnpm --filter @flux/tbc-rotation build        # compile → apps/tbc-rotation/output/TellMeWhen.lua
-pnpm --filter @flux/tbc-rotation build:sync   # build + sync into your WoW SavedVariables
-pnpm --filter @flux/tbc-rotation watch         # watch mode: auto-rebuild + sync on every save
+pnpm --filter @menagerie/tbc-rotation build        # compile → apps/tbc-rotation/output/TellMeWhen.lua
+pnpm --filter @menagerie/tbc-rotation build:sync   # build + sync into your WoW SavedVariables
+pnpm --filter @menagerie/tbc-rotation watch         # watch mode: auto-rebuild + sync on every save
 ```
 
 `build:sync`/`watch` need a local sync target. Copy the template and fill in your WoW path:
@@ -55,32 +54,24 @@ cp apps/tbc-rotation/builder.config.local.example.json apps/tbc-rotation/builder
 ```
 
 The build is a **deterministic concatenation**: `builder.config.json` declares the module load order
-and a template; the `@flux/tmw-profile-builder` engine assembles the classes into one profile. See
+and a template; the `@menagerie/tmw-profile-builder` engine assembles the classes into one profile. See
 [`apps/tbc-rotation/AGENTS.md`](../apps/tbc-rotation/AGENTS.md) and
 [`packages/tmw-profile-builder/AGENTS.md`](../packages/tmw-profile-builder/AGENTS.md).
 
 ### Run the website
 
 ```bash
-pnpm --filter @flux/website dev        # local dev server
-pnpm --filter @flux/website build      # static build → apps/website/dist
+pnpm --filter @menagerie/website dev        # local dev server
+pnpm --filter @menagerie/website build      # static build → apps/website/dist
 ```
 
 The changelog is a content collection — add a release by dropping a
 `src/content/changelog/v<X.Y.Z>.md` file (see [`apps/website/AGENTS.md`](../apps/website/AGENTS.md)).
 
-### Run the Discord bot
-
-```bash
-cp apps/discord-bot/.env.example apps/discord-bot/.env   # fill in tokens (gitignored)
-pnpm --filter @flux/bot register                          # register slash commands (once)
-pnpm --filter @flux/bot dev                               # run locally with tsx
-```
-
 ### Analyze Warcraft Logs
 
 ```bash
-pnpm --filter @flux/log-analyzer analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
+pnpm --filter @menagerie/log-analyzer analyze:report -- --report <code> --fight <id> --player <name> --class Druid --spec Cat
 ```
 
 ## 4. Quality gates
@@ -92,7 +83,7 @@ pnpm check        # lint (oxlint) + format:check (oxfmt) + typecheck, across the
 pnpm test         # recursive tests (analyzer, rotation guardrails)
 ```
 
-Lua source has its own linter: `pnpm --filter @flux/tbc-rotation lint:lua` (luacheck).
+Lua source has its own linter: `pnpm --filter @menagerie/tbc-rotation lint:lua` (luacheck).
 
 ## 5. Cut a release
 

@@ -197,7 +197,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: corepack pnpm --filter @flux/tbc-rotation sim:hunter -- [options]
+  console.log(`Usage: corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- [options]
 
 Options:
   --list                 List built-in scenarios
@@ -230,11 +230,11 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  corepack pnpm --filter @flux/tbc-rotation sim:hunter
-  corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15
-  corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --speed 1.05 --duration 20
-  corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --trace ultra-15 --no-arcane --multi-start-cd 4
-  corepack pnpm --filter @flux/tbc-rotation sim:hunter -- --timer-matrix ultra-15 --drop-autos 3 --action-delay 0.20 --no-asserts
+  corepack pnpm --filter @menagerie/tbc-rotation sim:hunter
+  corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15
+  corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --speed 1.05 --duration 20
+  corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --trace ultra-15 --no-arcane --multi-start-cd 4
+  corepack pnpm --filter @menagerie/tbc-rotation sim:hunter -- --timer-matrix ultra-15 --drop-autos 3 --action-delay 0.20 --no-asserts
 `);
 }
 

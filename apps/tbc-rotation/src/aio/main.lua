@@ -1,4 +1,4 @@
--- Flux AIO - Main Module
+-- Menagerie - Main Module
 -- Generic context creation and main rotation dispatcher
 -- MUST LOAD LAST - after all strategies are registered
 
@@ -8,14 +8,14 @@
 -- All class-specific logic lives in class_config callbacks.
 -- ============================================================
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-   print("|cFFFF0000[Flux AIO Main]|r Core module not loaded!")
+   print("|cFFFF0000[Menagerie Main]|r Core module not loaded!")
    return
 end
 
 if not NS.rotation_registry then
-   print("|cFFFF0000[Flux AIO Main]|r Registry not found!")
+   print("|cFFFF0000[Menagerie Main]|r Registry not found!")
    return
 end
 
@@ -374,6 +374,6 @@ for ps, strats in pairs(rotation_registry.strategy_maps) do
 end
 local mw_count = rotation_registry.middleware and #rotation_registry.middleware or 0
 
-print(format("|cff6c63ff[Flux AIO]|r %s loaded! %s | Build: %s", class_label, class_version, build_number))
-print(format("|cFF00FF00[Flux AIO]|r Strategies: %s", table.concat(strategy_summary, ", ")))
-print(format("|cFF00FF00[Flux AIO]|r Middleware: %d handlers registered", mw_count))
+print(format("|cff6c63ff[Menagerie]|r %s loaded! %s | Build: %s", class_label, class_version, build_number))
+print(format("|cFF00FF00[Menagerie]|r Strategies: %s", table.concat(strategy_summary, ", ")))
+print(format("|cFF00FF00[Menagerie]|r Middleware: %d handlers registered", mw_count))

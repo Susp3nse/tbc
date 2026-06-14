@@ -3,7 +3,7 @@
 --
 -- Visual debug panel with real-time Player/Target/Debuffs/PvP/Pet state.
 -- Toggle via schema setting "show_debug_panel" (Tab 5 "Pet & Diag")
--- or /flux debug panel.
+-- or /menagerie debug panel.
 
 local _G, string = _G, string
 
@@ -12,9 +12,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter Debug]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter Debug]|r Core module not loaded!")
     return
 end
 
@@ -392,4 +392,4 @@ end)
 
 NS.HunterDebug = HunterDebug
 
-print("|cFF00FF00[Flux AIO Hunter]|r Debug panel loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Debug panel loaded")

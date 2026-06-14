@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-14
 - **Status:** Approved; reconciled with the up-front P3/P4 audit. Decision D1 = B (resolved). The audit refined four findings since the original draft — recovery middleware is **unify + normalize** (not parameterize-per-class), **druid is excluded** from the middleware factory (schema/keys only), **priest racials stay bespoke**, and **R-c is rescoped** (not executable as first written). Authoritative audit tables + rename map live in the implementation plan (`2026-06-14-dry-readability-plan.md` §A/§B); this doc is the reconciled "what & why."
-- **Goal in one line:** Collapse a *bounded, verified* set of mechanical duplications in the AIO Lua into shared shapes — following patterns the codebase already established (`FluxAIO_SECTIONS`, `register_trinket_middleware`) — so a fix to a shared shape reaches **every** class at once, while keeping each shape **expandable** (a class can still diverge without forking it) and **without** introducing speculative abstraction.
+- **Goal in one line:** Collapse a *bounded, verified* set of mechanical duplications in the AIO Lua into shared shapes — following patterns the codebase already established (`Menagerie_SECTIONS`, `register_trinket_middleware`) — so a fix to a shared shape reaches **every** class at once, while keeping each shape **expandable** (a class can still diverge without forking it) and **without** introducing speculative abstraction.
 
 ---
 
@@ -50,9 +50,9 @@ Each phase carries **two gates**. A phase is not "done" until both pass.
 - If the audit reveals the premise is weaker than stated (as happened with R-d), **stop and re-scope** rather than forcing the change.
 
 ### Gate B — "Is it correct and bug-free?" (run *after* writing code)
-1. **Build:** `corepack pnpm --filter @flux/tbc-rotation build` must succeed (compiles to `output/TellMeWhen.lua`).
-2. **Lua lint:** `corepack pnpm --filter @flux/tbc-rotation lint:lua` (luacheck) — catches accidental globals, typo'd API names, unused/shadowed locals. Must be clean for files touched.
-3. **Sim (where applicable):** `pnpm --filter @flux/tbc-rotation sim:hunter` for any change touching the hunter dispatch path (P1, P2). The sim is a regression oracle — a passing sim before/after with identical output proves no behavior change.
+1. **Build:** `corepack pnpm --filter @menagerie/tbc-rotation build` must succeed (compiles to `output/TellMeWhen.lua`).
+2. **Lua lint:** `corepack pnpm --filter @menagerie/tbc-rotation lint:lua` (luacheck) — catches accidental globals, typo'd API names, unused/shadowed locals. Must be clean for files touched.
+3. **Sim (where applicable):** `pnpm --filter @menagerie/tbc-rotation sim:hunter` for any change touching the hunter dispatch path (P1, P2). The sim is a regression oracle — a passing sim before/after with identical output proves no behavior change.
 4. **Behavioral equivalence proof** — the anti-new-bug gate. For "pure refactor" phases (P1, P2, P4, R-a), the bar is **byte-identical runtime behavior**. The reviewer/verifier must articulate *why* the new code is equivalent to the old (same inputs → same outputs, same firing order, same log strings), not just "it builds." A diff that builds but changes a log string or a guard order is a FAIL.
 5. **In-game smoke (owner):** there is no `dev_revision` field and no per-class version — instead rebuild/sync, `/reload`, and confirm the printed `Build:` number advanced (`NS.BUILD_NUMBER`, injected per-session by the builder, `main.lua:389`); spot-check the affected class still casts as before.
 
@@ -240,7 +240,7 @@ Recorded so a future pass doesn't "DRY" these and break something:
 |-------|----------------|
 | TTD-gate exact line occurrences | 40 (`context.ttd < min_ttd`), 16 files; 39 preceding `local min_ttd = ...` |
 | `register_trinket_middleware` call sites | 9/9 class middleware files (the pattern P2/P3 mirror) |
-| `FluxAIO_SECTIONS` consumers | 9/9 schema.lua |
+| `Menagerie_SECTIONS` consumers | 9/9 schema.lua |
 | Recovery keys inline in schemas (not via SECTIONS) | `healthstone_hp`, `use_healing_potion`, `healing_potion_hp`, `cd_min_ttd` in 9/9 |
 | Recovery key divergence (Decision D1) | hunter `use_mana_rune`/`mana_rune_mana` vs mage `use_dark_rune`/`dark_rune_pct` |
 | Force/burst gating duplicate | `main.lua:84-95` ≈ `main.lua:164-177` (only default target differs) |

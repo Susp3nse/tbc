@@ -315,6 +315,50 @@ local function tryAuto(attempt)
 end
 
 ----------------------------------------------------------------------
+-- shared visual theme (mirrors the Menagerie rotation debug frame so the
+-- two windows feel like one product)
+----------------------------------------------------------------------
+
+local UI_THEME = {
+    bg        = { 0.067, 0.067, 0.078, 0.92 },   -- #111114, a touch more opaque than the log (this is an input surface)
+    bg_widget = { 0.118, 0.118, 0.141, 1 },      -- #1e1e24
+    bg_hover  = { 0.133, 0.133, 0.157, 1 },       -- #222228
+    bg_input  = { 0.043, 0.043, 0.051, 1 },       -- #0b0b0d -- recessed well behind the editbox
+    border    = { 0.173, 0.173, 0.204, 1 },       -- #2c2c34
+    accent    = { 0.424, 0.388, 1.0,  1 },        -- #6c63ff
+    text      = { 0.863, 0.863, 0.894, 1 },       -- #dcdce4
+    text_dim  = { 0.580, 0.580, 0.659, 1 },       -- #9494a8
+}
+local UI_BACKDROP = {
+    bgFile   = "Interface\\Buttons\\WHITE8X8",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    edgeSize = 1,
+}
+
+local function themedButton(parent, text, width)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(width, 22)
+    btn:SetBackdrop(UI_BACKDROP)
+    btn:SetBackdropColor(UI_THEME.bg_widget[1], UI_THEME.bg_widget[2], UI_THEME.bg_widget[3], 1)
+    btn:SetBackdropBorderColor(UI_THEME.border[1], UI_THEME.border[2], UI_THEME.border[3], 1)
+
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("CENTER")
+    label:SetText(text)
+    label:SetTextColor(UI_THEME.text[1], UI_THEME.text[2], UI_THEME.text[3])
+
+    btn:SetScript("OnEnter", function()
+        btn:SetBackdropColor(UI_THEME.bg_hover[1], UI_THEME.bg_hover[2], UI_THEME.bg_hover[3], 1)
+        btn:SetBackdropBorderColor(UI_THEME.accent[1], UI_THEME.accent[2], UI_THEME.accent[3], 1)
+    end)
+    btn:SetScript("OnLeave", function()
+        btn:SetBackdropColor(UI_THEME.bg_widget[1], UI_THEME.bg_widget[2], UI_THEME.bg_widget[3], 1)
+        btn:SetBackdropBorderColor(UI_THEME.border[1], UI_THEME.border[2], UI_THEME.border[3], 1)
+    end)
+    return btn
+end
+
+----------------------------------------------------------------------
 -- paste-JSON window (built in Lua; touches none of BindPad's frames)
 ----------------------------------------------------------------------
 
@@ -322,10 +366,13 @@ local pasteFrame
 local function getPasteFrame()
     if pasteFrame then return pasteFrame end
 
-    local f = CreateFrame("Frame", "BindPadImporterPasteFrame", UIParent, "BasicFrameTemplateWithInset")
+    local f = CreateFrame("Frame", "BindPadImporterPasteFrame", UIParent, "BackdropTemplate")
     f:SetSize(520, 420)
     f:SetPoint("CENTER")
     f:SetFrameStrata("DIALOG")
+    f:SetBackdrop(UI_BACKDROP)
+    f:SetBackdropColor(UI_THEME.bg[1], UI_THEME.bg[2], UI_THEME.bg[3], UI_THEME.bg[4])
+    f:SetBackdropBorderColor(UI_THEME.border[1], UI_THEME.border[2], UI_THEME.border[3], 1)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
@@ -334,22 +381,61 @@ local function getPasteFrame()
     f:SetClampedToScreen(true)
     tinsert(UISpecialFrames, "BindPadImporterPasteFrame") -- close on ESC
 
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    f.title:SetPoint("TOP", 0, -5)
-    f.title:SetText("BindPad Importer - paste a JSON macro or array of macros")
+    -- Title
+    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    f.title:SetPoint("TOPLEFT", 12, -8)
+    f.title:SetText("BindPad Importer")
+    f.title:SetTextColor(UI_THEME.accent[1], UI_THEME.accent[2], UI_THEME.accent[3])
 
-    local scroll = CreateFrame("ScrollFrame", "BindPadImporterPasteScroll", f, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 14, -32)
-    scroll:SetPoint("BOTTOMRIGHT", -34, 44)
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, f)
+    closeBtn:SetSize(22, 22)
+    closeBtn:SetPoint("TOPRIGHT", -6, -6)
+    local closeX = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    closeX:SetPoint("CENTER")
+    closeX:SetText("x")
+    closeX:SetTextColor(0.6, 0.6, 0.6)
+    closeBtn:SetScript("OnClick", function() f:Hide() end)
+    closeBtn:SetScript("OnEnter", function() closeX:SetTextColor(1, 0.3, 0.3) end)
+    closeBtn:SetScript("OnLeave", function() closeX:SetTextColor(0.6, 0.6, 0.6) end)
+
+    -- Separator
+    local sep = f:CreateTexture(nil, "ARTWORK")
+    sep:SetPoint("TOPLEFT", 1, -28)
+    sep:SetPoint("TOPRIGHT", -1, -28)
+    sep:SetHeight(1)
+    sep:SetColorTexture(UI_THEME.border[1], UI_THEME.border[2], UI_THEME.border[3], 1)
+
+    -- Hint
+    local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", 12, -34)
+    hint:SetText("Paste a JSON macro, or an array of macros, then Import.")
+    hint:SetTextColor(UI_THEME.text_dim[1], UI_THEME.text_dim[2], UI_THEME.text_dim[3])
+
+    -- Recessed input well behind the editbox
+    local well = CreateFrame("Frame", nil, f, "BackdropTemplate")
+    well:SetPoint("TOPLEFT", 12, -52)
+    well:SetPoint("BOTTOMRIGHT", -12, 44)
+    well:SetBackdrop(UI_BACKDROP)
+    well:SetBackdropColor(UI_THEME.bg_input[1], UI_THEME.bg_input[2], UI_THEME.bg_input[3], 1)
+    well:SetBackdropBorderColor(UI_THEME.border[1], UI_THEME.border[2], UI_THEME.border[3], 1)
+    well:EnableMouse(true)
+
+    -- Scroll + editbox
+    local scroll = CreateFrame("ScrollFrame", "BindPadImporterPasteScroll", well)
+    scroll:SetPoint("TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", -18, 6)
+    scroll:EnableMouseWheel(true)
 
     local edit = CreateFrame("EditBox", nil, scroll)
     edit:SetMultiLine(true)
-    edit:SetFontObject(ChatFontNormal)
-    edit:SetWidth(460)
-    edit:SetHeight(340)               -- initial; grows with content below
+    edit:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    edit:SetWidth(468)
+    edit:SetHeight(320)               -- initial; Blizzard helper grows it with content
     edit:SetAutoFocus(false)
     edit:SetMaxLetters(0)
     edit:SetTextInsets(4, 4, 4, 4)
+    edit:SetTextColor(UI_THEME.text[1], UI_THEME.text[2], UI_THEME.text[3])
     edit:SetScript("OnEscapePressed", function(s) s:ClearFocus() end)
     -- Blizzard helpers keep the editbox sized to its text and the cursor visible
     -- inside the scroll frame (resizes the scroll child as you type/paste).
@@ -362,13 +448,56 @@ local function getPasteFrame()
     scroll:SetScrollChild(edit)
     f.edit = edit
 
-    -- click anywhere in the scroll area to focus the editbox
-    scroll:SetScript("OnMouseDown", function() edit:SetFocus() end)
+    -- click anywhere in the well to focus the editbox
+    well:SetScript("OnMouseDown", function() edit:SetFocus() end)
 
-    local importBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    importBtn:SetSize(110, 22)
-    importBtn:SetPoint("BOTTOMRIGHT", -14, 12)
-    importBtn:SetText("Import")
+    -- Themed scrollbar (matches the debug log: dark track, accent thumb)
+    local scrollbar = CreateFrame("Slider", nil, well)
+    scrollbar:SetPoint("TOPRIGHT", -4, -6)
+    scrollbar:SetPoint("BOTTOMRIGHT", -4, 6)
+    scrollbar:SetWidth(8)
+    scrollbar:SetOrientation("VERTICAL")
+    scrollbar:SetValueStep(1)
+    scrollbar:SetObeyStepOnDrag(true)
+    scrollbar:SetMinMaxValues(0, 0)
+    scrollbar:SetValue(0)
+
+    local track = scrollbar:CreateTexture(nil, "BACKGROUND")
+    track:SetAllPoints()
+    track:SetColorTexture(UI_THEME.bg_widget[1], UI_THEME.bg_widget[2], UI_THEME.bg_widget[3], 0.6)
+
+    local thumb = scrollbar:CreateTexture(nil, "OVERLAY")
+    thumb:SetColorTexture(UI_THEME.accent[1], UI_THEME.accent[2], UI_THEME.accent[3], 0.85)
+    thumb:SetSize(8, 40)
+    scrollbar:SetThumbTexture(thumb)
+
+    local sb_syncing = false
+    local function syncBar()
+        if sb_syncing then return end
+        sb_syncing = true
+        local range = scroll:GetVerticalScrollRange() or 0
+        scrollbar:SetMinMaxValues(0, range)
+        scrollbar:SetValue(math.min(scroll:GetVerticalScroll() or 0, range))
+        if range <= 0 then scrollbar:Hide() else scrollbar:Show() end
+        sb_syncing = false
+    end
+    scrollbar:SetScript("OnValueChanged", function(_, value)
+        if sb_syncing then return end
+        sb_syncing = true
+        scroll:SetVerticalScroll(value)
+        sb_syncing = false
+    end)
+    scroll:SetScript("OnScrollRangeChanged", syncBar)
+    scroll:SetScript("OnVerticalScroll", syncBar)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        local cur = self:GetVerticalScroll()
+        local mx = self:GetVerticalScrollRange()
+        self:SetVerticalScroll(math.max(0, math.min(mx, cur - delta * 30)))
+    end)
+
+    -- Bottom toolbar
+    local importBtn = themedButton(f, "Import", 110)
+    importBtn:SetPoint("BOTTOMRIGHT", -12, 12)
     importBtn:SetScript("OnClick", function()
         local txt = edit:GetText()
         if txt and txt:gsub("%s", "") ~= "" then
@@ -378,10 +507,8 @@ local function getPasteFrame()
         end
     end)
 
-    local clearBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    clearBtn:SetSize(110, 22)
+    local clearBtn = themedButton(f, "Clear box", 110)
     clearBtn:SetPoint("RIGHT", importBtn, "LEFT", -8, 0)
-    clearBtn:SetText("Clear box")
     clearBtn:SetScript("OnClick", function() edit:SetText("") edit:SetFocus() end)
 
     pasteFrame = f

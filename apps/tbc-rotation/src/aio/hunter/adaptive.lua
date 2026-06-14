@@ -28,9 +28,9 @@ local _GA = _G.Action
 if not _GA then return end
 if _GA.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS or not NS.A then
-    print("|cFFFF0000[Flux AIO Hunter Adaptive]|r Core/Class module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter Adaptive]|r Core/Class module not loaded!")
     return
 end
 
@@ -935,14 +935,14 @@ NS.HunterAdaptive = {
 -- ============================================================================
 -- EVENT REGISTRATION
 -- ============================================================================
-Listener:Add("FLUX_HUNTER_ADAPTIVE_AURA",   "UNIT_AURA",                OnUnitAura)
-Listener:Add("FLUX_HUNTER_ADAPTIVE_COMBAT", "PLAYER_REGEN_DISABLED",    OnCombatStart)
-Listener:Add("FLUX_HUNTER_ADAPTIVE_SHOT_SUCCESS", "UNIT_SPELLCAST_SUCCEEDED", OnUnitSpellcastSucceeded)
-Listener:Add("FLUX_HUNTER_ADAPTIVE_EQUIP",  "PLAYER_EQUIPMENT_CHANGED", OnEquipChange)
-Listener:Add("FLUX_HUNTER_ADAPTIVE_TALENT", "PLAYER_TALENT_UPDATE",     OnEquipChange)
-Listener:Add("FLUX_HUNTER_ADAPTIVE_FIRE",   "COMBAT_LOG_EVENT_UNFILTERED", OnCLEU_AdaptiveFire)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_AURA",   "UNIT_AURA",                OnUnitAura)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_COMBAT", "PLAYER_REGEN_DISABLED",    OnCombatStart)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_SHOT_SUCCESS", "UNIT_SPELLCAST_SUCCEEDED", OnUnitSpellcastSucceeded)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_EQUIP",  "PLAYER_EQUIPMENT_CHANGED", OnEquipChange)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_TALENT", "PLAYER_TALENT_UPDATE",     OnEquipChange)
+Listener:Add("MENAGERIE_HUNTER_ADAPTIVE_FIRE",   "COMBAT_LOG_EVENT_UNFILTERED", OnCLEU_AdaptiveFire)
 
 -- Force initial recompute on first ChooseAction call.
 State.dirty = true
 
-print("|cFF00FF00[Flux AIO Hunter]|r Adaptive engine loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Adaptive engine loaded")

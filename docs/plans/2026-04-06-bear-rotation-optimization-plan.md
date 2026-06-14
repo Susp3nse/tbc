@@ -8,7 +8,7 @@
 
 **Tech Stack:** Lua 5.1 (WoW addon), Node.js build system (`node build.js`)
 
-**Testing:** `cd rotation && node build.js` to compile. In-game verification via `/flux` debug logs.
+**Testing:** `cd rotation && node build.js` to compile. In-game verification via `/menagerie` debug logs.
 
 ---
 
@@ -254,7 +254,7 @@ docs(bear): update strategy comments to match new priority order
 2. `/reload` in-game
 3. **Single target test:** Pull one mob in bear form
    - Expected: Mangle on CD, Maul queuing, NO Swipe (log should show only `[P9] Mangle` and `[P12] Maul`)
-   - Verify via `/flux` debug log: zero `[P10] Swipe` lines on ST
+   - Verify via `/menagerie` debug log: zero `[P10] Swipe` lines on ST
 4. **Multi-target test:** Pull 3+ mobs
    - Expected: SwipeAoE fires normally, Mangle weaves in
    - Verify: `[P9] Swipe (AoE)` lines appear with `Targets: N`

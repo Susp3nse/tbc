@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { config, url } from '../config';
 ---
 
-<Base title="FAQ" description="Frequently asked questions about Flux AIO.">
+<Base title="FAQ" description="Frequently asked questions about Menagerie.">
   <div class="container">
     <div class="breadcrumb">
       <a href={url('/')}>Home</a> / <a href={url('/faq')}>FAQ</a>
@@ -18,7 +18,7 @@ import { config, url } from '../config';
       <h2>Setup &amp; Compatibility</h2>
 
       <div class="faq-item" id="requirements">
-        <button class="faq-q" aria-expanded="false">What do I need to run Flux AIO?</button>
+        <button class="faq-q" aria-expanded="false">What do I need to run Menagerie?</button>
         <div class="faq-a">
           <p>You need three things: a WoW TBC (The Burning Crusade) client, the <strong>TellMeWhen</strong> (TMW) addon, and the <strong>GGL Action framework</strong>. The rotation runs as a TMW profile powered by the Action framework &mdash; it won't work without both installed. See the <a href={url('/guides/installation')}>Installation Guide</a> for step-by-step setup.</p>
         </div>
@@ -34,14 +34,14 @@ import { config, url } from '../config';
       <div class="faq-item" id="servers">
         <button class="faq-q" aria-expanded="false">Which servers or clients are supported?</button>
         <div class="faq-a">
-          <p>Flux AIO works on any TBC 2.4.3 client that supports the GGL Action framework. This includes most popular private servers running the TBC patch. It does <strong>not</strong> support Classic Era (1.12), Wrath, or Retail.</p>
+          <p>Menagerie works on any TBC 2.4.3 client that supports the GGL Action framework. This includes most popular private servers running the TBC patch. It does <strong>not</strong> support Classic Era (1.12), Wrath, or Retail.</p>
         </div>
       </div>
 
       <div class="faq-item" id="conflicts">
         <button class="faq-q" aria-expanded="false">Will it conflict with other TMW profiles or addons?</button>
         <div class="faq-a">
-          <p>Flux AIO uses its own TMW profile, so it won't overwrite your existing profiles. You can switch between them freely. It shouldn't conflict with other addons, but if you're running another rotation addon on the same Action framework, make sure only one profile is active at a time.</p>
+          <p>Menagerie uses its own TMW profile, so it won't overwrite your existing profiles. You can switch between them freely. It shouldn't conflict with other addons, but if you're running another rotation addon on the same Action framework, make sure only one profile is active at a time.</p>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ import { config, url } from '../config';
       <div class="faq-item" id="customization">
         <button class="faq-q" aria-expanded="false">Can I customize ability thresholds and toggles?</button>
         <div class="faq-a">
-          <p>Yes. Open the Flux AIO settings UI via the minimap button or TMW options. Settings are organized by category with sliders for numeric thresholds (health %, mana %, energy levels) and checkboxes for enabling/disabling individual abilities. Changes take effect immediately &mdash; no reload needed.</p>
+          <p>Yes. Open the Menagerie settings UI via the minimap button or TMW options. Settings are organized by category with sliders for numeric thresholds (health %, mana %, energy levels) and checkboxes for enabling/disabling individual abilities. Changes take effect immediately &mdash; no reload needed.</p>
         </div>
       </div>
     </section>
@@ -91,14 +91,7 @@ import { config, url } from '../config';
       <div class="faq-item" id="bug-report">
         <button class="faq-q" aria-expanded="false">How do I report a bug or request a feature?</button>
         <div class="faq-a">
-          <p>Reach out on <a href={config.discord} target="_blank">Discord</a> with a description of the problem and steps to reproduce it. For feature requests, describe what you'd like and why.</p>
-        </div>
-      </div>
-
-      <div class="faq-item" id="discord-bot">
-        <button class="faq-q" aria-expanded="false">What is the Discord bot?</button>
-        <div class="faq-a">
-          <p>The Flux AIO Discord bot lets you request personalized rotation tweaks. Describe what you want changed (e.g., "lower the health threshold for Healing Touch to 40%") and the bot generates a custom build with your modifications. It's powered by AI and produces a ready-to-import profile.</p>
+          <p>Open an issue on <a href={config.githubIssues} target="_blank">GitHub</a> with a description of the problem and steps to reproduce it. For feature requests, describe what you'd like and why.</p>
         </div>
       </div>
     </section>

@@ -28,7 +28,7 @@
           {
             "patterns": [
               {
-                "group": ["@flux/bot", "@flux/tbc-rotation", "@flux/website", "**/apps/**"],
+                "group": ["@menagerie/tbc-rotation", "@menagerie/website", "**/apps/**"],
                 "message": "packages/* must stay self-contained: no imports from apps/*. Dependency flow is one-way (apps -> packages)."
               }
             ]

@@ -15,9 +15,9 @@
   - **Gate B (after):** `build` green + `lint:lua` clean on touched files + (dispatch-path phases) `sim:hunter` identical before/after + **articulated behavioral equivalence** (say *why* old≡new) + in-game smoke. **Fresh-load confirmation (real mechanism):** there is no `dev_revision` field and no per-class version — rebuild/sync, `/reload`, and confirm the printed `Build:` number advanced (`NS.BUILD_NUMBER`, injected per-session by the builder, printed at `main.lua:389`). That proves the new build actually loaded before you smoke-test.
 - **The bar for refactor phases is byte-identical runtime behavior.** A diff that builds but changes a log string, a guard order, or a firing threshold is a FAIL. **Exception — P3 recovery is an intentional "unify + normalize" phase, not a pure refactor:** it standardizes a small, explicitly-listed set of recovery-behavior divergences to one common behavior (see "Deliberate normalizations" under §A). Those listed changes are *expected*; any change **not** on that list is still a FAIL. P1, P2, P4, and P5/R-a remain strict byte-identical.
 - **Commands:**
-  - Build: `corepack pnpm --filter @flux/tbc-rotation build`
-  - Lua lint: `corepack pnpm --filter @flux/tbc-rotation lint:lua`
-  - Sim: `corepack pnpm --filter @flux/tbc-rotation sim:hunter`
+  - Build: `corepack pnpm --filter @menagerie/tbc-rotation build`
+  - Lua lint: `corepack pnpm --filter @menagerie/tbc-rotation lint:lua`
+  - Sim: `corepack pnpm --filter @menagerie/tbc-rotation sim:hunter`
 - **Independent re-review:** after each phase's diff is ready, a reviewer who did not write it confirms Gate B item 4 before it reaches the owner.
 
 ## Key decisions baked into this plan (from the up-front audit)
@@ -115,7 +115,7 @@ Only these keys change. Everything else is already canonical.
 | rogue/{assassination,combat,subtlety} | BloodFury, Berserking, ArcaneTorrent | ✅ |
 | warlock/{affliction,demonology,destruction} | BloodFury, ArcaneTorrent | ✅ |
 | shaman/elemental | BloodFurySP, Berserking | ✅ |
-| **shaman/restoration** | BloodFurySP, Berserking — but the strategy **omits `is_burst`** (`restoration.lua:359`) | ❌ **does NOT fit — leave bespoke** (factory hardcodes `is_burst=true` → would subject Resto racial to auto-burst gating + `/flux burst`) |
+| **shaman/restoration** | BloodFurySP, Berserking — but the strategy **omits `is_burst`** (`restoration.lua:359`) | ❌ **does NOT fit — leave bespoke** (factory hardcodes `is_burst=true` → would subject Resto racial to auto-burst gating + `/menagerie burst`) |
 | shaman/enhancement | BloodFuryAP, Berserking | ✅ (different Blood Fury variant — just data) |
 | **priest/{discipline,holy,smite}** | Berserking, ArcaneTorrent (disc:196, holy:293) — but smite:207 differs further | ❌ **does NOT fit — leave bespoke** (audited) |
 | **paladin/retribution** | inline `use_racial` check (not setting_key); Stoneform + GiftOfTheNaaru @ `hp<60` | ❌ outlier — leave bespoke |
@@ -213,7 +213,7 @@ Only these keys change. Everything else is already canonical.
    - `build` green; `lint:lua` clean.
    - `sim:hunter` output **byte-identical** before/after (capture before editing).
    - Equivalence statement: `forced`, the IsReady re-check (with correct per-loop default target), and `burst_blocked` are computed identically; only the default target differs, preserved via the param.
-6. In-game smoke (rebuild/sync → `/reload` → confirm the `Build:` number / `NS.BUILD_NUMBER` advanced): `/flux burst` and `/flux def` still fire tagged entries; auto-burst still gated.
+6. In-game smoke (rebuild/sync → `/reload` → confirm the `Build:` number / `NS.BUILD_NUMBER` advanced): `/menagerie burst` and `/menagerie def` still fire tagged entries; auto-burst still gated.
 
 **Window fit:** one session.
 

@@ -10,14 +10,14 @@
 local A_global = _G.Action
 if not A_global or A_global.PlayerClass ~= "PALADIN" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Retribution]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Retribution]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Retribution]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Retribution]|r Registry not found!")
     return
 end
 
@@ -140,12 +140,12 @@ local Ret_AvengingWrath = {
     spell_target = PLAYER_UNIT,
 
     -- Firing mode is driven by the "Avenging Wrath" dropdown (ret_avenging_wrath):
-    --   never    — disabled (manual /flux burst won't fire it either)
+    --   never    — disabled (manual /menagerie burst won't fire it either)
     --   cooldown — fire whenever it's off cooldown
     --   bosses   — fire on cooldown, but only against boss targets
-    --   burst    — fire only while bursting: the /flux burst window OR a configured
+    --   burst    — fire only while bursting: the /menagerie burst window OR a configured
     --              auto-burst condition (should_auto_burst == true)
-    -- Note: not is_burst-tagged. We handle the /flux burst case explicitly here so
+    -- Note: not is_burst-tagged. We handle the /menagerie burst case explicitly here so
     -- the dispatcher's auto-burst gate doesn't suppress the cooldown/bosses modes.
     matches = function(context, state)
         local mode = context.settings.ret_avenging_wrath or "burst"
@@ -547,4 +547,4 @@ end -- scope block
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Paladin]|r Retribution module loaded")
+print("|cFF00FF00[Menagerie Paladin]|r Retribution module loaded")

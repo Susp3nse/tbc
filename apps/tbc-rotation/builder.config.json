@@ -1,7 +1,7 @@
 {
-  "_comment": "Flux AIO build conventions — owned by the app, loaded by @flux/tmw-profile-builder. The package knows HOW to build; this file says WHAT. Rename a source .lua? update the matching loadOrder.source. Different game version? point paths at a different template/output.",
-  "modulePrefix": "Flux_",
-  "profileNamePrefix": "Flux ",
+  "_comment": "Menagerie build conventions — owned by the app, loaded by @menagerie/tmw-profile-builder. The package knows HOW to build; this file says WHAT. Rename a source .lua? update the matching loadOrder.source. Different game version? point paths at a different template/output.",
+  "modulePrefix": "Menagerie_",
+  "profileNamePrefix": "Menagerie ",
   "nameOverrides": { "ui": "UI" },
   "defaultModuleOrder": 7,
   "templateProfileKey": "__template__",
@@ -24,8 +24,8 @@
     { "slot": "shared", "source": "main.lua", "order": 9 }
   ],
   "metadata": {
-    "marker": "-- Flux AIO - Core Module",
-    "anchor": "local NS = _G.FluxAIO",
+    "marker": "-- Menagerie - Core Module",
+    "anchor": "local NS = _G.Menagerie",
     "template": "NS.VERSION = \"v{version}\"\nNS.BUILD_NUMBER = {build}"
   }
 }

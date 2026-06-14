@@ -8,9 +8,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "HUNTER" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Hunter]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Hunter]|r Core module not loaded!")
     return
 end
 
@@ -211,7 +211,7 @@ Constants.Temp = {
 -- ("TotalImun"/"CCTotalImun"), matched in CheckImmuneOrDoNotAttack/CheckCCImmune.
 -- We intentionally do NOT keep our own PvP ID lists (they rot and drift).
 
--- PvE Boss Immunity Mechanics (TBC) — Flux-owned, hunter-tuned, matched BY ID.
+-- PvE Boss Immunity Mechanics (TBC) — Menagerie-owned, hunter-tuned, matched BY ID.
 -- ONLY list "targetable but immune via an aura" cases; untargetable/despawned
 -- bosses (submerge, air phase, banish, invisibility) are already handled by the
 -- target/range checks. NEVER add an absorb shield you want to break (e.g. Kael
@@ -221,7 +221,7 @@ Constants.PVE_IMMUNITY_BUFFS = {
     38112,  -- Lady Vashj - Magic Barrier (Phase 2 damage immunity; clears at Phase 3)
 }
 
--- Enrage/Frenzy self-buffs that Tranquilizing Shot should strip. Flux-owned,
+-- Enrage/Frenzy self-buffs that Tranquilizing Shot should strip. Menagerie-owned,
 -- matched BY ID (HasBuffs) in [R-2]; OR'd with the framework's "Enrage" category.
 -- All verified as Dispel type: Enrage on Wowhead. Grow as more are spotted.
 Constants.TRANQ_ENRAGE = {
@@ -322,7 +322,7 @@ local function CheckImmuneOrDoNotAttack(unit)
         if (Unit(unit):HasBuffs("TotalImun") or 0) > 0 then return true end
         if (Unit(unit):HasDeBuffs("TotalImun") or 0) > 0 then return true end
     else
-        -- PvE: Flux-owned list, matched BY ID (byID=true) to avoid spell-name collisions
+        -- PvE: Menagerie-owned list, matched BY ID (byID=true) to avoid spell-name collisions
         if (Unit(unit):HasBuffs(Constants.PVE_IMMUNITY_BUFFS, nil, true) or 0) > 0 then return true end
         if (Unit(unit):HasDeBuffs(Constants.PVE_IMMUNITY_BUFFS, nil, true) or 0) > 0 then return true end
     end
@@ -474,4 +474,4 @@ rotation_registry:register_class({
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Hunter]|r Class module loaded")
+print("|cFF00FF00[Menagerie Hunter]|r Class module loaded")

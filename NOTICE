@@ -1,0 +1,29 @@
+Menagerie
+=========
+
+Menagerie is a multi-class World of Warcraft (The Burning Crusade) rotation addon.
+
+It is a fork of, and derives directly from, the original **Flux AIO** TBC rotation
+codebase. The rotation logic, architecture (the Strategy Registry pattern, the
+per-class module layout, the TMW profile build pipeline), and substantial portions
+of the source were created by the Flux AIO author(s). Menagerie rebrands that work —
+renaming the project, its Lua namespace, and its hosting — but the foundation belongs
+to the upstream project.
+
+Original project: Flux AIO
+Upstream URL:     https://github.com/flux-rotations/tbc
+Author(s):        the Flux AIO project (flux-rotations)
+
+Grateful acknowledgement to the Flux AIO author(s) for the original work this fork
+is built upon.
+
+Licensing
+---------
+This repository does not currently carry a LICENSE file; a licensing decision is
+still pending. Until one is added, no license is granted by this project.
+
+The upstream Flux AIO project also carries no license of its own; as published it is
+"all rights reserved" by its author(s). Any license added here in the future can only
+cover Menagerie's own original contributions — it cannot relicense the Flux-derived
+portions of the codebase, whose rights remain with the upstream author(s). This NOTICE
+preserves attribution to that base.

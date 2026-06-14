@@ -46,7 +46,7 @@ Middleware (runs before strategies, priority high→low): EmergencyVanish (500) 
 
 `extend_context(ctx)` adds: `energy`, `cp` (combo points), `is_stealthed`, `is_behind` (`IsBehind(0.3)`), `combat_time`, `is_moving`, `is_mounted`, `enemy_count` (`MultiUnits:GetByRangeInCombat(10)`). It also resets per-playstyle cache flags `_combat_valid` / `_assassination_valid` / `_subtlety_valid` to `false` each frame — each playstyle's `context_builder` (e.g. `get_combat_state`) populates a pre-allocated state table and flips its flag, so the heavy buff/debuff queries run once per frame.
 
-`gap_handler` (for `/flux gap`): Shadowstep if ready, else Sprint.
+`gap_handler` (for `/menagerie gap`): Shadowstep if ready, else Sprint.
 
 ## Gotchas
 

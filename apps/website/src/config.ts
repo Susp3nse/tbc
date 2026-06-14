@@ -1,5 +1,5 @@
 /** GitHub owner/repo — update this when the repo is created */
-const GITHUB_REPO = 'flux-rotations/tbc';
+const GITHUB_REPO = 'menagerie-dev/tbc';
 
 export const config = {
   /** Base GitHub repo URL */
@@ -16,9 +16,6 @@ export const config = {
 
   /** Git clone URL */
   cloneUrl: `https://github.com/${GITHUB_REPO}.git`,
-
-  /** Discord invite link */
-  discord: 'https://discord.gg/M2HJeYCxgg',
 };
 
 /** Prefix a path with the Astro base URL (for GitHub Pages sub-path deployment). */

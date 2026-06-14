@@ -525,14 +525,14 @@ The full file content:
 local A_global = _G.Action
 if not A_global or A_global.PlayerClass ~= "WARRIOR" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Kebab]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Kebab]|r Core module not loaded!")
     return
 end
 
 if not NS.rotation_registry then
-    print("|cFFFF0000[Flux AIO Kebab]|r Registry not found!")
+    print("|cFFFF0000[Menagerie Kebab]|r Registry not found!")
     return
 end
 
@@ -879,7 +879,7 @@ end -- scope block
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Warrior]|r Kebab module loaded")
+print("|cFF00FF00[Menagerie Warrior]|r Kebab module loaded")
 ```
 
 **Step 2: Build and verify**

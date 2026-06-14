@@ -44,7 +44,7 @@ Per-spec priority arrays (first = highest):
 
 Middleware (priority high→low, abridged): HSQueueDequeue (999) → LastStand (500) → ShieldWall (490) → LoCBreaker (485) → CancelExternalBuff (475) → SpellReflection (400) → Retaliation (265) → RacialDefensive (260) → Disarm (258) → Interrupt (250, Pummel/Shield Bash) → WarStomp (245) → Healthstone/HealingPotion (RECOVERY_ITEMS) → Bloodrage (200) → **StanceCorrection (195)** → PvPDefStanceRange (192) → BerserkerRage (150) → ShoutMaintain (140) → DeathWish (100) → Recklessness (90) → Racial (70) → then the PvP suite (Hamstring 65, PiercingHowl 64, RendStealth 63, Overpower 62, ShieldSlamPurge 61, Intervene 59, …).
 
-`gap_handler` (`/flux gap`): Charge if ready, else Intercept.
+`gap_handler` (`/menagerie gap`): Charge if ready, else Intercept.
 
 ## Class-specific context extensions
 

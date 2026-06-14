@@ -78,9 +78,9 @@ if (dryRun) {
 
 async function publish(): Promise<void> {
   // ── 3. Verify the build before anything irreversible ─────────────────────────
-  console.log('Verifying build (corepack pnpm --filter @flux/tbc-rotation build)...');
+  console.log('Verifying build (corepack pnpm --filter @menagerie/tbc-rotation build)...');
   try {
-    execFileSync('corepack', ['pnpm', '--filter', '@flux/tbc-rotation', 'build'], {
+    execFileSync('corepack', ['pnpm', '--filter', '@menagerie/tbc-rotation', 'build'], {
       cwd: ROOT,
       stdio: 'inherit',
     });

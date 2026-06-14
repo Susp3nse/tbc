@@ -7,9 +7,9 @@ local A = _G.Action
 if not A then return end
 if A.PlayerClass ~= "PALADIN" then return end
 
-local NS = _G.FluxAIO
+local NS = _G.Menagerie
 if not NS then
-    print("|cFFFF0000[Flux AIO Paladin]|r Core module not loaded!")
+    print("|cFFFF0000[Menagerie Paladin]|r Core module not loaded!")
     return
 end
 
@@ -420,4 +420,4 @@ rotation_registry:register_class({
 -- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
-print("|cFF00FF00[Flux AIO Paladin]|r Class module loaded")
+print("|cFF00FF00[Menagerie Paladin]|r Class module loaded")

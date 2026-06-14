@@ -8,7 +8,7 @@
 
 **Tech Stack:** Lua 5.1 (WoW addon), Node.js build system (`node build.js`)
 
-**Testing:** `cd rotation && node build.js` to compile. In-game verification via `/flux` debug logs.
+**Testing:** `cd rotation && node build.js` to compile. In-game verification via `/menagerie` debug logs.
 
 ---
 
@@ -554,5 +554,5 @@ refactor(holy): simplify schema - remove threshold sliders, add mana floor
 7. **Tank proactive test:** Tank at 100% HP in combat
    - Expected: FoL R1 keeps casting on tank
    - Below 30% mana: stops proactive casting
-8. **Settings check:** Open `/flux` settings
+8. **Settings check:** Open `/menagerie` settings
    - Expected: Old threshold sliders gone, new "Proactive FoL Mana Floor" visible

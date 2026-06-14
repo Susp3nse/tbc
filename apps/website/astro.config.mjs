@@ -2,8 +2,7 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   output: 'static',
-  site: 'https://flux-rotations.github.io',
-  base: '/tbc',
+  site: 'https://menagerie.dev',
   build: {
     inlineStylesheets: 'always',
   },
