@@ -229,6 +229,15 @@ do
          if not state.emergency_target then return false end
          if not context.settings.resto_ns_healing_touch then return false end
          if not is_spell_available(A.NaturesSwiftness) then return false end
+         -- DELIBERATE raw-HP gate (not effective_hp): emergency_target is selected on
+         -- effective_hp (predicted, incl. incoming heals/HoTs/damage), but this is the
+         -- ONLY emergency action that leaves Tree of Life (dropping the tree healing
+         -- aura). We require the target to ALSO be genuinely low on CURRENT hp before
+         -- bailing out of Tree, so we don't abandon the form on a mere prediction that
+         -- another healer may cover. A target low on effective_hp but fine on raw hp
+         -- falls through to the in-Tree NS+Regrowth ([3]) instead. Do NOT "simplify"
+         -- this to effective_hp — it would make the gate redundant and leave Tree on
+         -- predictions. (See review note 2026-06-13.)
          if state.emergency_target.hp >= (context.settings.resto_emergency_hp or Constants.RESTO.EMERGENCY_HP) then return false end
          return A.NaturesSwiftness:IsReady(PLAYER_UNIT)
       end,
