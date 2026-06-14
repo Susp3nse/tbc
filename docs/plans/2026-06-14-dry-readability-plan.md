@@ -12,7 +12,7 @@
 - **Phases are context-window-sized.** Do one phase (or labeled sub-phase) per working session. Each ends at a build-green checkpoint. Do **not** start the next sub-phase in the same session if context is getting long — stop at the checkpoint.
 - **Every step has two gates** (full definitions in design doc §4):
   - **Gate A (before):** confirm the duplication/issue still exists at the cited line; confirm the change is actually needed.
-  - **Gate B (after):** `build` green + `lint:lua` clean on touched files + (dispatch-path phases) `sim:hunter` identical before/after + **articulated behavioral equivalence** (say *why* old≡new) + dev_revision bump for in-game smoke.
+  - **Gate B (after):** `build` green + `lint:lua` clean on touched files + (dispatch-path phases) `sim:hunter` identical before/after + **articulated behavioral equivalence** (say *why* old≡new) + in-game smoke. **Fresh-load confirmation (real mechanism):** there is no `dev_revision` field and no per-class version — rebuild/sync, `/reload`, and confirm the printed `Build:` number advanced (`NS.BUILD_NUMBER`, injected per-session by the builder, printed at `main.lua:389`). That proves the new build actually loaded before you smoke-test.
 - **The bar for refactor phases is byte-identical runtime behavior.** A diff that builds but changes a log string, a guard order, or a firing threshold is a FAIL. **Exception — P3 recovery is an intentional "unify + normalize" phase, not a pure refactor:** it standardizes a small, explicitly-listed set of recovery-behavior divergences to one common behavior (see "Deliberate normalizations" under §A). Those listed changes are *expected*; any change **not** on that list is still a FAIL. P1, P2, P4, and P5/R-a remain strict byte-identical.
 - **Commands:**
   - Build: `corepack pnpm --filter @flux/tbc-rotation build`
@@ -20,15 +20,15 @@
   - Sim: `corepack pnpm --filter @flux/tbc-rotation sim:hunter`
 - **Independent re-review:** after each phase's diff is ready, a reviewer who did not write it confirms Gate B item 4 before it reaches the owner.
 
-## ⚠️ Corrections to the design doc (from the up-front audit)
+## Key decisions baked into this plan (from the up-front audit)
 
-The design doc's Decision D1.1 table was explicitly tentative ("the P3a audit produces the authoritative map"). The audit is done; these supersede it:
+The up-front P3/P4 audit settled these; they are reflected throughout §A/§B and the phases below. Listed here once so the plan stands on its own:
 
 1. **Canonical mana-rune key = `use_dark_rune` / `dark_rune_pct`** (majority convention), NOT `use_mana_rune`/`mana_rune_pct`. Renaming the minority is lower churn + smaller migration surface. **Only Hunter (rune keys) and Druid (`_mana`→`_pct` suffix) get migrated.**
 2. **Druid is excluded from the middleware factory (F2).** Druid has no standalone `Druid_Healthstone`/`Druid_HealingPotion` middleware — recovery is embedded in form-aware `RecoveryItems`/`ManaRecovery` combined middleware (`druid/middleware.lua:183-352`). Migrating it would mean restructuring form logic = out of scope / over-reach. **Druid keeps its bespoke recovery middleware; only its schema keys are normalized (F3 + suffix migration).** F2 therefore covers **8 classes**.
 3. **Mage's `Mage_ManaGem` stays bespoke** (mage-unique item); the recovery factory's mana config is optional and does not absorb it.
 4. **Recovery is "unify + normalize," not parameterize-every-difference** (review audit + owner decision 2026-06-14). The blocks diverge on 6 axes, but they split cleanly into **per-class DATA** (prefix/log strings, hp_default, pct defaults, Healthstone Action tier list — pure values, no branching) and **behavior** (stealth guard, `in_combat` guard, `:IsExists()` gating, `dark_rune_min_hp`). The behavior axes are **accidental drift**, so we **standardize them to one common behavior** rather than preserve per-class flags — making the factory pure data-driven (like `register_trinket_middleware`). See "Deliberate normalizations" in §A for the exact behavior changes. This is why P3 recovery is exempt from the byte-identical bar.
-5. **Racial counts corrected** (review audit). The design doc's "~20 playstyle files" is the raw racial *site* count; the *clean-fit* count is **12** (mage×3, rogue×3, warlock×3, shaman×3). **Priest×3 is now audited → bespoke** (no TTD gate + availability guards), joining the 3 paladin outliers. F2 covers **8 classes** (druid excluded) — where the design doc still says "9 classes" / "classes 6-9," the plan supersedes it.
+5. **Racial counts (verified).** Of ~18 racial *sites*, the *clean-fit* count is **10** (mage×2 [fire, frost], rogue×3, warlock×3, shaman×2 [elemental, enhancement]). **Bespoke:** priest×3 (no TTD gate + availability guards), paladin×3 (HP-gated), **mage/arcane** (`is_burning` burn-phase gate), and **shaman/restoration** (omits `is_burst`). The recovery middleware factory (F2) covers **8 classes** (druid excluded).
 
 ---
 
@@ -49,15 +49,16 @@ The design doc's Decision D1.1 table was explicitly tentative ("the P3a audit pr
 | rogue | `Rogue_Healthstone` (mw:134) | `healthstone_hp or 0` | `Rogue_HealingPotion` (mw:159) | same | 25 |
 | **druid** | **embedded `RecoveryItems` mw:183** | `use_healthstone`+`healthstone_hp` | embedded | `use_healing_potion`+`healing_potion_hp` | — |
 
-> **Gate A note for P3a (the blocks are NOT "identical except prefix" — but the divergences split into DATA vs BEHAVIOR):** read each of the 8 standalone blocks and classify every divergence. The audit found **6 axes**:
+> **Gate A note for P3a (the blocks are NOT "identical except prefix" — but the divergences split into DATA vs BEHAVIOR):** read each of the 8 standalone blocks and classify every divergence. The audit found **7 axes**:
 > - **DATA (per-class — pass as values, no branching):**
 >   1. **prefix** — middleware names + `[MW]` log strings.
->   2. **healing-potion `hp_default`** — hunter 35, others 25.
->   3. **Healthstone Action tier list** — hunter `{HSMaster1, HSMaster2, HSMaster3}`; warlock `{HealthstoneFel, HealthstoneMaster, HealthstoneMajor}` (Fel tier); other 6 `{HealthstoneMaster, HealthstoneMajor}`.
+>   2. **healthstone `hp_default`** — hunter 40, all other 7 factory classes 35 (verified: `hunter/schema.lua:40` vs the rest). The factory's healthstone opt MUST carry an `hp_default` or hunter's 40 silently becomes 35.
+>   3. **healing-potion `hp_default`** — hunter 35, others 25.
+>   4. **Healthstone Action tier list** — hunter `{HSMaster1, HSMaster2, HSMaster3}`; warlock `{HealthstoneFel, HealthstoneMaster, HealthstoneMajor}` (Fel tier); other 6 `{HealthstoneMaster, HealthstoneMajor}`.
 > - **BEHAVIOR (accidental drift → NORMALIZE to one standard; see "Deliberate normalizations" below):**
->   4. **stealth guard** — currently hunter Healthstone only → **make uniform (all classes).**
->   5. **`in_combat` guard** — currently all except hunter → **make uniform (all classes, incl. hunter).**
->   6. **`:IsExists()` Action guard** — currently paladin+shaman only → **make uniform (all classes).**
+>   5. **stealth guard** — currently hunter Healthstone only → **make uniform (all classes).**
+>   6. **`in_combat` guard** — currently all except hunter → **make uniform (all classes, incl. hunter).**
+>   7. **`:IsExists()` Action guard** — currently paladin+shaman only → **make uniform (all classes).**
 >
 > Because the behavior axes are standardized (not parameterized), the factory carries **only the DATA axes as opts** — it stays pure data-driven like `register_trinket_middleware`, with the 3 standard behaviors baked into its body. Verify the exact `[MW] ...` log strings (e.g. `format("[MW] Healthstone - HP: %.0f%%", context.hp)`) match per class — those stay identical.
 
@@ -84,6 +85,8 @@ The design doc's Decision D1.1 table was explicitly tentative ("the P3a audit pr
 > - **`dark_rune_min_hp` gate (default 50) → standard for ALL rune users, including hunter.** Present today on every mana class's DarkRune block + schema (mage/warlock/paladin/priest/shaman + druid); **hunter currently lacks it**. Per "Deliberate normalization #4," hunter's migrated rune **gains** this gate (it's the same self-damaging dark/demonic rune). So `min_hp` is a uniform standard behavior, not a per-class opt — the only per-class piece is the default value (50 everywhere).
 > - **Per-class `dark_rune_pct` defaults (DATA):** mage 50 / warlock 30 / paladin 40 / priest 50 / shaman 50; hunter rune 20 (post-rename).
 > - **Per-class `mana_potion_pct` defaults (DATA):** mage 50 / priest 50 / shaman 50 / warlock 30 / paladin 40. Hunter has no mana potion.
+> - **Per-class mana-middleware PRIORITY offsets (DATA — audit-found, must be opts):** the mana blocks do NOT share one priority. **ManaPotion:** mage/paladin/priest/shaman at `MANA_RECOVERY` (offset 0), **warlock at `MANA_RECOVERY − 5`**. **DarkRune:** paladin/priest/shaman at `−5`, **warlock at `−10`** (verified: `warlock/middleware.lua:182,206` vs `shaman/middleware.lua:310,337`, `priest/middleware.lua:288,312`, `paladin/middleware.lua:134,158`). A registered priority changes firing order vs every other middleware → the factory MUST take per-class priority (or offset) for **both** mana sub-blocks; it is not a single shared constant.
+> - **Per-class mana-potion ACTION list (DATA — audit-found):** most classes' ManaPotion execute tries `SuperManaPotion` only; **shaman tries `SuperManaPotion` THEN `MajorManaPotion`** as a 2-tier fallback (`shaman/middleware.lua:323-327`). The factory's mana `potion` opt MUST carry an `actions` tier list (like the Healthstone tier list), not just a `pct_default`, or shaman loses its MajorManaPotion fallback.
 
 ### A.3 Authoritative old→new rename map (Decision D1-B, corrected)
 Only these keys change. Everything else is already canonical.
@@ -94,9 +97,10 @@ Only these keys change. Everything else is already canonical.
 | hunter | `mana_rune_mana` | `dark_rune_pct` | copy value, clear old |
 | druid | `mana_potion_mana` | `mana_potion_pct` | copy value, clear old |
 | druid | `dark_rune_mana` | `dark_rune_pct` | copy value, clear old |
-| druid | `use_healthstone` (bool) | *(drop)* | if `false`, set `healthstone_hp = 0`; clear `use_healthstone`. (Preserves "disabled" intent under the threshold-0 convention.) |
 
-> Note: druid's healthstone-boolean removal only applies **if** druid's schema is normalized to the threshold-0 convention. Druid keeps bespoke *middleware*, so this is optional — see P3 step 7. If druid middleware keeps reading `use_healthstone`, leave the boolean and skip this row. **Decide in P3a; default = keep druid's `use_healthstone` to minimize druid churn.**
+> **The authoritative rename map is exactly these 4 keys** (hunter ×2, druid ×2). The migration shim (P3a′) iterates **only** this table.
+>
+> **DEFERRED — NOT under the default decision (do NOT add to the shim):** druid's `use_healthstone` (bool). The default decision (P3a′ step 7) is to **keep** druid's `use_healthstone` boolean and the bespoke middleware that reads it, so it is **not** migrated and is **not** one of the 4 keys above. Recorded here only as a future option: *if* a later follow-up normalizes druid to the threshold-0 convention, the migration would be "if `use_healthstone == false`, set `healthstone_hp = 0`, then clear `use_healthstone`." Until that separate decision is made, this row is not executable. (This removes the earlier contradiction where the table listed an executable drop that step 7 then said to keep.)
 
 ---
 
@@ -106,10 +110,12 @@ Only these keys change. Everything else is already canonical.
 
 | File | Spells (in order) | Fits? |
 |------|-------------------|-------|
-| mage/{fire,frost,arcane} | Berserking, ArcaneTorrent | ✅ |
+| mage/{fire,frost} | Berserking, ArcaneTorrent | ✅ |
+| **mage/arcane** | Berserking, ArcaneTorrent — but `matches` opens with `if not state.is_burning` (`arcane.lua:188`) | ❌ **does NOT fit — leave bespoke** (DPS racial gated to burn phase; factory has no `is_burning` gate, so migrating fires it during conserve) |
 | rogue/{assassination,combat,subtlety} | BloodFury, Berserking, ArcaneTorrent | ✅ |
 | warlock/{affliction,demonology,destruction} | BloodFury, ArcaneTorrent | ✅ |
-| shaman/elemental, shaman/restoration | BloodFurySP, Berserking | ✅ |
+| shaman/elemental | BloodFurySP, Berserking | ✅ |
+| **shaman/restoration** | BloodFurySP, Berserking — but the strategy **omits `is_burst`** (`restoration.lua:359`) | ❌ **does NOT fit — leave bespoke** (factory hardcodes `is_burst=true` → would subject Resto racial to auto-burst gating + `/flux burst`) |
 | shaman/enhancement | BloodFuryAP, Berserking | ✅ (different Blood Fury variant — just data) |
 | **priest/{discipline,holy,smite}** | Berserking, ArcaneTorrent (disc:196, holy:293) — but smite:207 differs further | ❌ **does NOT fit — leave bespoke** (audited) |
 | **paladin/retribution** | inline `use_racial` check (not setting_key); Stoneform + GiftOfTheNaaru @ `hp<60` | ❌ outlier — leave bespoke |
@@ -118,7 +124,7 @@ Only these keys change. Everything else is already canonical.
 
 > **Priest audited → leave bespoke (do NOT migrate):** disc/holy racial blocks have **no TTD gate**, wrap each `IsReady` in `is_spell_available(...)`, and gate combat via an inline `if not context.in_combat` instead of the `requires_combat`/`is_burst` flags; smite diverges further (inline `use_racial`, `matches` returns true and probes only in `execute`). The common factory (mandatory TTD gate, no availability guard, flag-based combat gate) **cannot absorb them without changing behavior** — migrating priest would silently *add* a TTD gate and *drop* the availability guards. Honor the "leave outliers bespoke" principle.
 
-**Verdict (corrected count):** **12 files fit cleanly** — mage×3, rogue×3, warlock×3, shaman×3. (The earlier "~14–17" was overstated.) **Priest×3 and paladin×3 stay bespoke.** Of ~18 racial sites, 12 fit = ~67% → clears the ">half fit" bar, so **P4 proceeds** with priest **and** paladin excluded. (Hunter has no standalone racial strategy — its racial is inline in `hunter/rotation.lua`; warrior's racial is middleware `Warrior_Racial` — both correctly out of scope.)
+**Verdict (corrected count):** **10 files fit cleanly** — mage×2 (fire, frost), rogue×3, warlock×3, shaman×2 (elemental, enhancement). (The earlier "12" wrongly counted mage/arcane and shaman/restoration — the re-audit found both diverge; see the ❌ rows.) **Priest×3, paladin×3, mage/arcane, and shaman/restoration stay bespoke.** Of ~18 racial sites, 10 fit = ~56% → still clears the ">half fit" bar, so **P4 proceeds** with those excluded. (Hunter has no standalone racial strategy — its racial is inline in `hunter/rotation.lua`; warrior's racial is middleware `Warrior_Racial` — both correctly out of scope.)
 
 ---
 
@@ -126,7 +132,7 @@ Only these keys change. Everything else is already canonical.
 
 **Goal:** replace 40 copies of the TTD gate with one predicate. **Files:** `core.lua` + 16 files (mage×3, paladin×2, rogue×3, shaman×3, warlock×3, warrior/middleware, core trinket factory).
 
-1. **Gate A:** `grep -rn "context.ttd < min_ttd" apps/tbc-rotation/src/aio` → confirm 40 hits / 16 files still present.
+1. **Gate A:** `grep -rn "context.ttd < min_ttd" apps/tbc-rotation/src/aio` returns **40 hits, but only 37 are the `cd_min_ttd` gate.** The bare string is shared by **3 Rogue Rupture gates that read a DIFFERENT setting** and must NOT be touched: `rogue/assassination.lua:216` (`assassination_rupture_min_ttd`), `rogue/combat.lua:231` (`combat_rupture_min_ttd`), `rogue/subtlety.lua:259` (`subtlety_rupture_min_ttd`). **Drive the edit off the exact two-line `cd_min_ttd` pattern in step 3, not the bare-string grep** — confirm those 37 across the 16 files.
 2. In `core.lua`, after the spell-cost utilities (~line 225), add:
    ```lua
    -- TTD gate: true when target will die sooner than the user's cd_min_ttd setting
@@ -150,12 +156,16 @@ Only these keys change. Everything else is already canonical.
    - Where a file already aliases NS handles, prefer a local `local ttd_too_short = NS.ttd_too_short` at the top and call bare. Match each file's existing aliasing idiom (don't introduce a new one).
    - In `core.lua`'s own trinket factory, the inline gate is at **lines 1185-1186** (the cited 1188 is the trinket `IsReady` line) — `ttd_too_short` is in scope as a file-level local there, so call it directly. Re-grep to confirm before editing.
    - **Watch:** some sites keep `min_ttd` for other uses (e.g. paladin/ret:153 uses it only for this gate — safe). Grep each site's surrounding ~5 lines; if `min_ttd` is used again below, keep the local and only replace the `if`. (Audit: ret only uses it for the gate.)
+   - **⚠️ DO-NOT-TOUCH / handle-explicitly (audit-found variants — NOT byte-identical to `ttd_too_short`):**
+     - **3 Rogue Rupture gates** (`rogue/assassination.lua:216`, `rogue/combat.lua:231`, `rogue/subtlety.lua:259`): different setting (`*_rupture_min_ttd`, default 12) and a bare `if context.ttd < min_ttd` with **no** `min_ttd>0`/`context.ttd>0` guards. The predicate is NOT equivalent — **leave these alone.**
+     - **Warrior Shout** (`warrior/middleware.lua:748`): the gate inserts an extra `context.in_combat` term (`min_ttd > 0 and context.in_combat and ... context.ttd < min_ttd`). `ttd_too_short` has no in-combat check → swapping it **drops that guard**. **Decision (owner, 2026-06-14): leave bespoke** — it's a single site and wrapping the predicate re-introduces the exact guard-order subtlety P1 exists to remove. Do not convert it.
+     - **Hunter** (`hunter/rotation.lua:294`): hunter DOES have `cd_min_ttd` logic — an inverted `ttd_ok` boolean reading `s.cd_min_ttd` (not `context.settings.cd_min_ttd`). It does **not** match the two-line pattern, so it is **not auto-replaced**; converting it is optional and out of P1's mechanical scope. (This corrects the stale "hunter has no TTD sites" claim.)
 4. **Gate B:**
-   - `grep -rn "context.ttd < min_ttd"` → returns **0** (predicate uses `context.ttd < min_ttd`? No — predicate body has it; so expect exactly **1** hit: the definition. Confirm only the def remains.)
-   - `build` green; `lint:lua` clean across 16 files (watch for now-unused `min_ttd` locals → luacheck will flag; remove them).
-   - `sim:hunter` runs (hunter has no TTD sites — null check that nothing else broke).
+   - `grep -rn "context.ttd < min_ttd"` → expect **5 residual hits**, NOT 0/1: the predicate definition + the 3 Rogue Rupture gates + the Warrior Shout gate (all intentionally left bespoke). Confirm **every** residual is one of those expected do-not-touch sites, never a missed `cd_min_ttd` gate.
+   - `build` green; `lint:lua` clean across the touched files (watch for now-unused `min_ttd` locals → luacheck will flag; remove them).
+   - `sim:hunter` runs (hunter's own `cd_min_ttd` logic at `rotation.lua:294` is left as-is, so the hunter path is unchanged — null check that nothing else broke).
    - Equivalence: predicate returns the same boolean as the inline expression for all inputs incl. the `min_ttd<=0` disable path and `context.ttd == nil`.
-5. dev_revision bump on touched classes; in-game smoke.
+5. In-game smoke: rebuild/sync, `/reload`, confirm the `Build:` number (`NS.BUILD_NUMBER`) advanced so the fresh build loaded; spot-check touched classes.
 
 **Window fit:** one session.
 
@@ -203,7 +213,7 @@ Only these keys change. Everything else is already canonical.
    - `build` green; `lint:lua` clean.
    - `sim:hunter` output **byte-identical** before/after (capture before editing).
    - Equivalence statement: `forced`, the IsReady re-check (with correct per-loop default target), and `burst_blocked` are computed identically; only the default target differs, preserved via the param.
-6. dev_revision bump (any one touched class is enough — this is shared); in-game smoke: `/flux burst` and `/flux def` still fire tagged entries; auto-burst still gated.
+6. In-game smoke (rebuild/sync → `/reload` → confirm the `Build:` number / `NS.BUILD_NUMBER` advanced): `/flux burst` and `/flux def` still fire tagged entries; auto-burst still gated.
 
 **Window fit:** one session.
 
@@ -215,24 +225,32 @@ Only these keys change. Everything else is already canonical.
 
 ### P3a — Build factories (no class wired, no rename)
 1. **Gate A:** re-read the 8 standalone Healthstone/HealingPotion blocks (§A.1) + the mana blocks (§A.2); confirm shapes match the audit. Lock the canonical vocabulary (§A.3) and the §A.3 druid decision (default: keep druid `use_healthstone`).
-2. In `common.lua`, add `S.recovery(opts)` and `S.mana_recovery(opts)` mirroring `S.trinkets` (return `{ header=..., settings={...} }`). They emit **canonical** keys: `healthstone_hp`, `use_healing_potion`, `healing_potion_hp` (+ optional mana: `use_mana_potion`/`mana_potion_pct`, `use_dark_rune`/`dark_rune_pct`/**`dark_rune_min_hp`**). `opts` carries per-class defaults (e.g. hunter `healing_potion_hp` default 35, `dark_rune_min_hp` default 50) and which sub-settings to include. **Note:** hunter's schema now gains `dark_rune_min_hp` (default 50) as part of normalization #4 — it didn't have one before.
-3. In `core.lua`, add `register_recovery_middleware(opts)` next to `register_trinket_middleware` (read `NS.A`, register via `rotation_registry:register_middleware`). **`opts` is pure DATA** — the 3 behavior axes (stealth guard, `in_combat` guard, `:IsExists()` gating) are **standardized in the factory body**, not parameterized (see "Deliberate normalizations"). So `opts` carries only:
+2. In `common.lua`, add `S.recovery(opts)` and `S.mana_recovery(opts)` mirroring `S.trinkets` (return `{ header=..., settings={...} }`). They emit **canonical** keys: `healthstone_hp`, `use_healing_potion`, `healing_potion_hp` (+ optional mana: `use_mana_potion`/`mana_potion_pct`, `use_dark_rune`/`dark_rune_pct`/**`dark_rune_min_hp`**). `opts` carries per-class defaults (e.g. hunter `healthstone_hp` default 40 (others 35), hunter `healing_potion_hp` default 35 (others 25), `dark_rune_min_hp` default 50) and which sub-settings to include. **Note:** hunter's schema now gains `dark_rune_min_hp` (default 50) as part of normalization #4 — it didn't have one before.
+3. In `core.lua`, add `register_recovery_middleware(opts)` next to `register_trinket_middleware` (read `NS.A`, register via `rotation_registry:register_middleware`). **`opts` is DATA-driven** — the 3 behavior axes (stealth guard, `in_combat` guard, `:IsExists()` gating) are **standardized as the shared default in the factory body** (see "Deliberate normalizations"), so a fix to any of them lands in all 8 classes at once. The goal is **one general recovery implementation each class tunes via DATA opts** — no per-class branching hardcoded in the body (mirrors `register_trinket_middleware`). **Expandability:** each standard behavior is also exposed as an *optional* override opt (default = the standard) so one class can later diverge without forking the body or affecting the others — leave the override opts in the signature even though no class uses them at first; they are the escape hatch, not dead weight. `opts` carries:
    - `prefix` (e.g. `"Hunter"`) → middleware names + `[MW]` log prefixes must reproduce existing strings.
-   - `healthstone = { actions = { A.HealthstoneFel?, A.HealthstoneMaster, A.HealthstoneMajor } }` — per-class tier list (hunter `{HSMaster1,2,3}`, warlock has the Fel tier, others 2-tier).
+   - `healthstone = { hp_default = 40|35, actions = { A.HealthstoneFel?, A.HealthstoneMaster, A.HealthstoneMajor } }` — per-class `hp_default` (hunter 40, others 35) + tier list (hunter `{HSMaster1,2,3}`, warlock has the Fel tier, others 2-tier).
    - `healing_potion = { hp_default = 35|25, actions = {A.SuperHealingPotion, A.MajorHealingPotion} }`.
-   - `mana = nil | { potion = { pct_default = N }, rune = { actions = {A.DarkRune, A.DemonicRune}, pct_default = N } }` — optional; absent for warrior/rogue. Per-class `pct_default`s from the §A.2 note (warlock 30, paladin 40, mage/priest/shaman 50; hunter rune 20).
-   - **Baked into the factory body (uniform, not opts):** skip if `context.is_stealthed`; require `context.in_combat`; wrap every consumable Action in `:IsExists() and :IsReady(...)`; apply the `dark_rune_min_hp` (default 50) floor to all rune use. These are the deliberate normalizations — they apply to every class the factory wires (hunter included).
-   - Reproduce exactly otherwise: priorities (`Priority.MIDDLEWARE.RECOVERY_ITEMS`, `-5`, `MANA_RECOVERY`), thresholds, `combat_time<2` guard, and `[MW] ...` log strings.
+   - `mana = nil | { potion = { priority = P, pct_default = N, actions = {A.SuperManaPotion, A.MajorManaPotion?} }, rune = { priority = P, pct_default = N, actions = {A.DarkRune, A.DemonicRune} } }` — optional; absent for warrior/rogue. Per-class `pct_default`s from the §A.2 note (warlock 30, paladin 40, mage/priest/shaman 50; hunter rune 20). **`priority` (or an offset) is REQUIRED per sub-block** — warlock's ManaPotion/DarkRune sit at `−5`/`−10` while others sit at `0`/`−5` (§A.2 note); it is not one shared constant. **`potion.actions` is a tier list** — shaman `{SuperManaPotion, MajorManaPotion}`, everyone else `{SuperManaPotion}`.
+   - **Shared default behaviors in the factory body (each overridable via an optional opt, default = on):** skip if `context.is_stealthed`; require `context.in_combat`; wrap every consumable Action in `:IsExists() and :IsReady(...)`; apply the `dark_rune_min_hp` (default 50) floor to all rune use. These are the deliberate normalizations — they apply to every class the factory wires (hunter included) unless a class explicitly overrides one. Wiring all 8 classes to the same defaults is what removes the accidental drift; the override opts keep a future localized fix possible.
+   - Reproduce exactly otherwise: per-class priorities (Healthstone/HealingPotion at `Priority.MIDDLEWARE.RECOVERY_ITEMS` / `-5`; mana sub-blocks at the per-class values above), thresholds, `combat_time<2` guard, and `[MW] ...` log strings.
 4. **No class wired. No key renamed.** `build` green + `lint:lua` clean (factories defined-but-unused is fine).
 
 ### P3a′ — Migration shim + test (MUST land before any rename)
 5. Implement `migrate_recovery_keys()` in `core.lua` (or a small dedicated block ordered before `refresh_settings`):
-   - Iterate the §A.3 rename map. For each `old → new`: if profile has `old` set and `new` unset → `SetToggle({2,new,GetToggle(2,old)})`, then clear `old`.
-   - Idempotent; guard with a stored `recovery_keys_migrated` flag (or a version stamp — decide here).
-   - Runs **once at load, before `cached_settings` is built**. Never capture gameplay settings at load — this only rewrites the store.
-6. **Migration verification — manual, in-game (owner decision 2026-06-14).** `src/sim/` is a TypeScript damage simulator (`hunter-adaptive-sim.ts`); it has **no Lua test harness, no profile/settings fixture, and cannot exercise `GetToggle`/`SetToggle`**. A proper automated migration test requires a Lua mocked-toggle harness — that is **deliberately out of scope here and tracked as its own separate implementation plan** (a general testing-harness effort). For this phase, verify the migration **manually in-game** and write the exact reproduction steps into the phase notes. Because the migration rewrites saved user data with no automated guard, treat this as a **release-blocking checklist item**, not a nice-to-have.
+   - Iterate the §A.3 rename map (the **4 keys** — hunter ×2, druid ×2). Use the framework's **real** toggle write API — verified at `settings.lua:90` and `docs/NEW_CLASS_GUIDE.md:826`: `SetToggle({2, key, nil, true}, value)`. **The value is the trailing positional arg, NOT an array element**, and the `nil`/`true` slots are display-text/silence. The plan's earlier `SetToggle({2,new,GetToggle(2,old)})` was the wrong arity and would mis-write. For each `old → new`:
+     ```lua
+     local v = GetToggle(2, old)
+     if v ~= nil and GetToggle(2, new) == nil then   -- ~= nil, NOT truthiness
+        SetToggle({2, new, nil, true}, v)            -- copy to new
+        SetToggle({2, old, nil, true}, nil)          -- clear old
+     end
+     ```
+   - ⚠️ **Gate on `GetToggle(2, old) ~= nil`, never on the value being truthy.** Hunter's `use_mana_rune = false` is a legitimate stored value and must carry over — a truthiness check would treat `false` as unset and silently drop it. (Mirrors `read_setting`'s `if val ~= nil` at `settings.lua:97`.)
+   - **Idempotent by construction — no flag, no version stamp.** Clearing `old` after the copy means a second run sees `old == nil` and does nothing; the data state is the guard. (There is no rollout to gate and no old-system compatibility to preserve — the whole pass ships and is tested as one unit — so a stamping scheme would solve a problem that doesn't exist here.)
+   - Runs **at load, before `cached_settings` is built**. Never capture gameplay settings at load — this only rewrites the store.
+6. **Migration verification — manual, in-game (owner decision 2026-06-14).** `src/sim/` is a TypeScript damage simulator (`hunter-adaptive-sim.ts`); it has **no Lua test harness, no profile/settings fixture, and cannot exercise `GetToggle`/`SetToggle`**. A proper automated migration test requires a Lua mocked-toggle harness — that is **deliberately out of scope here and tracked as its own separate implementation plan** (a general testing-harness effort). For this phase, verify the migration **manually in-game** at the end of the pass and write the exact reproduction steps into the phase notes.
    - **Scenario (manual):** seed a profile with `use_mana_rune=false`/`mana_rune_mana=15` (hunter) and `dark_rune_mana=22` (druid) → `/reload` → confirm `use_dark_rune=false`, `dark_rune_pct=15`, druid `dark_rune_pct=22`, old keys cleared, and a **second `/reload` changes nothing** (idempotent).
-   - **Keep the shim frozen and minimal** (it's 4 keys) and make the one-shot guard a hard precondition — the narrower it stays, the less the missing automated test costs.
+   - **Keep the shim frozen and minimal** (it's 4 keys) — the narrower it stays, the less the missing automated test costs.
 7. **Druid decision:** default = keep druid `use_healthstone` boolean and its bespoke middleware reading it; only migrate druid's `_mana`→`_pct` suffix keys. (If owner later wants druid normalized, that's a separate follow-up.)
 8. `build` green + `lint:lua` + migration manually verified (step 6 scenario).
 
@@ -241,7 +259,7 @@ Only these keys change. Everything else is already canonical.
    - Replace inline recovery schema section with `S.recovery(...)` / `S.mana_recovery(...)` (canonical keys, per-class defaults).
    - Replace the class's standalone recovery middleware blocks with `NS.register_recovery_middleware({ prefix=..., ... })`. **Mage:** leave `Mage_ManaGem` bespoke; only fold Healthstone/HealingPotion/ManaPotion/DarkRune into the factory.
    - **Hunter:** factory `mana = { rune = {A.DarkRune, A.DemonicRune}, pct_default=20 }` reading canonical `use_dark_rune`/`dark_rune_pct` (post-migration). No mana potion. **Hunter picks up the deliberate normalizations** (now `in_combat`-gated, stealth-gated, `:IsExists()`-guarded, and a `dark_rune_min_hp=50` floor) — these are *expected* changes per the normalization list, not regressions.
-   - Per class: `build` + `lint:lua` + dev_revision bump. Confirm middleware **names + priorities + log strings unchanged**; the **only** behavior deltas are the listed normalizations (most classes: none observable; hunter: the four above).
+   - Per class: `build` + `lint:lua` + in-game smoke (`/reload`, confirm `Build:`/`NS.BUILD_NUMBER` advanced). Confirm middleware **names + priorities + log strings unchanged**; the **only** behavior deltas are the listed normalizations (most classes: none observable; hunter: the four above).
 10. Checkpoint after class 5: full `build` + `lint:lua` + a profile migration smoke (set old hunter keys, reload, confirm settings preserved + recovery fires).
 
 ### P3c — Migrate classes 6–8
@@ -257,7 +275,7 @@ Only these keys change. Everything else is already canonical.
 
 > Depends on P1 (uses `ttd_too_short`). Paladin excluded (HP-gated outliers).
 
-1. **Gate A:** confirm the §B audit. **Priest ⚠️ is already resolved → leave bespoke** (no TTD gate + `is_spell_available` guards + inline combat gate; see §B note). The clean-fit set is the **12 files** in §B's ✅ rows (mage×3, rogue×3, warlock×3, shaman×3). 12/18 ≈ 67% clears the ">half fit" bar → proceed. (If a re-read somehow shrinks this below ~half, descope P4 and stop.)
+1. **Gate A:** confirm the §B audit. **Leave bespoke:** priest×3 (no TTD gate + `is_spell_available` guards + inline combat gate), paladin×3 (HP-gated), **mage/arcane** (`is_burning` burn-phase gate, `arcane.lua:188`), and **shaman/restoration** (omits `is_burst`, `restoration.lua:359`). The clean-fit set is the **10 files** in §B's ✅ rows (mage×2, rogue×3, warlock×3, shaman×2). 10/18 ≈ 56% clears the ">half fit" bar → proceed. (If a re-read somehow shrinks this below ~half, descope P4 and stop.)
 2. In `core.lua`, add:
    ```lua
    -- Build a standard off-GCD racial burst strategy. spells = { {Action, "Label"}, ... }
@@ -284,8 +302,8 @@ Only these keys change. Everything else is already canonical.
    ⚠️ Verify the existing log prefixes (`[FIRE]`, `[RET]`, `[HOLY]` etc.) — `prefix` must reproduce each playstyle's exact tag, and labels (`"Berserking"`, `"Blood Fury"`, `"Arcane Torrent"`) must match the originals verbatim.
 3. Migrate the fitting files (§B ✅ rows) — replace the hand-rolled racial table with `NS.create_racial_strategy({ prefix="FIRE", spells={ {A.Berserking,"Berserking"}, {A.ArcaneTorrent,"Arcane Torrent"} } })`. Keep each strategy's position in its playstyle's strategies array identical.
    - Pre-allocate the `spells` table at load (no inline table creation in combat — these are built once at file load, safe).
-4. **Leave bespoke (confirmed by audit):** paladin ret/prot/holy (HP-gated outliers) **and** priest disc/holy/smite (no TTD gate + availability guards). Do **not** add `gate`/`condition`/availability params to force any of these through — that's the over-abstraction trap.
-5. **Gate B:** per migrated file, racial firing order + labels + log tags unchanged; `build` + `lint:lua`; dev_revision bumps. If >~12 files migrate, split into two sessions.
+4. **Leave bespoke (confirmed by audit):** paladin ret/prot/holy (HP-gated outliers), priest disc/holy/smite (no TTD gate + availability guards), **mage/arcane (`is_burning` burn-phase gate), and shaman/restoration (no `is_burst`).** Do **not** add `gate`/`condition`/`is_burst`/availability params to force any of these through — that's the over-abstraction trap.
+5. **Gate B:** per migrated file, racial firing order + labels + log tags unchanged; `build` + `lint:lua`; in-game smoke (`/reload`, confirm `Build:`/`NS.BUILD_NUMBER` advanced). With only 10 files in scope this is one session.
 
 **Window fit:** audit + migrations one session (split if large).
 
@@ -330,11 +348,11 @@ Recommended: **P1 → P2 → P5 → P3a → P3a′ → P3b → P3c → P4.**
 
 ## Definition of done (whole effort)
 - `pnpm check` green; `lint:lua` clean; `build` produces `output/TellMeWhen.lua`.
-- `sim:hunter` identical to pre-change baseline for the strict-equivalence phases (P1/P2/R-a touch the dispatch path). (Note: `sim:hunter` is a weak oracle for P4 — hunter has no racial strategy — and N/A for P3 recovery, which is verified manually.)
+- `sim:hunter` identical to pre-change baseline **only** for the strict-equivalence dispatch-path phases (P1/P2/R-a). It is **not** a valid oracle elsewhere and must not be credited as one: hunter has no racial strategy (P4) and the sim cannot exercise `GetToggle`/`SetToggle` or recovery middleware (P3). Those phases are gated on **targeted manual in-game smoke** instead — P3 by the migration scenario (P3a′ step 6) + per-class recovery-fires-at-threshold spot-check; P4 by per-file racial firing-order/label/log-tag checks. (A mocked-toggle Lua fixture that could automate the P3 migration is deferred to its own harness plan.)
 - Recovery key migration verified **manually in-game** (P3a′ scenario + full-profile smoke); no user setting silently reset. The recovery **Deliberate normalizations** (stealth/in_combat/IsExists uniform; hunter rune gains `min_hp`) are the *only* recovery behavior changes — confirmed against that list, nothing else.
 - All "leave alone" items (design doc §9) untouched.
 - Each phase independently re-reviewed before reaching the owner: strict byte-identical equivalence for P1/P2/P4/P5-R-a; "changes match the normalization list and nothing else" for P3 recovery.
-- Net ~450–500 lines removed; per-class readability preserved.
+- Each hoisted shape is a single shared definition (fix-once-applies-to-all) **and** keeps a per-class override hatch / bespoke escape so a localized fix stays possible; per-class readability preserved.
 
 ## Related future work (out of scope here — separate plans)
 These came up while finalizing this plan but are **not** part of the DRY/readability pass. Tracked so they aren't lost:
