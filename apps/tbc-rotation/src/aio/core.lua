@@ -1026,6 +1026,11 @@ function rotation_registry:validate_playstyle_spells(playstyle)
    local label = (cc.playstyle_labels and cc.playstyle_labels[playstyle]) or playstyle
    print("|cFF00FF00[Flux AIO]|r Switched to " .. label .. " playstyle")
 
+   -- Spell-availability chatter is opt-out (handy while leveling). The
+   -- unavailable_spells table is already populated above, so is_spell_available
+   -- keeps working even when these messages are silenced.
+   if cached_settings.suppress_spell_warnings then return end
+
    if #missing_spells > 0 then
       print("|cFFFF0000[Flux AIO]|r MISSING REQUIRED SPELLS:")
       for _, spell_name in ipairs(missing_spells) do
