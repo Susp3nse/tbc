@@ -29,6 +29,7 @@ local CheckImmuneOrDoNotAttack = NS.CheckImmuneOrDoNotAttack
 local CheckCCImmune = NS.CheckCCImmune
 local ShouldUseWingClip = NS.ShouldUseWingClip
 local ShouldUseViperSting = NS.ShouldUseViperSting
+local is_spell_available = NS.is_spell_available
 local debug_print = NS.debug_print
 
 -- Framework helpers
@@ -530,7 +531,13 @@ strategies[#strategies + 1] = named("CombatRotation", {
                     local sqw = tonumber(_G.GetCVar and _G.GetCVar("SpellQueueWindow")) or 0
                     local queueWindow = math.max(0.10, math.min(0.40, sqw / 1000))
                     local gcdLeftForQueue = context.gcd_remaining or GetCurrentGCD() or 0
-                    local steadyQueueable = (not context.is_moving) and gcdLeftForQueue <= queueWindow
+                    -- steadyQueueable deliberately bypasses IsReady() to pre-queue
+                    -- Steady in the GCD/spell-queue tail. Guard it on availability so
+                    -- an *untrained* Steady Shot (pre-62 leveling) can't leak a dead
+                    -- suggestion through that bypass — IsReady already covers the
+                    -- learned case.
+                    local steadyKnown = (not is_spell_available) or is_spell_available(A.SteadyShot)
+                    local steadyQueueable = steadyKnown and (not context.is_moving) and gcdLeftForQueue <= queueWindow
                     if choice == "steady" and (A.SteadyShot:IsReady(unit) or steadyQueueable) then
                         if CT then CT:RecordSuggestion("Steady Shot", ShootTimer) end
                         return A.SteadyShot:Show(icon), "[ADAPT] Steady Shot"
