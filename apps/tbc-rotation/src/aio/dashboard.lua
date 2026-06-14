@@ -17,6 +17,8 @@ local GameTooltip_Hide = _G.GameTooltip_Hide
 local GetSpellTexture = _G.GetSpellTexture
 local GetSpellInfo = _G.GetSpellInfo
 local GetInventoryItemTexture = _G.GetInventoryItemTexture
+local GetInventoryItemCooldown = _G.GetInventoryItemCooldown
+local UnitRangedDamage = _G.UnitRangedDamage
 local GetTime = _G.GetTime
 local UnitName = _G.UnitName
 local UnitGUID = _G.UnitGUID
@@ -319,7 +321,6 @@ end
 -- STATE (packed into single table to stay under 60-upvalue Lua 5.1 limit)
 -- ============================================================================
 local dashboard_frame = nil
-local last_class_name = nil
 local last_valid_ps = nil
 local ui = {
     cd_slots = {},
@@ -603,7 +604,6 @@ local function create_dashboard()
     ui.sep2_tex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
     ui.sep2_tex:SetHeight(1)
     ui.sep2_tex:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 0.25)
-    y = y - 4
 
     -- Section labels (small, dim — unobtrusive category headers)
     ui.cd_label_fs = f:CreateFontString(nil, "OVERLAY")
@@ -645,11 +645,11 @@ local function create_dashboard()
 
     -- Section separators (thin lines between CD/Buff/Debuff sections)
     for i = 1, 3 do
-        local sep = f:CreateTexture(nil, "ARTWORK")
-        sep:SetHeight(1)
-        sep:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 0.25)
-        sep:Hide()
-        ui.section_seps[i] = sep
+        local section_sep = f:CreateTexture(nil, "ARTWORK")
+        section_sep:SetHeight(1)
+        section_sep:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 0.25)
+        section_sep:Hide()
+        ui.section_seps[i] = section_sep
     end
 
     -- Combo point pips (label + 5 small squares)
@@ -759,8 +759,6 @@ local function update_dashboard()
         ui.version_text:SetText(class_version)
     end
 
-    last_class_name = cc.name
-
     -- Update accent stripe to class color
     local crgb = CLASS_RGB[cc.name]
     if crgb and ui.accent_stripe then
@@ -841,7 +839,10 @@ local function update_dashboard()
     end
 
     -- Secondary resource bar (e.g., energy/rage when primary is mana)
-    local content_y = -40  -- y after primary resource bar (header + sep + bar + gap)
+    -- Hand-tuned start for dynamically-positioned content, approximating the
+    -- setup-layout y after the primary resource bar: header (-6, then -18) +
+    -- separator (-4) + RES_BAR_H (12) + gap. Keep in sync if those constants change.
+    local content_y = -40
     local res2 = resolve_config(dash_config.secondary_resource, active_ps)
     if res2 then
         local value = 0
@@ -1423,9 +1424,8 @@ fr_frame:SetScript("OnUpdate", function()
     -- Timer bars (GCD + Swing fill + value text)
     for i = 1, MAX_TIMER_BARS do
         local tb = ui.timer_bars[i]
-        if not tb.bar_role or not tb.bg:IsShown() then
-            -- skip
-        elseif tb.bar_role == "gcd" then
+        if tb.bar_role and tb.bg:IsShown() then
+          if tb.bar_role == "gcd" then
             local a = NS.A
             local gcd_total = a and a.GetGCD and a.GetGCD() or 1.5
             local gcd_rem = a and a.GetCurrentGCD and a.GetCurrentGCD() or 0
@@ -1449,7 +1449,7 @@ fr_frame:SetScript("OnUpdate", function()
             local rem, dur
             if shoot > 0 then
                 rem = shoot
-                dur = _G.UnitRangedDamage("player") or 1.5
+                dur = UnitRangedDamage("player") or 1.5
             else
                 local s = Player:GetSwingStart(1) or 0
                 local d = Player:GetSwing(1) or 0
@@ -1476,6 +1476,7 @@ fr_frame:SetScript("OnUpdate", function()
                 tb.value:Hide()
                 tb.label:SetTextColor(fr_dim[1], fr_dim[2], fr_dim[3], 0.4)
             end
+          end
         end
     end
 end)

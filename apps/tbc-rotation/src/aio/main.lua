@@ -73,9 +73,9 @@ local last_validated_active = nil
 function rotation_registry:execute_middleware(icon, context)
    local debug_mode = context.settings and context.settings.debug_mode
    local debug_system = context.settings and context.settings.debug_system
-   local force_burst = is_force_active("force_burst")
-   local force_defensive = is_force_active("force_defensive")
-   local auto_burst = should_auto_burst(context)
+   local force_burst = context.force_burst
+   local force_defensive = context.force_defensive
+   local auto_burst = context.auto_burst
 
    for _, mw in ipairs(self.middleware) do
       if (not context.on_gcd and mw.is_gcd_gated ~= false)
@@ -128,9 +128,9 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
    local config = self.playstyle_config[playstyle]
    local config_prereqs = config and config.check_prerequisites
    local state = self:get_playstyle_state(playstyle, context)
-   local force_burst = is_force_active("force_burst")
-   local force_defensive = is_force_active("force_defensive")
-   local auto_burst = should_auto_burst(context)
+   local force_burst = context.force_burst
+   local force_defensive = context.force_defensive
+   local auto_burst = context.auto_burst
 
    -- Periodic context dump (gated by "Log Context" checkbox)
    if context.settings.log_context and context.in_combat and context.has_valid_enemy_target then
@@ -284,6 +284,11 @@ A[3] = function(icon)
    end
 
    local context = create_context(icon)
+   -- Hoist per-frame force/burst state onto the context so the dispatch path
+   -- (middleware + idle + active) reads it once instead of recomputing 3x/frame.
+   context.force_burst = is_force_active("force_burst")
+   context.force_defensive = is_force_active("force_defensive")
+   context.auto_burst = should_auto_burst(context)
    NS.last_rotation_context = context
    NS.last_rotation_context_time = GetTime()
 
@@ -323,7 +328,7 @@ A[3] = function(icon)
       local idle_strategies = rotation_registry.strategy_maps[cc.idle_playstyle_name]
       if idle_strategies then
          for _, strategy in ipairs(idle_strategies) do
-            if strategy.should_suggest and strategy.should_suggest(context) then
+            if strategy.should_suggest and strategy.should_suggest(context) and strategy.suggestion_spell then
                suggestion.spell = strategy.suggestion_spell
                break
             end

@@ -5,12 +5,11 @@
 -- ============================================================================
 -- FRAMEWORK VALIDATION
 -- ============================================================================
-local _G, setmetatable, pairs, ipairs, tostring, type = _G, setmetatable, pairs, ipairs, tostring, type
+local _G, pairs, ipairs, tostring = _G, pairs, ipairs, tostring
 local tinsert, tconcat, tsort = table.insert, table.concat, table.sort
 local floor = math.floor
 local format = string.format
 local GetTime = _G.GetTime
-local UnitAffectingCombat = _G.UnitAffectingCombat
 local A = _G.Action
 
 if not A then
@@ -144,7 +143,6 @@ local notif_text = notif_frame:CreateFontString(nil, "OVERLAY", "GameFontNormalL
 notif_text:SetPoint("CENTER")
 notif_text:SetFont(notif_text:GetFont() or "Fonts\\FRIZQT__.TTF", 22, "OUTLINE")
 
-local notif_fade_start = 0
 local notif_fade_duration = 0.4
 local notif_visible_until = 0
 
@@ -343,7 +341,7 @@ end
 
 local function check_spell_availability(entries, missing_spells, optional_missing)
    for _, entry in ipairs(entries) do
-      local known, name = is_spell_known(entry.spell)
+      local known = is_spell_known(entry.spell)
       if not known then
          if entry.spell then
             unavailable_spells[entry.spell] = true
@@ -1153,7 +1151,6 @@ NS.named = named
 -- overwrites the framework's proper TrinketBySlot versions.
 
 local DEFENSIVE_TRINKET_HP = 35
-local PLAYER_UNIT = "player"
 
 local function register_trinket_middleware()
    local A_class = NS.A
@@ -1180,7 +1177,7 @@ local function register_trinket_middleware()
       matches = function(context)
          if not context.in_combat then return false end
          if not context.has_valid_enemy_target then return false end
-         if not should_auto_burst(context) then return false end
+         if should_auto_burst(context) == false then return false end
          -- TTD gate: skip trinkets on dying mobs (cd_min_ttd setting; 0 = disabled)
          local min_ttd = context.settings.cd_min_ttd or 0
          if min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd then return false end

@@ -6,11 +6,10 @@
 -- FRAMEWORK VALIDATION
 -- ============================================================================
 local _G = _G
-local pairs, ipairs, tostring, type = pairs, ipairs, tostring, type
+local ipairs, tostring = ipairs, tostring
 local tinsert = table.insert
 local format = string.format
 local floor, max, min = math.floor, math.max, math.min
-local unpack = unpack
 
 local NS = _G.FluxAIO
 if not NS then
@@ -33,7 +32,6 @@ local cc = rotation_registry and rotation_registry.class_config
 local class_name = cc and cc.name or "Unknown"
 local CLASS_TITLE_COLORS = { Druid = "ff7d0a", Hunter = "abd473", Mage = "69ccf0", Paladin = "f58cba", Priest = "ffffff", Rogue = "fff569", Shaman = "0070dd", Warlock = "9482c9", Warrior = "c79c6e" }
 local class_hex = CLASS_TITLE_COLORS[class_name] or "6c63ff"
-local addon_title = class_name .. " AIO"
 local addon_title_colored = format("|cff%s%s|r |cff6c63ffAIO|r", class_hex, class_name)
 local version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "v1.0.0")
 
@@ -854,7 +852,7 @@ local function create_settings_button()
     return btn
 end
 
-local settings_btn = create_settings_button()
+create_settings_button()
 
 -- ============================================================================
 -- SLASH COMMANDS
