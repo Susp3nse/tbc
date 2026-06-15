@@ -378,6 +378,7 @@ local function create_dashboard()
         end
     end)
     f:SetFrameStrata("HIGH")
+    NS.Widgets.make_toplevel(f)
     f:Hide()
 
     -- Default position until DB is ready

@@ -156,6 +156,7 @@ local function CreateDebugWindow(title_text)
    sep:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
    f.separator = sep
 
+   NS.Widgets.make_toplevel(f)
    return f
 end
 NS.CreateDebugWindow = CreateDebugWindow

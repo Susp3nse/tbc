@@ -52,6 +52,19 @@ local function themed_button(parent, opts)
    return btn
 end
 
+-- Make a draggable top-level window render as a self-contained block instead of
+-- interleaving with sibling panels in the same frame strata. SetToplevel(true)
+-- lifts the frame's whole frame-level block above its siblings on mouse-down;
+-- the OnShow hook does the same the moment it is shown. Without this, two panels
+-- sharing a strata draw interleaved by absolute frame level -- one panel's
+-- background can end up over another's widgets. As a bonus this is click-to-front
+-- for free. frame.Raise is passed as the hook handler directly (HookScript calls
+-- handler(self), and Raise takes only self) to avoid a per-frame closure.
+local function make_toplevel(frame)
+   frame:SetToplevel(true)
+   frame:HookScript("OnShow", frame.Raise)
+end
+
 -- Themed section-header FontString. The caller owns positioning and any
 -- return-y bookkeeping; this just creates, colors (theme.text_header), and sets
 -- the text. Returns the FontString.
@@ -69,4 +82,5 @@ NS.Widgets = {
    BACKDROP_THIN = BACKDROP_THIN,
    themed_button = themed_button,
    section_header = section_header,
+   make_toplevel = make_toplevel,
 }

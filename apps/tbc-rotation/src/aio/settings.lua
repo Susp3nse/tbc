@@ -624,6 +624,7 @@ local function create_main_frame()
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
     f:SetFrameStrata("HIGH")
+    NS.Widgets.make_toplevel(f)
 
     -- Title icon (favicon-style "M")
     local title_icon = CreateFrame("Frame", nil, f, "BackdropTemplate")
