@@ -216,3 +216,6 @@ in the **root** `AGENTS.md`. The website changelog substep is documented in
 - Build/watch/sync engine: `packages/tmw-profile-builder/AGENTS.md`
 - Per-class rotation context: `src/aio/<class>/AGENTS.md`
 - Class research: `docs/<CLASS>_RESEARCH.md`; adding a class: `docs/NEW_CLASS_GUIDE.md`
+- **Action framework engine API** (what `NS.Unit`, `NS.Player`, `Unit()`, `HealingEngine`,
+  `MultiUnits` expose): verified reference `docs/api/ENGINES.md`; EmmyLua stubs for IntelliSense
+  in `docs/api/*.lua` (per-engine deep-dive notes under `docs/api/_research/`).

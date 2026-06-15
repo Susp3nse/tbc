@@ -358,3 +358,15 @@ function Action.CanUseStoneformDispel(icon, toggle) end
 ---@param unitID string Unit ID (e.g., "target", "player", "focus")
 ---@return Unit unit Unit API object
 function Action.Unit(unitID) end
+
+--- Friendly-team selection API for a role. Iterates allies matching ROLE and
+--- returns selection helpers (GetUnitID, GetCC, GetBuffs, GetTTD, ...).
+---@param ROLE? string "TANK" | "HEALER" | "DAMAGER" | "DAMAGER_MELEE" | "DAMAGER_RANGE" | nil (any). Unit-not-found returns "none".
+---@return FriendlyTeam team Friendly-team selection API
+function Action.FriendlyTeam(ROLE) end
+
+--- Enemy-team selection API for a role. Iterates enemies matching ROLE and
+--- returns selection helpers (GetUnitID, IsBreakAble, PlayersInRange, FocusingUnitIDByClasses, ...).
+---@param ROLE? string "TANK" | "HEALER" | "DAMAGER" | "DAMAGER_MELEE" | "DAMAGER_RANGE" | nil (any). Unit-not-found returns "none".
+---@return EnemyTeam team Enemy-team selection API
+function Action.EnemyTeam(ROLE) end

@@ -1,766 +1,787 @@
 ---@meta
 --- GGL Action Framework - Player System Stubs
---- Auto-generated with type information
+--- Singleton engine: `self.UnitID` is always "player". Invoke as `A.Player:Method(...)`.
+---
+--- Power-accessor note: all *Max / current / *Percentage / *Deficit / *DeficitPercentage methods are
+--- thin uncached wrappers over UnitPowerMax/UnitPower + arithmetic. On TBC only Mana/Rage/Energy/
+--- ComboPoints are live; the retail-compat powers (Focus, RunicPower, SoulShards, AstralPower,
+--- HolyPower, Maelstrom, Chi, Insanity, ArcaneCharges, Fury, Pain, Essence) exist for cross-expansion
+--- source compatibility and return 0 on TBC.
 
 ---@class Player
 local Player = {}
 
 --- Register bag tracking
----@param name? any
----@param data? any
+---@param name string Matcher name.
+---@param data table Matcher spec (itemID / itemEquipLoc / itemClassID / itemSubClassID / isEquippableItem).
 ---@return nil
 function Player:AddBag(name, data) end
 
 --- Register inv slot
----@param name? any
----@param slot? any
----@param data? any
+---@param name string Matcher name.
+---@param slot? number Inventory slot; nil scans all equipped slots.
+---@param data table Matcher spec.
 ---@return nil
 function Player:AddInv(name, slot, data) end
 
 --- Register tier set
----@param tier? any
----@param items? any
+---@param tier string Tier-set name.
+---@param items number[] itemIDs to track equipped count.
 ---@return nil
 function Player:AddTier(tier, items) end
 
---- Current charges
+--- Current charges (retail-compat; 0 on TBC).
 ---@return number
 function Player:ArcaneCharges() end
 
----@return any
+---@return number
 function Player:ArcaneChargesDeficit() end
 
----@return any
+---@return number
 function Player:ArcaneChargesDeficitPercentage() end
 
---- Max charges
+--- Max charges (retail-compat; 0 on TBC).
 ---@return number
 function Player:ArcaneChargesMax() end
 
----@return any
+---@return number
 function Player:ArcaneChargesPercentage() end
 
---- Current AP
----@param OverrideFutureAstralPower? any
+--- Current astral power, or the override value if `OverrideFutureAstralPower` is truthy (returned
+--- verbatim, bypassing the live read). Retail-compat; 0 on TBC.
+---@param OverrideFutureAstralPower? number Override value returned as-is when truthy.
 ---@return number
 function Player:AstralPower(OverrideFutureAstralPower) end
 
---- Missing AP
----@param OverrideFutureAstralPower? any
+--- Missing AP (retail-compat; 0 on TBC).
+---@param OverrideFutureAstralPower? number Override value when truthy.
 ---@return number
 function Player:AstralPowerDeficit(OverrideFutureAstralPower) end
 
----@param OverrideFutureAstralPower? any
----@return any
+---@param OverrideFutureAstralPower? number Override value when truthy.
+---@return number
 function Player:AstralPowerDeficitPercentage(OverrideFutureAstralPower) end
 
---- Max AP
+--- Max AP (retail-compat; 0 on TBC).
 ---@return number
 function Player:AstralPowerMax() end
 
---- AP %
----@param OverrideFutureAstralPower? any
+--- AP % (retail-compat; 0 on TBC).
+---@param OverrideFutureAstralPower? number Override value when truthy.
 ---@return number
 function Player:AstralPowerPercentage(OverrideFutureAstralPower) end
 
---- AP damage mod
----@param offHand? any
+--- AP-based weapon damage modifier.
+---@param offHand? boolean True = use off-hand stats.
 ---@return number
 function Player:AttackPowerDamageMod(offHand) end
 
---- Cancel buff
----@param buffName? any
+--- Cancels a buff via CancelSpellByName (only out of combat or if secure).
+---@param buffName string Buff name.
 ---@return nil
 function Player:CancelBuff(buffName) end
 
---- Real-time cast cost
+--- Power cost of the spell currently being cast (real-time, **uncached**), else 0.
 ---@return number
 function Player:CastCost() end
 
---- Cached cast cost
+--- Cached counterpart of CastCost: power cost of the spell currently being cast, else 0.
 ---@return number
 function Player:CastCostCache() end
 
---- Remaining cast time
----@param spellID? any
+--- Remaining cast time; delegates to Unit:IsCastingRemains(spellID).
+---@param spellID? number With no arg, returns the current cast's remaining time.
 ---@return number
 function Player:CastRemains(spellID) end
 
---- Seconds since cast
+--- Seconds since the last cast-start event (UNIT_SPELLCAST_START/CHANNEL_START).
 ---@return number
 function Player:CastTimeSinceStart() end
 
---- Current chi
+--- Current chi (retail-compat; 0 on TBC).
 ---@return number
 function Player:Chi() end
 
----@return any
+---@return number
 function Player:ChiDeficit() end
 
----@return any
+---@return number
 function Player:ChiDeficitPercentage() end
 
---- Max chi
+--- Max chi (retail-compat; 0 on TBC).
 ---@return number
 function Player:ChiMax() end
 
----@return any
+---@return number
 function Player:ChiPercentage() end
 
---- Current CP
----@param unitID? any
+--- Combo points on `unitID` via GetComboPoints.
+---@param unitID? string Default "target".
 ---@return number
 function Player:ComboPoints(unitID) end
 
---- Missing CP
----@param unitID? any
+--- Missing combo points.
+---@param unitID? string Default "target".
 ---@return number
 function Player:ComboPointsDeficit(unitID) end
 
---- Max CP
+--- Max combo points.
 ---@return number
 function Player:ComboPointsMax() end
 
---- Crit %
+--- Melee crit chance percent (GetCritChance()).
 ---@return number
 function Player:CritChancePct() end
 
---- Current energy
+--- Current energy.
 ---@return number
 function Player:Energy() end
 
---- Missing energy
+--- Missing energy.
 ---@return number
 function Player:EnergyDeficit() end
 
---- Missing energy %
+--- Missing energy %.
 ---@return number
 function Player:EnergyDeficitPercentage() end
 
---- Predicted deficit
----@param Offset? any
+--- Predicted deficit (floored at 0).
+---@param Offset? number
 ---@return number
 function Player:EnergyDeficitPredicted(Offset) end
 
---- Max energy
+--- Max energy.
 ---@return number
 function Player:EnergyMax() end
 
---- Energy %
+--- Energy %.
 ---@return number
 function Player:EnergyPercentage() end
 
---- Predicted energy
----@param Offset? any
+--- Predicted energy at cast/GCD end (capped).
+---@param Offset? number
 ---@return number
 function Player:EnergyPredicted(Offset) end
 
---- Energy/second
+--- Energy/second.
 ---@return number
 function Player:EnergyRegen() end
 
---- Regen as % of max
+--- Regen as % of max.
 ---@return number
 function Player:EnergyRegenPercentage() end
 
---- Energy during cast
----@param Offset? any
+--- Energy over remaining cast/channel/GCD + `Offset`.
+---@param Offset? number
 ---@return number
 function Player:EnergyRemainingCastRegen(Offset) end
 
---- Seconds to full
+--- Seconds to full energy.
 ---@return number
 function Player:EnergyTimeToMax() end
 
---- Predicted time to max
+--- Predicted time to max.
 ---@return number
 function Player:EnergyTimeToMaxPredicted() end
 
---- Seconds to X
----@param Amount? any
----@param Offset? any
+--- Seconds to reach `Amount` energy.
+---@param Amount number Target energy.
+---@param Offset? number Regen-rate multiplier: effective regen is scaled by (1 - Offset), not a flat time offset.
 ---@return number
 function Player:EnergyTimeToX(Amount, Offset) end
 
---- Seconds to X%
----@param Amount? any
+--- Seconds to reach `Amount`%.
+---@param Amount number Target energy percent.
 ---@return number
 function Player:EnergyTimeToXPercentage(Amount) end
 
---- Current essence
+--- Current essence (retail-compat; 0 on TBC).
 ---@return number
 function Player:Essence() end
 
----@return any
+---@return number
 function Player:EssenceDeficit() end
 
----@return any
+---@return number
 function Player:EssenceDeficitPercentage() end
 
---- Max essence
+--- Max essence (retail-compat; 0 on TBC).
 ---@return number
 function Player:EssenceMax() end
 
---- GCD or cast time
----@param spellID? any
+--- max(GCD, castTime) for `spellID`.
+---@param spellID number
 ---@return number
 function Player:Execute_Time(spellID) end
 
---- Current focus
+--- Current focus (retail-compat; 0 on TBC).
 ---@return number
 function Player:Focus() end
 
---- Focus during cast
----@param CastTime? any
+--- Focus regained over `CastTime`.
+---@param CastTime number
 ---@return number
 function Player:FocusCastRegen(CastTime) end
 
---- Missing focus
+--- Missing focus.
 ---@return number
 function Player:FocusDeficit() end
 
---- Missing focus %
+--- Missing focus %.
 ---@return number
 function Player:FocusDeficitPercentage() end
 
---- Predicted deficit
----@param Offset? any
+--- Predicted deficit.
+---@param Offset? number
 ---@return number
 function Player:FocusDeficitPredicted(Offset) end
 
---- Focus cost of cast
+--- Focus cost of the in-progress cast (else 0).
 ---@return number
 function Player:FocusLossOnCastEnd() end
 
---- Max focus
+--- Max focus (retail-compat; 0 on TBC).
 ---@return number
 function Player:FocusMax() end
 
---- Focus %
+--- Focus %.
 ---@return number
 function Player:FocusPercentage() end
 
---- Predicted focus
----@param Offset? any
+--- Predicted focus at cast/GCD end.
+---@param Offset? number
 ---@return number
 function Player:FocusPredicted(Offset) end
 
---- Focus/second
+--- Focus/second.
 ---@return number
 function Player:FocusRegen() end
 
---- Regen as % of max
+--- Regen as % of max.
 ---@return number
 function Player:FocusRegenPercentage() end
 
---- Focus during remaining
----@param Offset? any
+--- Focus over remaining cast/GCD + `Offset`.
+---@param Offset? number
 ---@return number
 function Player:FocusRemainingCastRegen(Offset) end
 
---- Seconds to full
+--- Seconds to full focus.
 ---@return number
 function Player:FocusTimeToMax() end
 
---- Predicted time to max
+--- Predicted time to max.
 ---@return number
 function Player:FocusTimeToMaxPredicted() end
 
---- Seconds to X
----@param Amount? any
+--- Seconds to reach `Amount` focus.
+---@param Amount number
 ---@return number
 function Player:FocusTimeToX(Amount) end
 
---- Seconds to X%
----@param Amount? any
+--- Seconds to reach `Amount`%.
+---@param Amount number
 ---@return number
 function Player:FocusTimeToXPercentage(Amount) end
 
---- Current fury
+--- Current fury (retail-compat; 0 on TBC).
 ---@return number
 function Player:Fury() end
 
----@return any
+---@return number
 function Player:FuryDeficit() end
 
----@return any
+---@return number
 function Player:FuryDeficitPercentage() end
 
---- Max fury
+--- Max fury (retail-compat; 0 on TBC).
 ---@return number
 function Player:FuryMax() end
 
----@return any
+---@return number
 function Player:FuryPercentage() end
 
---- Remaining GCD
+--- Remaining GCD (A.GetCurrentGCD()).
 ---@return number
 function Player:GCDRemains() end
 
---- Ammo count
+--- Remaining ammo (arrow or bullet, whichever found).
 ---@return number
 function Player:GetAmmo() end
 
---- Arrow count
+--- Remaining arrows (0 if none).
 ---@return number
 function Player:GetArrow() end
 
---- Bag item info
----@param name? any
----@return table
+--- Bag match info `{ count, itemID }` or nil.
+---@param name string Matcher name.
+---@return table|nil
 function Player:GetBag(name) end
 
---- Units, buffs
----@return number, number
-function Player:GetBuffsUnitCount() end
+--- For varargs (spellID / spellName / action object): [1] total units the listed buffs are applied
+--- to, [2] how many of the varargs were found applied. Combat-log tracked.
+---@param ... number|string Spell IDs / names / action objects.
+---@return number units, number found
+function Player:GetBuffsUnitCount(...) end
 
---- Bullet count
+--- Remaining bullets (0 if none).
 ---@return number
 function Player:GetBullet() end
 
---- Units, debuffs
----@return number, number
-function Player:GetDeBuffsUnitCount() end
+--- Same as GetBuffsUnitCount but for debuffs the player applied.
+---@param ... number|string Spell IDs / names / action objects.
+---@return number units, number found
+function Player:GetDeBuffsUnitCount(...) end
 
---- Falling duration
+--- Seconds falling (select(2, self:IsFalling())).
 ---@return number
 function Player:GetFalling() end
 
---- Inv item info
----@param name? any
----@return table
+--- Inv match info `{ slot, itemID }` or nil.
+---@param name string Matcher name.
+---@return table|nil
 function Player:GetInv(name) end
 
---- Current stance
+--- Current shapeshift form index (Data.Stance, from GetShapeshiftForm()).
 ---@return number
 function Player:GetStance() end
 
---- Swing timer
----@param inv? any
+--- Current swing time (s) for slot.
+---@param inv number 1=mainhand, 2=offhand, 3=ranged, 4=max(main,off), 5=max(all), or a CONST slot.
 ---@return number
 function Player:GetSwing(inv) end
 
---- Max swing duration
----@param inv? any
+--- Max/total duration of the last swing for that slot (same `inv` semantics as GetSwing).
+---@param inv number
 ---@return number
 function Player:GetSwingMax(inv) end
 
---- Next auto-shot
+--- Time remaining until next auto-shot tick (0 if none pending).
 ---@return number
 function Player:GetSwingShoot() end
 
---- Swing start time
----@param inv? any
+--- Start timestamp of the last swing for that slot (same `inv` semantics as GetSwing).
+---@param inv number
 ---@return number
 function Player:GetSwingStart(inv) end
 
---- Thrown count
+--- Remaining thrown items (0 if none).
 ---@return number
 function Player:GetThrown() end
 
---- Tier pieces
----@param tier? any
+--- Equipped piece count for a tier.
+---@param tier string Tier-set name.
 ---@return number
 function Player:GetTier(tier) end
 
---- have, name, start, dur, icon
----@param i? any
----@return boolean, string, number, number, string
+--- Passthrough of GetTotemInfo(i): haveTotem, name, startTime, duration, icon.
+---@param i number Totem slot.
+---@return boolean haveTotem, string name, number startTime, number duration, string icon
 function Player:GetTotemInfo(i) end
 
---- Totem remaining
----@param i? any
+--- Passthrough of GetTotemTimeLeft(i).
+---@param i number Totem slot.
 ---@return number
 function Player:GetTotemTimeLeft(i) end
 
---- Damage, DPS
----@param inv? any
----@param mod? any
----@return number, number
+--- White-hit weapon damage: [1] full avg damage, [2] avg DPS.
+---@param inv? number 1=main, 2=off, nil=both.
+---@param mod? number Modifies attack speed (default 1).
+---@return number damage, number dps
 function Player:GetWeaponMeleeDamage(inv, mod) end
 
---- Glyph active
----@param spell? any
+--- True if glyph is active.
+---@param spell number|string Glyph spellName / spellID / glyphID (WOTLK-BFA builds).
 ---@return boolean
 function Player:HasGlyph(spell) end
 
---- Shield itemID or nil
----@param isEquiped? any
----@return number
+--- itemID of shield in bag (default) or equipped, or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasShield(isEquiped) end
 
---- Has X pieces
----@param tier? any
----@param count? any
+--- True if `>= count` tier pieces equipped (disabled in MoP Proving Grounds, ZoneID 480).
+---@param tier string Tier-set name.
+---@param count number Required piece count.
 ---@return boolean
 function Player:HasTier(tier, count) end
 
---- Dagger itemID
----@param isEquiped? any
----@return number
+--- itemID of main-hand dagger (bag or equipped), or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasWeaponMainOneHandDagger(isEquiped) end
 
---- Sword itemID
----@param isEquiped? any
----@return number
+--- itemID of main-hand 1H sword (bag or equipped), or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasWeaponMainOneHandSword(isEquiped) end
 
---- Off-hand itemID
----@param isEquiped? any
----@return number
+--- itemID of off-hand weapon (bag or equipped), or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasWeaponOffHand(isEquiped) end
 
---- Off sword itemID
----@param isEquiped? any
----@return number
+--- itemID of off-hand 1H sword (bag or equipped), or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasWeaponOffOneHandSword(isEquiped) end
 
---- Two-hand itemID
----@param isEquiped? any
----@return number
+--- itemID of a two-hand weapon (bag or equipped), or nil.
+---@param isEquiped? boolean True = check equipped instead of bag.
+---@return number|nil itemID
 function Player:HasWeaponTwoHand(isEquiped) end
 
---- Haste %
+--- Haste percent (GetHaste()).
 ---@return number
 function Player:HastePct() end
 
---- Current HP
+--- Current holy power (retail-compat; 0 on TBC).
 ---@return number
 function Player:HolyPower() end
 
----@return any
+---@return number
 function Player:HolyPowerDeficit() end
 
----@return any
+---@return number
 function Player:HolyPowerDeficitPercentage() end
 
---- Max HP
+--- Max holy power (retail-compat; 0 on TBC).
 ---@return number
 function Player:HolyPowerMax() end
 
----@return any
+---@return number
 function Player:HolyPowerPercentage() end
 
---- Current insanity
+--- Current insanity (retail-compat; 0 on TBC).
 ---@return number
 function Player:Insanity() end
 
----@return any
+---@return number
 function Player:InsanityDeficit() end
 
----@return any
+---@return number
 function Player:InsanityDeficitPercentage() end
 
---- Max insanity
+--- Max insanity (retail-compat; 0 on TBC).
 ---@return number
 function Player:InsanityMax() end
 
----@return any
+---@return number
 function Player:InsanityPercentage() end
 
----@return any
+--- Insanity **drain** rate (units/sec) derived from Voidform stacks, not a resource amount.
+--- (Method name is misspelled in source — missing the "D".)
+---@return number
 function Player:Insanityrain() end
 
---- Melee auto-attack
+--- Melee auto-attack active (combat-log driven).
 ---@return boolean
 function Player:IsAttacking() end
 
---- Behind target
----@param x? any
+--- True if player has been behind the target for `x` seconds (UI-error tracking).
+---@param x? number Seconds threshold (default 2.5).
 ---@return boolean
 function Player:IsBehind(x) end
 
---- Seconds since not behind
+--- Seconds since the last "not behind" UI error.
 ---@return number
 function Player:IsBehindTime() end
 
---- Spell name or nil
----@return string
+--- Name of the current non-channel cast, else nil.
+---@return string|nil
 function Player:IsCasting() end
 
---- Spell name or nil
----@return string
+--- Name of the current channel, else nil.
+---@return string|nil
 function Player:IsChanneling() end
 
---- Is falling, duration
----@return boolean, number
+--- More accurate fall check (excludes jumps; only true after >1.7s falling).
+---@return boolean isFalling, number secondsFalling
 function Player:IsFalling() end
 
---- Player mounted
+--- True if mounted, excluding druid travel/aquatic forms that read as mounted.
 ---@return boolean
 function Player:IsMounted() end
 
---- Player moving
+--- True if currently moving.
 ---@return boolean
 function Player:IsMoving() end
 
---- Seconds moving
+--- Seconds since movement started (0 if stationary).
 ---@return number
 function Player:IsMovingTime() end
 
---- Pet behind target
----@param x? any
+--- True if pet behind target for `x` sec.
+---@param x? number Seconds threshold (default 2.5).
 ---@return boolean
 function Player:IsPetBehind(x) end
 
---- Pet behind time
+--- Seconds since last pet "not behind" error.
 ---@return number
 function Player:IsPetBehindTime() end
 
---- Auto-shot active
+--- Auto-shoot (auto-repeat) active.
 ---@return boolean
 function Player:IsShooting() end
 
---- In stance X
----@param x? any
+--- True if current shapeshift form equals `x`.
+---@param x number Shapeshift form index.
 ---@return boolean
 function Player:IsStance(x) end
 
---- Player stationary
+--- True if currently stationary.
 ---@return boolean
 function Player:IsStaying() end
 
---- Seconds stationary
+--- Seconds since stopped moving (0 if moving).
 ---@return number
 function Player:IsStayingTime() end
 
---- Player stealthed
+--- True if stealthed (incl. class prowl/stealth/vanish auras and NightElf Shadowmeld).
 ---@return boolean
 function Player:IsStealthed() end
 
---- Swap locked
+--- True while an equip swap is in progress (must be checked before any swap).
 ---@return boolean
 function Player:IsSwapLocked() end
 
---- Player swimming
+--- IsSwimming() or IsSubmerged().
 ---@return boolean
 function Player:IsSwimming() end
 
---- Current maelstrom
+--- Current maelstrom (retail-compat; 0 on TBC).
 ---@return number
 function Player:Maelstrom() end
 
----@return any
+---@return number
 function Player:MaelstromDeficit() end
 
----@return any
+---@return number
 function Player:MaelstromDeficitPercentage() end
 
---- Max maelstrom
+--- Max maelstrom (retail-compat; 0 on TBC).
 ---@return number
 function Player:MaelstromMax() end
 
----@return any
+---@return number
 function Player:MaelstromPercentage() end
 
---- Current mana
+--- Current mana.
 ---@return number
 function Player:Mana() end
 
---- Mana during cast
----@param CastTime? any
+--- Mana regained over `CastTime`; -1 if regen is 0.
+---@param CastTime number
 ---@return number
 function Player:ManaCastRegen(CastTime) end
 
---- Missing mana
+--- Missing mana.
 ---@return number
 function Player:ManaDeficit() end
 
---- Predicted deficit
+--- Predicted missing mana.
 ---@return number
 function Player:ManaDeficitP() end
 
---- Missing mana %
+--- Missing mana %.
 ---@return number
 function Player:ManaDeficitPercentage() end
 
---- Predicted deficit %
+--- Predicted missing mana %.
 ---@return number
 function Player:ManaDeficitPercentageP() end
 
---- Max mana
+--- Max mana.
 ---@return number
 function Player:ManaMax() end
 
---- Predicted mana
+--- Predicted mana after current cast (cost subtracted + cast regen, capped).
 ---@return number
 function Player:ManaP() end
 
---- Mana %
+--- Mana %.
 ---@return number
 function Player:ManaPercentage() end
 
---- Predicted mana %
+--- Predicted mana %.
 ---@return number
 function Player:ManaPercentageP() end
 
---- Mana/second
+--- Mana/sec (floor(GetPowerRegen)).
 ---@return number
 function Player:ManaRegen() end
 
---- Mana during remaining cast
----@param Offset? any
+--- Mana regained over remaining cast (or GCD if not casting) + `Offset`; -1 if no regen.
+---@param Offset? number
 ---@return number
 function Player:ManaRemainingCastRegen(Offset) end
 
---- Seconds to full
+--- Seconds to full mana; -1 if no regen.
 ---@return number
 function Player:ManaTimeToMax() end
 
---- Seconds to X
----@param Amount? any
+--- Seconds to reach `Amount` mana; -1 if no regen, 0 if already there.
+---@param Amount number
 ---@return number
 function Player:ManaTimeToX(Amount) end
 
---- Current pain
+--- Current pain (retail-compat; 0 on TBC).
 ---@return number
 function Player:Pain() end
 
----@return any
+---@return number
 function Player:PainDeficit() end
 
----@return any
+---@return number
 function Player:PainDeficitPercentage() end
 
---- Max pain
+--- Max pain (retail-compat; 0 on TBC).
 ---@return number
 function Player:PainMax() end
 
----@return any
+---@return number
 function Player:PainPercentage() end
 
---- Current rage
+--- Current rage.
 ---@return number
 function Player:Rage() end
 
---- Missing rage
+--- Missing rage.
 ---@return number
 function Player:RageDeficit() end
 
---- Missing rage %
+--- Missing rage %.
 ---@return number
 function Player:RageDeficitPercentage() end
 
---- Max rage
+--- Max rage.
 ---@return number
 function Player:RageMax() end
 
---- Rage %
+--- Rage %.
 ---@return number
 function Player:RagePercentage() end
 
----@return any
+--- Registers arrow + bullet bag trackers (AMMO1/AMMO2).
+---@return nil
 function Player:RegisterAmmo() end
 
----@return any
+--- Registers shield bag + offhand inventory trackers.
+---@return nil
 function Player:RegisterShield() end
 
----@return any
+--- Registers thrown-weapon bag tracker.
+---@return nil
 function Player:RegisterThrown() end
 
----@return any
+--- Registers main-hand dagger trackers.
+---@return nil
 function Player:RegisterWeaponMainOneHandDagger() end
 
----@return any
+--- Registers main-hand 1H sword trackers.
+---@return nil
 function Player:RegisterWeaponMainOneHandSword() end
 
----@return any
+--- Registers off-hand weapon trackers (5 bag subclasses + inv).
+---@return nil
 function Player:RegisterWeaponOffHand() end
 
----@return any
+--- Registers off-hand 1H sword trackers.
+---@return nil
 function Player:RegisterWeaponOffOneHandSword() end
 
----@return any
+--- Registers two-hand weapon trackers (5 bag + 5 inv subclasses).
+---@return nil
 function Player:RegisterWeaponTwoHand() end
 
---- Unregister bag
----@param name? any
+--- Unregister bag matcher.
+---@param name string
 ---@return nil
 function Player:RemoveBag(name) end
 
---- Unregister inv
----@param name? any
+--- Unregister inventory matcher.
+---@param name string
 ---@return nil
 function Player:RemoveInv(name) end
 
---- Unregister tier
----@param tier? any
+--- Unregister tier set.
+---@param tier string
 ---@return nil
 function Player:RemoveTier(tier) end
 
----@param inv? any
----@param dur? any
----@return any
+--- Overrides the tracked swing duration for the slot(s).
+---@param inv number Slot (same semantics as GetSwing).
+---@param dur number New duration.
+---@return nil
 function Player:ReplaceSwingDuration(inv, dur) end
 
---- Ready runes
----@param presence? any
+--- Count of ready runes of `presence` plus death runes; applies recovery offset. Retail-compat.
+---@param presence number|string Rune presence (name/const).
 ---@return number
 function Player:Rune(presence) end
 
---- Seconds to X runes
----@param Value? any
+--- Seconds until `Value`-th rune is ready; errors if out of range. Retail-compat.
+---@param Value number Rune index 1-6.
 ---@return number
 function Player:RuneTimeToX(Value) end
 
---- Current RP
+--- Current runic power (retail-compat; 0 on TBC).
 ---@return number
 function Player:RunicPower() end
 
---- Missing RP
+--- Missing runic power.
 ---@return number
 function Player:RunicPowerDeficit() end
 
---- Missing RP %
+--- Missing runic power %.
 ---@return number
 function Player:RunicPowerDeficitPercentage() end
 
---- Max RP
+--- Max runic power (retail-compat; 0 on TBC).
 ---@return number
 function Player:RunicPowerMax() end
 
---- RP %
+--- Runic power %.
 ---@return number
 function Player:RunicPowerPercentage() end
 
---- Current shards
+--- Current soul shards (retail-compat; 0 on TBC).
 ---@return number
 function Player:SoulShards() end
 
---- Missing shards
+--- Missing soul shards.
 ---@return number
 function Player:SoulShardsDeficit() end
 
---- Max shards
+--- Max soul shards (retail-compat; 0 on TBC).
 ---@return number
 function Player:SoulShardsMax() end
 
---- Predicted shards
+--- Predicted shards (default = current; overridden per spec).
 ---@return number
 function Player:SoulShardsP() end
 
---- Spell haste multiplier
+--- Spell-haste multiplier 1/(1+haste%/100).
 ---@return number
 function Player:SpellHaste() end
 
---- Current stagger
+--- Current stagger (UnitStagger). Retail-compat; 0 on TBC.
 ---@return number
 function Player:Stagger() end
 
---- Max stagger
+--- Max stagger (= Unit:HealthMax()).
 ---@return number
 function Player:StaggerMax() end
 
---- Stagger %
+--- Stagger as % of max health.
 ---@return number
 function Player:StaggerPercentage() end
 
---- Target behind player
----@param x? any
+--- True if target is behind the player within `x` sec, guarded by target GUID.
+---@param x? number Seconds threshold (default 2.5).
 ---@return boolean
 function Player:TargetIsBehind(x) end
 
---- Target behind time
+--- Seconds since target was behind player (GUID-guarded).
 ---@return number
 function Player:TargetIsBehindTime() end

@@ -199,7 +199,7 @@ builds, distributes, and supports it. It is a **pnpm + corepack monorepo** (ESM,
 | `apps/website/` | Astro static site for distributing scripts + docs. | `apps/website/AGENTS.md` |
 | `packages/tmw-profile-builder/` | Reusable, content-agnostic TMW build/watch/sync engine (ships compiled `dist/`). | `packages/tmw-profile-builder/AGENTS.md` |
 | `packages/log-analyzer/` | Reusable Warcraft Logs analyzer library + CLI (`tsx`-run). | `packages/log-analyzer/AGENTS.md` |
-| `docs/` | Research, plans, API stubs/reference. `docs/<CLASS>_RESEARCH.md`, `docs/NEW_CLASS_GUIDE.md`, `docs/plans/`. | — |
+| `docs/` | Research, plans, API stubs/reference. `docs/<CLASS>_RESEARCH.md`, `docs/NEW_CLASS_GUIDE.md`, `docs/plans/`. **Engine API:** `docs/api/ENGINES.md` (verified human reference for the Action framework engines — Unit/targeting, HealingEngine, MultiUnits, CombatTracker, Player) + the EmmyLua stubs `docs/api/*.lua` (IntelliSense). | — |
 
 **Scope = directory.** Read this root doc, then the `AGENTS.md` for the area you're touching, and
 (for rotation work) the specific class folder's `AGENTS.md`. You should not need to read sibling
