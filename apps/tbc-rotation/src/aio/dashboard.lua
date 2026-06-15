@@ -673,59 +673,17 @@ local function icon_rows(count)
 end
 
 -- ============================================================================
--- UPDATE
+-- UPDATE SECTION RENDERERS
+-- Each renders one dashboard section against the shared file-level upvalues
+-- (ui, layout constants, Player/Unit). Helpers that occupy vertical space take
+-- the running layout cursor (content_y / y) and return its advanced value, so
+-- update_dashboard reads as a thin top-to-bottom layout. Behavior-preserving
+-- extraction -- the orchestrator still owns separators and cursor threading.
 -- ============================================================================
-local function update_dashboard()
-    if not dashboard_frame or not dashboard_frame:IsShown() then return end
 
-    local cc = rotation_registry and rotation_registry.class_config
-    if not cc then return end
-
-    local dash_config = cc.dashboard
-    if not dash_config then return end
-
-    -- Reuse the full rotation context when it is fresh; fall back to a lightweight
-    -- dashboard context only when the rotation has not run recently.
-    local source_context = NS.last_rotation_context
-    local source_time = NS.last_rotation_context_time or 0
-    if source_context and (GetTime() - source_time) <= 0.25 then
-        -- NOTE: when fresh, dash_context aliases the live reusable rotation context
-        -- (NS.last_rotation_context). Treat as READ-ONLY here -- writing it corrupts the
-        -- next rotation frame within the 0.25s window.
-        dash_context = source_context
-    else
-        dash_context.settings = NS.cached_settings
-        if cc.extend_context then
-            cc.extend_context(dash_context)
-        end
-    end
-
-    -- Header: class name + playstyle in one line
-    -- Fall back to last valid playstyle when current returns nil (e.g. Druid flight form)
-    local accent_hex = THEME.accent_hex or "e08a3c"
-    local active_ps = cc.get_active_playstyle and cc.get_active_playstyle(dash_context)
-    if active_ps then
-        last_valid_ps = active_ps
-    else
-        active_ps = last_valid_ps or cc.idle_playstyle_name or "?"
-    end
-    local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
-    ui.header_text:SetText(format("|cff%s%s|r |cffb3a587\194\183|r |cff%s%s|r", accent_hex, cc.name or "Unknown", accent_hex, ps_display))
-    if ui.version_text then
-        local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc.version or "")
-        ui.version_text:SetText(class_version)
-    end
-
-    -- Update accent stripe to the shared class-resolved accent.
-    if ui.accent_stripe then
-        ui.accent_stripe:SetColorTexture(THEME.accent[1], THEME.accent[2], THEME.accent[3], 0.8)
-    end
-
-    local f = dashboard_frame
-    local bar_max = FRAME_WIDTH - 18
-
-    -- Energy tick tracker: prefer class-provided frame-level tracker (e.g. cat.lua),
-    -- fall back to dashboard's own 10Hz tracker for classes without one (e.g. future Rogue)
+--- Energy tick tracker: prefer a class-provided frame-level tracker (e.g. cat.lua),
+--- and fall back to the dashboard's own 10Hz tracker for classes without one.
+local function dash_resolve_energy_tracker()
     local now = GetTime()
     local ett = NS.energy_tick_tracker or energy_tick_tracker
     if not NS.energy_tick_tracker then
@@ -744,8 +702,11 @@ local function update_dashboard()
         end
         ett.last_energy = cur_energy
     end
+    return ett
+end
 
-    -- Primary resource bar
+--- Primary resource bar (fixed position below the header).
+local function dash_update_primary_resource(dash_config, active_ps, ett, bar_max)
     local res = resolve_config(dash_config.resource, active_ps)
     if res then
         local value = 0
@@ -793,12 +754,10 @@ local function update_dashboard()
         ui.tick_marker:Hide()
         ui.sweep_dot:Hide()
     end
+end
 
-    -- Secondary resource bar (e.g., energy/rage when primary is mana)
-    -- Hand-tuned start for dynamically-positioned content, approximating the
-    -- setup-layout y after the primary resource bar: header (-6, then -18) +
-    -- separator (-4) + RES_BAR_H (12) + gap. Keep in sync if those constants change.
-    local content_y = -40
+--- Secondary resource bar (e.g. energy/rage when the primary bar is mana).
+local function dash_update_secondary_resource(f, dash_config, active_ps, ett, bar_max, content_y)
     local res2 = resolve_config(dash_config.secondary_resource, active_ps)
     if res2 then
         local value = 0
@@ -851,8 +810,11 @@ local function update_dashboard()
         ui.tick_marker2:Hide()
         ui.sweep_dot2:Hide()
     end
+    return content_y
+end
 
-    -- Combo point pips (shown for playstyles that register combo_points)
+--- Combo point pips (shown for playstyles that register combo_points).
+local function dash_update_combo_pips(f, dash_config, active_ps, content_y)
     local cp_playstyles = dash_config.combo_points
     local show_pips = false
     if cp_playstyles then
@@ -890,8 +852,11 @@ local function update_dashboard()
             ui.combo_pips[i].frame:Hide()
         end
     end
+    return content_y
+end
 
-    -- Timer bars (GCD built-in + class timers)
+--- Timer bars: GCD (built-in) + the swing/shoot timer driven by swing_label.
+local function dash_update_timer_bars(f, dash_config, active_ps, content_y)
     local timer_idx = 1
     local class_A = NS.A
 
@@ -941,31 +906,11 @@ local function update_dashboard()
     end
 
     content_y = content_y - 4
+    return content_y
+end
 
-    -- Separator: resources/timers → priority
-    local sep_idx = 0
-    sep_idx = sep_idx + 1
-    local sep_top = ui.section_seps[sep_idx]
-    sep_top:ClearAllPoints()
-    sep_top:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
-    sep_top:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
-    sep_top:Show()
-    content_y = content_y - 4
-
-    -- Current Priority (inline)
-    local la = last_action
-    if la and la.name then
-        local target_text = la.target and format(" |cffb3a587[%s]|r", la.target) or ""
-        ui.priority_text:SetText(format("|cff%sPriority|r  > %s%s", accent_hex, la.name, target_text))
-    else
-        ui.priority_text:SetText(format("|cff%sPriority|r  |cff444444Idle|r", accent_hex))
-    end
-    ui.priority_text:ClearAllPoints()
-    ui.priority_text:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
-    ui.priority_text:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
-    content_y = content_y - 11
-
-    -- Recent cast icons (CLEU-confirmed) — collapses when no history
+--- Recent cast icons (CLEU-confirmed) — collapses when there is no history.
+local function dash_update_recent_icons(f, content_y)
     if history_count > 0 then
         ui.recent_label_fs:ClearAllPoints()
         ui.recent_label_fs:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
@@ -1003,35 +948,11 @@ local function update_dashboard()
             ui.history_icon_slots[i].frame:Hide()
         end
     end
+    return content_y
+end
 
-    ui.sep2_tex:ClearAllPoints()
-    ui.sep2_tex:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
-    ui.sep2_tex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
-    local sections_y = content_y - 3
-    local tname = UnitName("target")
-    local cd_list = resolve_list(dash_config.cooldowns, active_ps)
-    local buff_list = resolve_list(dash_config.buffs, active_ps)
-    local debuff_list = resolve_list(dash_config.debuffs, active_ps)
-    local num_cds = cd_list and math_min(#cd_list, MAX_COOLDOWNS) or 0
-    local num_buffs = buff_list and math_min(#buff_list, MAX_BUFFS) or 0
-    local num_debuffs = debuff_list and math_min(#debuff_list, MAX_DEBUFFS) or 0
-
-    -- Collapse debuffs when no target and all debuffs are target-based
-    local show_debuffs = num_debuffs > 0
-    if show_debuffs and not tname then
-        local all_target = true
-        for di = 1, num_debuffs do
-            if not debuff_list[di].target then
-                all_target = false
-                break
-            end
-        end
-        if all_target then show_debuffs = false end
-    end
-
-    local y = sections_y
-
-    -- ---- COOLDOWNS SECTION ----
+--- Cooldowns icon grid (spell + equipped-item cooldowns).
+local function dash_update_cooldowns(f, cd_list, num_cds, y)
     if num_cds > 0 then
         local label_y = y - 1
         local icons_y = y - 13
@@ -1089,19 +1010,11 @@ local function update_dashboard()
         ui.cd_label_fs:Hide()
         for i = 1, MAX_COOLDOWNS do ui.cd_slots[i].frame:Hide() end
     end
+    return y
+end
 
-    -- Separator: Cooldowns → Buffs
-    if num_cds > 0 and num_buffs > 0 then
-        sep_idx = sep_idx + 1
-        local sep = ui.section_seps[sep_idx]
-        sep:ClearAllPoints()
-        sep:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
-        sep:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
-        sep:Show()
-        y = y - 3
-    end
-
-    -- ---- BUFFS SECTION ----
+--- Buffs icon grid (player buffs with urgency coloring).
+local function dash_update_buffs(f, buff_list, num_buffs, y)
     if num_buffs > 0 then
         local label_y = y - 1
         local icons_y = y - 13
@@ -1151,24 +1064,11 @@ local function update_dashboard()
         ui.buff_label_fs:Hide()
         for i = 1, MAX_BUFFS do ui.buff_slots[i].frame:Hide() end
     end
+    return y
+end
 
-    -- Separator: Buffs → Target
-    if num_buffs > 0 or num_cds > 0 then
-        sep_idx = sep_idx + 1
-        local sep = ui.section_seps[sep_idx]
-        sep:ClearAllPoints()
-        sep:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
-        sep:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
-        sep:Show()
-        y = y - 3
-    end
-
-    -- Hide unused separators
-    for si = sep_idx + 1, 3 do
-        ui.section_seps[si]:Hide()
-    end
-
-    -- Target info
+--- Target name + TTD/distance stats line.
+local function dash_update_target_info(f, accent_hex, tname, y)
     if tname then
         local stats = ""
         local ttd = Unit("target"):TimeToDie() or 0
@@ -1195,8 +1095,11 @@ local function update_dashboard()
     ui.target_info_fs:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
     ui.target_info_fs:Show()
     y = y - 24
+    return y
+end
 
-    -- Threat bar (progress bar below target info)
+--- Threat progress bar (below the target info line).
+local function dash_update_threat_bar(f, tname, bar_max, y)
     local _, _, threat_pct = UnitDetailedThreatSituation("player", "target")
     if tname and threat_pct and threat_pct > 0 then
         local capped = threat_pct > 130 and 130 or threat_pct
@@ -1215,8 +1118,11 @@ local function update_dashboard()
     else
         ui.threat_bg:Hide()
     end
+    return y
+end
 
-    -- ---- DEBUFFS SECTION ----
+--- Debuffs icon grid (target/player debuffs with expiry + stack display).
+local function dash_update_debuffs(f, debuff_list, num_debuffs, show_debuffs, y)
     if show_debuffs then
         local label_y = y - 1
         local icons_y = y - 13
@@ -1289,8 +1195,11 @@ local function update_dashboard()
         ui.debuff_label_fs:Hide()
         for i = 1, MAX_DEBUFFS do ui.debuff_slots[i].frame:Hide() end
     end
+    return y
+end
 
-    -- Custom lines (text-based)
+--- Class-provided custom text lines (label/value pairs).
+local function dash_update_custom_lines(f, dash_config, y)
     local cl = dash_config.custom_lines
     local num_custom = 0
     for i = 1, MAX_CUSTOM_LINES do
@@ -1313,6 +1222,160 @@ local function update_dashboard()
     if num_custom > 0 then
         y = y - num_custom * 14 - 2
     end
+    return y
+end
+
+-- ============================================================================
+-- UPDATE
+-- ============================================================================
+local function update_dashboard()
+    if not dashboard_frame or not dashboard_frame:IsShown() then return end
+
+    local cc = rotation_registry and rotation_registry.class_config
+    if not cc then return end
+
+    local dash_config = cc.dashboard
+    if not dash_config then return end
+
+    -- Reuse the full rotation context when it is fresh; fall back to a lightweight
+    -- dashboard context only when the rotation has not run recently.
+    local source_context = NS.last_rotation_context
+    local source_time = NS.last_rotation_context_time or 0
+    if source_context and (GetTime() - source_time) <= 0.25 then
+        -- NOTE: when fresh, dash_context aliases the live reusable rotation context
+        -- (NS.last_rotation_context). Treat as READ-ONLY here -- writing it corrupts the
+        -- next rotation frame within the 0.25s window.
+        dash_context = source_context
+    else
+        dash_context.settings = NS.cached_settings
+        if cc.extend_context then
+            cc.extend_context(dash_context)
+        end
+    end
+
+    -- Header: class name + playstyle in one line
+    -- Fall back to last valid playstyle when current returns nil (e.g. Druid flight form)
+    local accent_hex = THEME.accent_hex or "e08a3c"
+    local active_ps = cc.get_active_playstyle and cc.get_active_playstyle(dash_context)
+    if active_ps then
+        last_valid_ps = active_ps
+    else
+        active_ps = last_valid_ps or cc.idle_playstyle_name or "?"
+    end
+    local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
+    ui.header_text:SetText(format("|cff%s%s|r |cffb3a587\194\183|r |cff%s%s|r", accent_hex, cc.name or "Unknown", accent_hex, ps_display))
+    if ui.version_text then
+        local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc.version or "")
+        ui.version_text:SetText(class_version)
+    end
+
+    -- Update accent stripe to the shared class-resolved accent.
+    if ui.accent_stripe then
+        ui.accent_stripe:SetColorTexture(THEME.accent[1], THEME.accent[2], THEME.accent[3], 0.8)
+    end
+
+    local f = dashboard_frame
+    local bar_max = FRAME_WIDTH - 18
+
+    local ett = dash_resolve_energy_tracker()
+
+    dash_update_primary_resource(dash_config, active_ps, ett, bar_max)
+
+    -- Secondary resource bar (e.g., energy/rage when primary is mana)
+    -- Hand-tuned start for dynamically-positioned content, approximating the
+    -- setup-layout y after the primary resource bar: header (-6, then -18) +
+    -- separator (-4) + RES_BAR_H (12) + gap. Keep in sync if those constants change.
+    local content_y = -40
+    content_y = dash_update_secondary_resource(f, dash_config, active_ps, ett, bar_max, content_y)
+    content_y = dash_update_combo_pips(f, dash_config, active_ps, content_y)
+    content_y = dash_update_timer_bars(f, dash_config, active_ps, content_y)
+
+    -- Separator: resources/timers → priority
+    local sep_idx = 0
+    sep_idx = sep_idx + 1
+    local sep_top = ui.section_seps[sep_idx]
+    sep_top:ClearAllPoints()
+    sep_top:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
+    sep_top:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
+    sep_top:Show()
+    content_y = content_y - 4
+
+    -- Current Priority (inline)
+    local la = last_action
+    if la and la.name then
+        local target_text = la.target and format(" |cffb3a587[%s]|r", la.target) or ""
+        ui.priority_text:SetText(format("|cff%sPriority|r  > %s%s", accent_hex, la.name, target_text))
+    else
+        ui.priority_text:SetText(format("|cff%sPriority|r  |cff444444Idle|r", accent_hex))
+    end
+    ui.priority_text:ClearAllPoints()
+    ui.priority_text:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
+    ui.priority_text:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
+    content_y = content_y - 11
+
+    content_y = dash_update_recent_icons(f, content_y)
+
+    ui.sep2_tex:ClearAllPoints()
+    ui.sep2_tex:SetPoint("TOPLEFT", f, "TOPLEFT", 8, content_y)
+    ui.sep2_tex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, content_y)
+    local sections_y = content_y - 3
+    local tname = UnitName("target")
+    local cd_list = resolve_list(dash_config.cooldowns, active_ps)
+    local buff_list = resolve_list(dash_config.buffs, active_ps)
+    local debuff_list = resolve_list(dash_config.debuffs, active_ps)
+    local num_cds = cd_list and math_min(#cd_list, MAX_COOLDOWNS) or 0
+    local num_buffs = buff_list and math_min(#buff_list, MAX_BUFFS) or 0
+    local num_debuffs = debuff_list and math_min(#debuff_list, MAX_DEBUFFS) or 0
+
+    -- Collapse debuffs when no target and all debuffs are target-based
+    local show_debuffs = num_debuffs > 0
+    if show_debuffs and not tname then
+        local all_target = true
+        for di = 1, num_debuffs do
+            if not debuff_list[di].target then
+                all_target = false
+                break
+            end
+        end
+        if all_target then show_debuffs = false end
+    end
+
+    local y = sections_y
+    y = dash_update_cooldowns(f, cd_list, num_cds, y)
+
+    -- Separator: Cooldowns → Buffs
+    if num_cds > 0 and num_buffs > 0 then
+        sep_idx = sep_idx + 1
+        local sep = ui.section_seps[sep_idx]
+        sep:ClearAllPoints()
+        sep:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
+        sep:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
+        sep:Show()
+        y = y - 3
+    end
+
+    y = dash_update_buffs(f, buff_list, num_buffs, y)
+
+    -- Separator: Buffs → Target
+    if num_buffs > 0 or num_cds > 0 then
+        sep_idx = sep_idx + 1
+        local sep = ui.section_seps[sep_idx]
+        sep:ClearAllPoints()
+        sep:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
+        sep:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
+        sep:Show()
+        y = y - 3
+    end
+
+    -- Hide unused separators
+    for si = sep_idx + 1, 3 do
+        ui.section_seps[si]:Hide()
+    end
+
+    y = dash_update_target_info(f, accent_hex, tname, y)
+    y = dash_update_threat_bar(f, tname, bar_max, y)
+    y = dash_update_debuffs(f, debuff_list, num_debuffs, show_debuffs, y)
+    y = dash_update_custom_lines(f, dash_config, y)
 
     -- Auto-resize frame height
     dashboard_frame:SetHeight(math_max(-y + 10, 80))
