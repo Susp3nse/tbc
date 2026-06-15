@@ -67,18 +67,9 @@ Action[A.PlayerClass] = {
     SelfArcaneBrilliance = Create({ Type = "Spell", ID = 23028, useMaxRank = true, Click = { unit = "player", type = "spell" } }),
 
     -- Items
-    SuperManaPotion    = Create({ Type = "Item", ID = 22832, Click = { unit = "player", type = "item", item = 22832 } }),
-    SuperHealingPotion = Create({ Type = "Item", ID = 22829, Click = { unit = "player", type = "item", item = 22829 } }),
-    MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
-    DarkRune           = Create({ Type = "Item", ID = 20520, Click = { unit = "player", type = "item", item = 20520 } }),
-    DemonicRune        = Create({ Type = "Item", ID = 12662, Click = { unit = "player", type = "item", item = 12662 } }),
     ManaEmerald        = Create({ Type = "Item", ID = 22044, Click = { unit = "player", type = "item", item = 22044 } }),
     ManaRuby           = Create({ Type = "Item", ID = 8008,  Click = { unit = "player", type = "item", item = 8008 } }),
     ManaCitrine        = Create({ Type = "Item", ID = 8007,  Click = { unit = "player", type = "item", item = 8007 } }),
-
-    -- Healthstones
-    HealthstoneMaster = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
-    HealthstoneMajor  = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
 }
 
 -- ============================================================================
@@ -86,6 +77,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

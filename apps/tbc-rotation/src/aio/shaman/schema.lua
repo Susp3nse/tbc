@@ -26,19 +26,12 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
-        { header = "Spec Selection", settings = {
-            { type = "dropdown", key = "playstyle", default = "elemental", label = "Active Spec",
-              tooltip = "Which spec rotation to use.",
-              options = {
-                  { value = "elemental", text = "Elemental" },
-                  { value = "enhancement", text = "Enhancement" },
-                  { value = "restoration", text = "Restoration" },
-              }},
-        }},
+        S.immunity(),
+        S.spec({ default = "elemental", options = {
+            { value = "elemental", text = "Elemental" },
+            { value = "enhancement", text = "Enhancement" },
+            { value = "restoration", text = "Restoration" },
+        }}),
         { header = "Shield", settings = {
             { type = "dropdown", key = "shield_type", default = "auto", label = "Shield Type",
               tooltip = "Shield to maintain. Auto = Water Shield for Ele/Resto, Lightning Shield for Enh.",
@@ -78,10 +71,9 @@ _G.Menagerie_SETTINGS_SCHEMA = {
                   { value = "group_only", text = "Only in Group" },
               }},
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, SR, Fire Ele, racial, totems) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns({
+            tooltip = "Don't use major CDs (trinkets, SR, Fire Ele, racial, totems) if target dies sooner than this. Set to 0 to disable.",
+        }),
         { header = "Utility", settings = {
             { type = "checkbox", key = "use_interrupt", default = true, label = "Auto Interrupt",
               tooltip = "Earth Shock interrupt (TBC has no Wind Shear)." },
@@ -105,9 +97,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             healing_potion_toggle_tooltip = "Use Healing Potion when HP drops low in combat.",
             healing_potion_tooltip = "Use Healing Potion when HP drops below this.",
         }),
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Elemental

@@ -26,10 +26,7 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
+        S.immunity(),
         { header = "Shared Combat", settings = {
             { type = "checkbox", key = "mouseover", default = false, label = "Use @mouseover", tooltip = "Use mouseover targeting.", hidden = true },
             { type = "checkbox", key = "use_target_focus_behind", default = false, label = "Target Focus Behind Check", tooltip = "Treat 'behind' as 'target isn't targeting me' instead of geometric position. Bypasses the positional debounce." },
@@ -59,10 +56,7 @@ _G.Menagerie_SETTINGS_SCHEMA = {
               }},
             { type = "checkbox", key = "use_racial", default = true, label = "Use Racial Ability", tooltip = "Use racial DPS cooldown (Berserking / Blood Fury)." },
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         { header = "Recovery Items", settings = {
             { type = "checkbox", key = "use_healthstone", default = true, label = "Use Healthstone", tooltip = "Use Healthstone when HP drops below threshold." },
             { type = "slider", key = "healthstone_hp", default = 30, min = 15, max = 50, label = "Healthstone HP (%)", tooltip = "Use Healthstone below this HP.", format = "%d%%" },
@@ -82,9 +76,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "use_innervate_self", default = true, label = "Innervate Self (Solo)", tooltip = "Use Innervate on yourself when low mana and solo." },
             { type = "slider", key = "innervate_mana", default = 30, min = 15, max = 50, label = "Innervate Mana (%)", tooltip = "Use Innervate below this mana %.", format = "%d%%" },
         }},
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Cat (Feral DPS)

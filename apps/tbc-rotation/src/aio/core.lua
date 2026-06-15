@@ -1096,6 +1096,9 @@ function rotation_registry:register_class(config)
    for _, ps in ipairs(config.playstyles) do
       self.strategy_maps[ps] = self.strategy_maps[ps] or {}
    end
+   if config.auto_trinkets ~= false and NS.register_trinket_middleware then
+      NS.register_trinket_middleware()
+   end
 end
 
 local last_validated_playstyle = nil
@@ -1252,26 +1255,64 @@ local function create_racial_strategy(opts)
       is_burst = true,
       setting_key = "use_racial",
 
-      matches = function(context)
+      matches = function(context, state)
          if NS.ttd_too_short(context) then return false end
+         if opts.extra_match and not opts.extra_match(context, state) then return false end
          for i = 1, #spells do
-            local action = spells[i][1]
-            if action and action:IsReady(PLAYER_UNIT) then return true end
+            local entry = spells[i]
+            local predicate = entry[3]
+            if not predicate or predicate(context, state) then
+               local action = entry[1]
+               if action and action:IsReady(PLAYER_UNIT) then return true end
+            end
          end
          return false
       end,
 
-      execute = function(icon)
+      execute = function(icon, context, state)
          for i = 1, #spells do
-            local action = spells[i][1]
-            if action and action:IsReady(PLAYER_UNIT) then
-               return action:Show(icon), "[" .. prefix .. "] " .. spells[i][2]
+            local entry = spells[i]
+            local predicate = entry[3]
+            if not predicate or predicate(context, state) then
+               local action = entry[1]
+               if action and action:IsReady(PLAYER_UNIT) then
+                  return action:Show(icon), "[" .. prefix .. "] " .. entry[2]
+               end
             end
          end
          return nil
       end,
    }
 end
+
+local CONSUMABLE_ACTIONS = {
+   { "SuperHealingPotion", 22829, "Potion" },
+   { "MajorHealingPotion", 13446, "Potion" },
+   { "SuperManaPotion",    22832, "Potion" },
+   { "DarkRune",           20520, "Item" },
+   { "DemonicRune",        12662, "Item" },
+   { "HealthstoneMaster",  22105, "Item" },
+   { "HealthstoneMajor",   22104, "Item" },
+   { "HealthstoneFel",     22103, "Item" },
+}
+
+local function register_consumable_actions(A_class)
+   if not A_class or not A_class.Create then return end
+
+   local Create = A_class.Create
+   for i = 1, #CONSUMABLE_ACTIONS do
+      local entry = CONSUMABLE_ACTIONS[i]
+      local item_id = entry[2]
+      A_class[entry[1]] = Create({
+         Type = entry[3],
+         ID = item_id,
+         QueueForbidden = true,
+         Click = { unit = "player", type = "item", item = item_id },
+      })
+   end
+end
+
+NS.register_consumable_actions = register_consumable_actions
 
 --- Name wrapper: sets strategy.name at registration site
 local function named(n, s) s.name = n; return s end
@@ -1496,7 +1537,7 @@ NS.register_recovery_middleware = register_recovery_middleware
 -- ============================================================================
 -- TRINKET MIDDLEWARE FACTORY
 -- ============================================================================
--- Called from each class's middleware.lua after NS.A is available.
+-- Auto-registered by register_class() after NS.A is available.
 -- Uses the framework's auto-created A.Trinket1/A.Trinket2 (TrinketBySlot)
 -- directly — same pattern as Triptastic's working implementation.
 -- IMPORTANT: class.lua must NOT Create({ Type = "Trinket" }) as that

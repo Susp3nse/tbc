@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 local ttd_too_short = NS.ttd_too_short
 local SealOfBloodAction = NS.SealOfBloodAction
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
@@ -170,27 +171,11 @@ local Ret_AvengingWrath = {
 }
 
 -- [2] Racial (off-GCD)
-local Ret_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-
-    matches = function(context, state)
-        if not context.settings.use_racial then return false end
-        if ttd_too_short(context) then return false end
-        return true
-    end,
-
-    execute = function(icon, context, state)
-        if A.Stoneform:IsReady(PLAYER_UNIT) then
-            return A.Stoneform:Show(icon), "[RET] Stoneform"
-        end
-        if context.hp < 60 and A.GiftOfTheNaaru and A.GiftOfTheNaaru:IsReady(PLAYER_UNIT) then
-            return A.GiftOfTheNaaru:Show(icon), "[RET] Gift of the Naaru"
-        end
-        return nil
-    end,
+local RET_RACIAL_SPELLS = {
+    { A.Stoneform, "Stoneform" },
+    { A.GiftOfTheNaaru, "Gift of the Naaru", function(context) return context.hp < 60 end },
 }
+local Ret_Racial = create_racial_strategy({ prefix = "RET", spells = RET_RACIAL_SPELLS })
 
 -- [3] Opener: Seal of the Crusader → Judgement (Heart of the Crusader, +3% raid crit)
 -- Fires only in the first few seconds of combat and stops permanently once the

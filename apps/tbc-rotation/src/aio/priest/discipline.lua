@@ -21,6 +21,7 @@ local is_spell_available = NS.is_spell_available
 local try_cast_fmt = NS.try_cast_fmt
 local try_heal_cast_fmt = NS.try_heal_cast_fmt
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 local scan_healing_targets = NS.scan_healing_targets
 local get_tank_target = NS.get_tank_target
 local count_below_hp = NS.count_below_hp
@@ -59,6 +60,12 @@ local function get_disc_state(context)
 
     return disc_state
 end
+
+local DISC_RACIAL_SPELLS = {
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
+}
+local Disc_Racial = create_racial_strategy({ prefix = "DISC", spells = DISC_RACIAL_SPELLS })
 
 -- ============================================================================
 -- DISCIPLINE STRATEGIES
@@ -193,25 +200,7 @@ rotation_registry:register("discipline", {
     }),
 
     -- [8] Racial (off-GCD)
-    named("Racial", {
-        is_gcd_gated = false,
-        setting_key = "use_racial",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if is_spell_available(A.Berserking) and A.Berserking:IsReady(PLAYER_UNIT) then return true end
-            if is_spell_available(A.ArcaneTorrent) and A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-            return false
-        end,
-        execute = function(icon, context, state)
-            if is_spell_available(A.Berserking) and A.Berserking:IsReady(PLAYER_UNIT) then
-                return A.Berserking:Show(icon), "[DISC] Berserking"
-            end
-            if is_spell_available(A.ArcaneTorrent) and A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-                return A.ArcaneTorrent:Show(icon), "[DISC] Arcane Torrent"
-            end
-            return nil
-        end,
-    }),
+    named("Racial", Disc_Racial),
 
     -- [9] PW:S on non-tank (if not tank-only mode)
     named("ShieldOthers", {

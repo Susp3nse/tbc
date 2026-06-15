@@ -26,19 +26,12 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
-        { header = "Spec Selection", settings = {
-            { type = "dropdown", key = "playstyle", default = "fire", label = "Active Spec",
-              tooltip = "Which spec rotation to use.",
-              options = {
-                  { value = "fire", text = "Fire" },
-                  { value = "frost", text = "Frost" },
-                  { value = "arcane", text = "Arcane" },
-              }},
-        }},
+        S.immunity(),
+        S.spec({ default = "fire", options = {
+            { value = "fire", text = "Fire" },
+            { value = "frost", text = "Frost" },
+            { value = "arcane", text = "Arcane" },
+        }}),
         { header = "Armor", settings = {
             { type = "dropdown", key = "armor_type", default = "auto", label = "Armor Selection",
               tooltip = "Which armor spell to maintain. Auto = Molten Armor for all specs (best PvE).",
@@ -57,10 +50,7 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "slider", key = "aoe_threshold", default = 0, min = 0, max = 8, label = "AoE Threshold",
               tooltip = "Minimum enemies to switch to AoE rotation. Set to 0 to disable.", format = "%d" },
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         { header = "Utility", settings = {
             { type = "checkbox", key = "use_counterspell", default = true, label = "Auto Counterspell",
               tooltip = "Automatically interrupt enemy casts with Counterspell." },
@@ -84,9 +74,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "checkbox", key = "use_ice_barrier", default = false, label = "Use Ice Barrier",
               tooltip = "Maintain Ice Barrier absorb shield in combat (requires Frost talent)." },
         }},
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Fire

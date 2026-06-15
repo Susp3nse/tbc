@@ -109,17 +109,6 @@ Action[A.PlayerClass] = {
     BlessingOfWisdom = Create({ Type = "Spell", ID = 19742, useMaxRank = true, Click = { unit = "player", type = "spell" } }),
     BlessingOfKings  = Create({ Type = "Spell", ID = 20217, Click = { unit = "player", type = "spell", spell = 20217 } }),
 
-    -- Items
-    SuperManaPotion    = Create({ Type = "Item", ID = 22832 }),
-    SuperHealingPotion = Create({ Type = "Item", ID = 22829 }),
-    MajorHealingPotion = Create({ Type = "Item", ID = 13446 }),
-    DarkRune           = Create({ Type = "Item", ID = 20520 }),
-    DemonicRune        = Create({ Type = "Item", ID = 12662 }),
-
-    -- Healthstones
-    HealthstoneMaster = Create({ Type = "Item", ID = 22105 }),
-    HealthstoneMajor  = Create({ Type = "Item", ID = 22104 }),
-
     -- Buff tracking
     Heroism   = Create({ Type = "Spell", ID = 32182 }),
     Bloodlust = Create({ Type = "Spell", ID = 2825 }),
@@ -130,6 +119,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

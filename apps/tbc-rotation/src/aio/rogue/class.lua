@@ -69,10 +69,6 @@ Action[A.PlayerClass] = {
     -- Items
     HastePotion        = Create({ Type = "Item", ID = 22838, Click = { unit = "player", type = "item", item = 22838 } }),
     ThistleTea         = Create({ Type = "Item", ID = 7676, Click = { unit = "player", type = "item", item = 7676 } }),
-    SuperHealingPotion = Create({ Type = "Item", ID = 22829, Click = { unit = "player", type = "item", item = 22829 } }),
-    MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
-    HealthstoneMaster  = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
-    HealthstoneMajor   = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
 }
 
 -- ============================================================================
@@ -80,6 +76,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

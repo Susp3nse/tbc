@@ -26,29 +26,19 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
-        { header = "Spec Selection", settings = {
-            { type = "dropdown", key = "playstyle", default = "retribution", label = "Active Spec",
-              tooltip = "Which spec rotation to use.",
-              options = {
-                  { value = "retribution", text = "Retribution" },
-                  { value = "protection", text = "Protection" },
-                  { value = "holy", text = "Holy" },
-              }},
-        }},
+        S.immunity(),
+        S.spec({ default = "retribution", options = {
+            { value = "retribution", text = "Retribution" },
+            { value = "protection", text = "Protection" },
+            { value = "holy", text = "Holy" },
+        }}),
         { header = "Utility", settings = {
             { type = "checkbox", key = "use_cleanse", default = true, label = "Auto Cleanse",
               tooltip = "Automatically Cleanse poison, disease, and magic (if talented) from yourself." },
             { type = "checkbox", key = "use_hammer_of_justice", default = false, label = "Hammer of Justice",
               tooltip = "Use Hammer of Justice to interrupt enemy casts (stun, may break CC)." },
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         S.recovery({
             header = "Recovery Items",
             healthstone_hp = 35,
@@ -62,9 +52,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "slider", key = "lay_on_hands_hp", default = 0, min = 0, max = 40, label = "Lay on Hands HP (%)",
               tooltip = "Use Lay on Hands when HP drops below this. Set to 0 to disable. Drains all mana. Blocked by Forbearance.", format = "%d%%" },
         }},
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Retribution

@@ -22,6 +22,7 @@ local is_spell_available = NS.is_spell_available
 local try_cast = NS.try_cast
 local try_cast_fmt = NS.try_cast_fmt
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 
 local PLAYER_UNIT = "player"
 local TARGET_UNIT = "target"
@@ -43,6 +44,12 @@ local smite_state = {
 -- Base cast times with Divine Fury talent: Smite 2.0s, Holy Fire 3.0s
 local SMITE_CAST_BASE = 2.0
 local HF_CAST_BASE = 3.0
+
+local SMITE_RACIAL_SPELLS = {
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
+}
+local Smite_Racial = create_racial_strategy({ prefix = "SMITE", spells = SMITE_RACIAL_SPELLS })
 
 local function get_smite_state(context)
     if context._smite_valid then return smite_state end
@@ -204,23 +211,7 @@ rotation_registry:register("smite", {
     }),
 
     -- [9] Racial (off-GCD)
-    named("Racial", {
-        is_gcd_gated = false,
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if not context.settings.use_racial then return false end
-            return true
-        end,
-        execute = function(icon, context, state)
-            if is_spell_available(A.Berserking) and A.Berserking:IsReady(PLAYER_UNIT) then
-                return A.Berserking:Show(icon), "[SMITE] Berserking"
-            end
-            if is_spell_available(A.ArcaneTorrent) and A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-                return A.ArcaneTorrent:Show(icon), "[SMITE] Arcane Torrent"
-            end
-            return nil
-        end,
-    }),
+    named("Racial", Smite_Racial),
 
     -- [11] Smite (filler)
     named("SmiteFiller", {

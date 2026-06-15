@@ -130,14 +130,7 @@ Action[A.PlayerClass] = {
     Drums     = Create({ Type = "Spell", ID = 29529 }),
 
     -- Items
-    SuperHealingPotion = Create({ Type = "Potion", ID = 22829, QueueForbidden = true, Click = { unit = "player", type = "item", item = 22829 } }),
-    HSMaster1          = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
-    HSMaster2          = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
-    HSMaster3          = Create({ Type = "Item", ID = 22103, Click = { unit = "player", type = "item", item = 22103 } }),
     HastePotion        = Create({ Type = "Item", ID = 22838, Click = { unit = "player", type = "item", item = 22838 } }),
-    MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
-    DarkRune           = Create({ Type = "Item", ID = 20520, Click = { unit = "player", type = "item", item = 20520 } }),
-    DemonicRune        = Create({ Type = "Item", ID = 12662, Click = { unit = "player", type = "item", item = 12662 } }),
 
     -- Immunity/Pooling
     PoolResource = Create({ Type = "Spell", ID = 1, FixedTexture = 612968, Desc = "Target Immune - Stop DPS" }),
@@ -158,6 +151,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

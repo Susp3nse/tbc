@@ -58,7 +58,7 @@ NS.register_recovery_middleware({
     prefix = "Hunter",
     healthstone = {
         hp_default = 40,
-        actions = { A.HSMaster1, A.HSMaster2, A.HSMaster3 },
+        actions = { A.HealthstoneMaster, A.HealthstoneMajor, A.HealthstoneFel },
     },
     healing_potion = {
         hp_default = 35,
@@ -102,7 +102,6 @@ rotation_registry:register_middleware({
 })
 
 -- Shared trinket middleware (burst + defensive, schema-driven)
-NS.register_trinket_middleware()
 
 -- ============================================================================
 -- MODULE LOADED

@@ -26,20 +26,14 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
+        S.immunity(),
         { header = "Targeting", settings = {
             { type = "checkbox", key = "mouseover", default = true, label = "Use @mouseover",
               tooltip = "Check mouseover target before current target." },
             { type = "checkbox", key = "aoe", default = true, label = "Enable AoE",
               tooltip = "Enable multi-target abilities (Multi-Shot, Explosive Trap)." },
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         S.recovery({
             header = "Recovery Items",
             healthstone_hp = 40,
@@ -60,9 +54,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             dark_rune_tooltip = "Use Dark/Demonic Rune when mana drops below this.",
             dark_rune_min_hp = 50,
         }),
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Rotation

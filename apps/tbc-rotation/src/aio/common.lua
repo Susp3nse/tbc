@@ -40,6 +40,34 @@ _G.Menagerie_SECTIONS = {
         }}
     end,
 
+    immunity = function()
+        return { header = "Immunity Learning", settings = {
+            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60,
+              label = "Learned Immunity Memory (min)",
+              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.",
+              format = "%d min" },
+        }}
+    end,
+
+    cooldowns = function(opts)
+        opts = opts or {}
+        return { header = "Cooldown Management", settings = {
+            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60,
+              label = opts.label or "CD Min TTD (sec)",
+              tooltip = opts.tooltip or "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.",
+              format = "%d sec" },
+        }}
+    end,
+
+    spec = function(opts)
+        opts = opts or {}
+        return { header = "Spec Selection", settings = {
+            { type = "dropdown", key = "playstyle", default = opts.default, label = opts.label or "Active Spec",
+              tooltip = opts.tooltip or "Which spec rotation to use.",
+              options = opts.options },
+        }}
+    end,
+
     trinkets = function(racial_tooltip)
         return { header = "Trinkets & Racial", settings = {
             { type = "dropdown", key = "trinket1_mode", default = "off", label = "Trinket 1",

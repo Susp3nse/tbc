@@ -173,17 +173,6 @@ Action[A.PlayerClass] = {
    Barkskin = Create({ Type = "Spell", ID = 22812, Desc = "Barkskin" }),
    EntanglingRoots = Create({ Type = "Spell", ID = 339, useMaxRank = true }),
 
-   -- Health Recovery Items
-   HealthstoneMaster = Create({ Type = "Item", ID = 22105, Desc = "Healthstone Master" }),
-   HealthstoneMajor = Create({ Type = "Item", ID = 22104, Desc = "Healthstone Major" }),
-   SuperHealingPotion = Create({ Type = "Item", ID = 22829, Desc = "Super Healing Potion" }),
-   MajorHealingPotion = Create({ Type = "Item", ID = 13446, Desc = "Major Healing Potion" }),
-
-   -- Mana Recovery Items
-   SuperManaPotion = Create({ Type = "Item", ID = 22832, Desc = "Super Mana Potion" }),
-   DarkRune = Create({ Type = "Item", ID = 20520, Desc = "Dark Rune" }),
-   DemonicRune = Create({ Type = "Item", ID = 12662, Desc = "Demonic Rune" }),
-
    -- Sapper Charges
    GoblinSapperCharge = Create({ Type = "Item", ID = 10646, Desc = "Goblin Sapper Charge" }),
    SuperSapperCharge = Create({ Type = "Item", ID = 23827, Desc = "Super Sapper Charge" }),
@@ -228,6 +217,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

@@ -86,17 +86,6 @@ Action[A.PlayerClass] = {
     FelArmorR1  = Create({ Type = "Spell", ID = 28176, Click = { unit = "player", type = "spell", spell = 28176 } }),
     DemonArmor  = Create({ Type = "Spell", ID = 706, useMaxRank = true, Click = { unit = "player", type = "spell" } }),
 
-    -- Items
-    SuperManaPotion    = Create({ Type = "Item", ID = 22832, Click = { unit = "player", type = "item", item = 22832 } }),
-    SuperHealingPotion = Create({ Type = "Item", ID = 22829, Click = { unit = "player", type = "item", item = 22829 } }),
-    MajorHealingPotion = Create({ Type = "Item", ID = 13446, Click = { unit = "player", type = "item", item = 13446 } }),
-    DarkRune           = Create({ Type = "Item", ID = 20520, Click = { unit = "player", type = "item", item = 20520 } }),
-    DemonicRune        = Create({ Type = "Item", ID = 12662, Click = { unit = "player", type = "item", item = 12662 } }),
-
-    -- Healthstones
-    HealthstoneMaster = Create({ Type = "Item", ID = 22105, Click = { unit = "player", type = "item", item = 22105 } }),
-    HealthstoneMajor  = Create({ Type = "Item", ID = 22104, Click = { unit = "player", type = "item", item = 22104 } }),
-    HealthstoneFel    = Create({ Type = "Item", ID = 22103, Click = { unit = "player", type = "item", item = 22103 } }),
 }
 
 -- ============================================================================
@@ -104,6 +93,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

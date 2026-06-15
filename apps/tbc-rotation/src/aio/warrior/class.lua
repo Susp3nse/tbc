@@ -107,13 +107,6 @@ Action[A.PlayerClass] = {
     PowerWordShield    = Create({ Type = "Spell", ID = 17,   Click = { type = "cancelaura" } }),
     BlessingOfProtection = Create({ Type = "Spell", ID = 1022, Click = { type = "cancelaura" } }),
 
-    -- Items (No Click table — MetaEngine auto-generates secure bindings)
-    SuperHealingPotion = Create({ Type = "Potion", ID = 22829, QueueForbidden = true }),
-    MajorHealingPotion = Create({ Type = "Potion", ID = 13446, QueueForbidden = true }),
-    -- Healthstones
-    HealthstoneMaster  = Create({ Type = "Item", ID = 22105, QueueForbidden = true }),
-    HealthstoneMajor   = Create({ Type = "Item", ID = 22104, QueueForbidden = true }),
-
     -- Bandages (descending quality for DetermineUsableObject)
     HeavyNetherweaveBandage = Create({ Type = "Item", ID = 21991, QueueForbidden = true }),
     NetherweaveBandage      = Create({ Type = "Item", ID = 21990, QueueForbidden = true }),
@@ -134,6 +127,7 @@ Action[A.PlayerClass] = {
 -- ============================================================================
 A = setmetatable(Action[A.PlayerClass], { __index = Action })
 NS.A = A
+NS.register_consumable_actions(A)
 
 local Player = NS.Player
 local Unit = NS.Unit

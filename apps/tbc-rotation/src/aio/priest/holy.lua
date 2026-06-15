@@ -22,6 +22,7 @@ local is_spell_available = NS.is_spell_available
 local try_cast_fmt = NS.try_cast_fmt
 local try_heal_cast_fmt = NS.try_heal_cast_fmt
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 local scan_healing_targets = NS.scan_healing_targets
 local get_tank_target = NS.get_tank_target
 local count_below_hp = NS.count_below_hp
@@ -62,6 +63,12 @@ local function get_holy_state(context)
 
     return holy_state
 end
+
+local HOLY_RACIAL_SPELLS = {
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
+}
+local Holy_Racial = create_racial_strategy({ prefix = "HOLY", spells = HOLY_RACIAL_SPELLS })
 
 -- ============================================================================
 -- HOLY STRATEGIES
@@ -290,25 +297,7 @@ rotation_registry:register("holy", {
     }),
 
     -- [13] Racial (off-GCD, Berserking/Arcane Torrent)
-    named("Racial", {
-        is_gcd_gated = false,
-        setting_key = "use_racial",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if is_spell_available(A.Berserking) and A.Berserking:IsReady(PLAYER_UNIT) then return true end
-            if is_spell_available(A.ArcaneTorrent) and A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-            return false
-        end,
-        execute = function(icon, context, state)
-            if is_spell_available(A.Berserking) and A.Berserking:IsReady(PLAYER_UNIT) then
-                return A.Berserking:Show(icon), "[HOLY] Berserking"
-            end
-            if is_spell_available(A.ArcaneTorrent) and A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-                return A.ArcaneTorrent:Show(icon), "[HOLY] Arcane Torrent"
-            end
-            return nil
-        end,
-    }),
+    named("Racial", Holy_Racial),
 
     -- [14] Surge of Light Smite (free instant Smite proc — only if no urgent healing)
     named("SurgeOfLightSmite", {

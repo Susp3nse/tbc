@@ -27,6 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
+local create_racial_strategy = NS.create_racial_strategy
 local ttd_too_short = NS.ttd_too_short
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -175,30 +176,15 @@ local Arcane_PresenceOfMind = {
 }
 
 -- [5] Racial (off-GCD, burn phase only — DPS racials wasted during conserve)
-local Arcane_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    is_burst = true,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        if not state.is_burning then return false end
-        if ttd_too_short(context) then return false end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[ARCANE] Berserking"
-        end
-        if A.ArcaneTorrent:IsReady(PLAYER_UNIT) then
-            return A.ArcaneTorrent:Show(icon), "[ARCANE] Arcane Torrent"
-        end
-        return nil
-    end,
+local ARCANE_RACIAL_SPELLS = {
+    { A.Berserking, "Berserking" },
+    { A.ArcaneTorrent, "Arcane Torrent" },
 }
+local Arcane_Racial = create_racial_strategy({
+    prefix = "ARCANE",
+    spells = ARCANE_RACIAL_SPELLS,
+    extra_match = function(_, state) return state and state.is_burning end,
+})
 
 -- [7] AoE rotation (when enough enemies)
 local Arcane_AoE = {

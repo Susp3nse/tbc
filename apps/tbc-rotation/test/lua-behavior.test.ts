@@ -73,6 +73,7 @@ Action = {
 Menagerie = {
    Player = {},
    Unit = function() return {} end,
+   register_consumable_actions = function() end,
    rotation_registry = {
       register_class = function(_, config)
          Menagerie.registered_class = config
@@ -158,6 +159,22 @@ Action = {
 Action.Player = {
    GetSwingStart = function() return 0 end,
    GetSwing = function() return 0 end,
+   RegisterWeaponOffHand = function() end,
+}
+
+Menagerie_SETTINGS_SCHEMA = {
+   {
+      name = "General",
+      sections = {
+         {
+            header = "Shared",
+            settings = {
+               { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Immune TTL", tooltip = "", format = "%d min" },
+               { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD", tooltip = "", format = "%d sec" },
+            },
+         },
+      },
+   },
 }
 
 local unit = {}
@@ -216,6 +233,123 @@ function ClearAuras()
    for k in pairs(TestAuras.buff_stacks) do TestAuras.buff_stacks[k] = nil end
 end
 `;
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+NS.refresh_settings(true)
+
+if NS.cached_settings.immune_learn_ttl_min ~= 5 then
+   error("expected immune_learn_ttl_min default in cached_settings")
+end
+if NS.cached_settings.cd_min_ttd ~= 0 then
+   error("expected cd_min_ttd default in cached_settings")
+end
+
+io.write("PASS: core cached shared settings\n")
+`,
+  );
+
+  assert.match(output, /PASS: core cached shared settings/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
+local function assert_equal(actual, expected, label)
+   if actual ~= expected then
+      error(label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
+   end
+end
+
+local function has_section(sections, header)
+   for i = 1, #sections do
+      if sections[i].header == header then return true end
+   end
+   return false
+end
+
+local function has_setting(sections, key)
+   for i = 1, #sections do
+      local settings = sections[i].settings or {}
+      for j = 1, #settings do
+         if settings[j].key == key then return true end
+      end
+   end
+   return false
+end
+
+local function load_schema(player_class, file, expects_spec)
+   Action = {
+      PlayerClass = player_class,
+      CurrentProfile = "test",
+      Data = { ProfileEnabled = {}, ProfileUI = {} },
+   }
+   Menagerie_SETTINGS_SCHEMA = nil
+   dofile("src/aio/common.lua")
+   dofile(file)
+   dofile("src/aio/ui.lua")
+
+   local sections = Menagerie_SETTINGS_SCHEMA[1].sections
+   assert_equal(has_section(sections, "Burst Conditions"), true, player_class .. " burst tail")
+   assert_equal(has_section(sections, "Dashboard"), true, player_class .. " dashboard tail")
+   assert_equal(has_section(sections, "Debug"), true, player_class .. " debug tail")
+   assert_equal(has_setting(sections, "immune_learn_ttl_min"), true, player_class .. " immunity setting")
+   assert_equal(has_setting(sections, "cd_min_ttd"), true, player_class .. " cd setting")
+   assert_equal(has_setting(sections, "playstyle"), expects_spec, player_class .. " spec selector")
+   if not Action.Data.ProfileUI[2] then error(player_class .. " ProfileUI was not generated") end
+end
+
+load_schema("MAGE", "src/aio/mage/schema.lua", true)
+load_schema("HUNTER", "src/aio/hunter/schema.lua", false)
+
+io.write("PASS: real class schema UI generation\n")
+`);
+
+  assert.match(output, /PASS: real class schema UI generation/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+Action.Create = function(args) return args end
+Action.MultiUnits = {}
+
+function UnitFactionGroup() return "Horde" end
+
+Action.PlayerClass = "PALADIN"
+dofile("src/aio/paladin/class.lua")
+
+if NS.A.HealthstoneMaster.Type ~= "Item" then error("paladin healthstone type mismatch") end
+if NS.A.HealthstoneMaster.QueueForbidden ~= true then error("paladin healthstone must be queue-forbidden") end
+if not NS.A.HealthstoneMaster.Click or NS.A.HealthstoneMaster.Click.unit ~= "player" then
+   error("paladin healthstone must have player click target")
+end
+if NS.A.SuperManaPotion.Type ~= "Potion" then error("paladin mana potion must use Potion type") end
+
+Action.PlayerClass = "WARRIOR"
+dofile("src/aio/warrior/class.lua")
+
+if NS.A.HealthstoneMaster.Type ~= "Item" then error("warrior healthstone type mismatch") end
+if NS.A.HealthstoneMaster.QueueForbidden ~= true then error("warrior healthstone must be queue-forbidden") end
+if not NS.A.HealthstoneMaster.Click or NS.A.HealthstoneMaster.Click.unit ~= "player" then
+   error("warrior healthstone must have player click target")
+end
+if NS.A.SuperHealingPotion.Type ~= "Potion" then error("warrior healing potion must use Potion type") end
+
+io.write("PASS: class consumable click injection\n")
+`,
+  );
+
+  assert.match(output, /PASS: class consumable click injection/);
+}
 
 {
   const output = runLua(
@@ -543,4 +677,249 @@ io.write("PASS: maintain_aura factory contract\n")
   );
 
   assert.match(output, /PASS: maintain_aura factory contract/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
+dofile("src/aio/common.lua")
+
+local S = Menagerie_SECTIONS
+
+local function assert_equal(actual, expected, label)
+   if actual ~= expected then
+      error(label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
+   end
+end
+
+local immunity = S.immunity()
+assert_equal(immunity.header, "Immunity Learning", "immunity header")
+assert_equal(immunity.settings[1].key, "immune_learn_ttl_min", "immunity setting key")
+assert_equal(immunity.settings[1].default, 5, "immunity ttl default")
+
+local cooldowns = S.cooldowns()
+assert_equal(cooldowns.header, "Cooldown Management", "cooldowns header")
+assert_equal(cooldowns.settings[1].key, "cd_min_ttd", "cooldown setting key")
+
+local spec_options = {
+   { value = "fire", text = "Fire" },
+   { value = "arcane", text = "Arcane" },
+}
+local spec = S.spec({ default = "arcane", options = spec_options })
+assert_equal(spec.header, "Spec Selection", "spec header")
+assert_equal(spec.settings[1].key, "playstyle", "spec setting key")
+assert_equal(spec.settings[1].default, "arcane", "spec default")
+assert_equal(spec.settings[1].options, spec_options, "spec options passthrough")
+
+io.write("PASS: schema section factories\n")
+`);
+
+  assert.match(output, /PASS: schema section factories/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
+Action = {
+   Data = {},
+}
+
+dofile("src/aio/common.lua")
+
+Menagerie_SETTINGS_SCHEMA = {
+   {
+      name = "General",
+      sections = {
+         { header = "General", settings = {} },
+      },
+   },
+}
+
+dofile("src/aio/ui.lua")
+
+local sections = Menagerie_SETTINGS_SCHEMA[1].sections
+if #sections ~= 4 then
+   error("expected 4 General sections after default tail, got " .. tostring(#sections))
+end
+if sections[2].header ~= "Burst Conditions" then error("expected Burst tail section") end
+if sections[3].header ~= "Dashboard" then error("expected Dashboard tail section") end
+if sections[4].header ~= "Debug" then error("expected Debug tail section") end
+
+io.write("PASS: default schema tail append\n")
+`);
+
+  assert.match(output, /PASS: default schema tail append/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
+Action = {
+   Data = {},
+}
+
+dofile("src/aio/common.lua")
+
+Menagerie_SETTINGS_SCHEMA = {
+   no_default_tail = true,
+   {
+      name = "General",
+      sections = {
+         { header = "General", settings = {} },
+      },
+   },
+}
+
+dofile("src/aio/ui.lua")
+
+local sections = Menagerie_SETTINGS_SCHEMA[1].sections
+if #sections ~= 1 then
+   error("expected opt-out to preserve 1 section, got " .. tostring(#sections))
+end
+
+io.write("PASS: default schema tail opt-out\n")
+`);
+
+  assert.match(output, /PASS: default schema tail opt-out/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+local created = {}
+Action.Create = function(args)
+   created[#created + 1] = args
+   return args
+end
+
+local A = { Create = Action.Create }
+setmetatable(A, { __index = Action })
+
+NS.register_consumable_actions(A)
+
+local function assert_equal(actual, expected, label)
+   if actual ~= expected then
+      error(label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
+   end
+end
+
+assert_equal(A.SuperHealingPotion.ID, 22829, "super healing potion id")
+assert_equal(A.SuperHealingPotion.Type, "Potion", "super healing potion type")
+assert_equal(A.SuperManaPotion.Type, "Potion", "super mana potion type")
+assert_equal(A.DarkRune.Type, "Item", "dark rune type")
+assert_equal(A.HealthstoneFel.ID, 22103, "fel healthstone id")
+assert_equal(A.HealthstoneFel.QueueForbidden, true, "fel healthstone queue forbidden")
+assert_equal(A.HealthstoneFel.Click.unit, "player", "fel healthstone click unit")
+assert_equal(#created, 8, "injected consumable count")
+
+io.write("PASS: consumable action injector\n")
+`,
+  );
+
+  assert.match(output, /PASS: consumable action injector/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+local function ready_action(name)
+   return {
+      name = name,
+      IsReady = function() return true end,
+      Show = function() return "show:" .. name end,
+   }
+end
+
+local skipped = ready_action("skipped")
+local used = ready_action("used")
+
+local strategy = NS.create_racial_strategy({
+   prefix = "TEST",
+   extra_match = function() return false end,
+   spells = {
+      { skipped, "Skipped" },
+   },
+})
+
+if strategy.matches({ settings = {}, target_ttd = 500 }) then
+   error("strategy-wide extra_match should suppress ready racial")
+end
+
+strategy = NS.create_racial_strategy({
+   prefix = "TEST",
+   spells = {
+      { skipped, "Skipped", function() return false end },
+      { used, "Used" },
+   },
+})
+
+local context = { settings = {}, target_ttd = 500 }
+if not strategy.matches(context) then
+   error("per-spell predicate should allow later ready racial")
+end
+
+local result, log_msg = strategy.execute({}, context)
+if result ~= "show:used" then
+   error("expected second racial action, got " .. tostring(result))
+end
+if log_msg ~= "[TEST] Used" then
+   error("expected second racial log, got " .. tostring(log_msg))
+end
+
+io.write("PASS: racial strategy predicates\n")
+`,
+  );
+
+  assert.match(output, /PASS: racial strategy predicates/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+local ready = { IsReady = function() return false end }
+NS.A = { Trinket1 = ready, Trinket2 = ready }
+
+NS.rotation_registry:register_class({ playstyles = { "test" } })
+if #NS.rotation_registry.middleware ~= 2 then
+   error("expected auto trinkets to register 2 middleware entries, got " .. tostring(#NS.rotation_registry.middleware))
+end
+
+io.write("PASS: trinket auto-registration\n")
+`,
+  );
+
+  assert.match(output, /PASS: trinket auto-registration/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+local ready = { IsReady = function() return false end }
+NS.A = { Trinket1 = ready, Trinket2 = ready }
+
+NS.rotation_registry:register_class({ playstyles = { "test" }, auto_trinkets = false })
+if #NS.rotation_registry.middleware ~= 0 then
+   error("expected trinket opt-out to register nothing, got " .. tostring(#NS.rotation_registry.middleware))
+end
+
+io.write("PASS: trinket auto-registration opt-out\n")
+`,
+  );
+
+  assert.match(output, /PASS: trinket auto-registration opt-out/);
 }

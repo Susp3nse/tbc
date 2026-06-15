@@ -9,6 +9,33 @@ if not A then return end
 local schema = _G.Menagerie_SETTINGS_SCHEMA
 if not schema then return end
 
+local S = _G.Menagerie_SECTIONS
+
+local function has_section(sections, header)
+    for i = 1, #sections do
+        if sections[i].header == header then return true end
+    end
+    return false
+end
+
+local function append_default_tail(s)
+    if s.no_default_tail or not S then return end
+    if not s[1] or not s[1].sections then return end
+
+    local sections = s[1].sections
+    if not has_section(sections, "Burst Conditions") then
+        sections[#sections + 1] = S.burst()
+    end
+    if not has_section(sections, "Dashboard") then
+        sections[#sections + 1] = S.dashboard()
+    end
+    if not has_section(sections, "Debug") then
+        sections[#sections + 1] = S.debug()
+    end
+end
+
+append_default_tail(schema)
+
 -- Inject internal position storage into the schema so it flows through the
 -- exact same build_widget → ProfileUI → pActionDB pipeline as every other setting.
 -- The custom settings UI skips entries with hidden = true.

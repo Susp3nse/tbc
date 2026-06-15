@@ -27,7 +27,7 @@ local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
-local ttd_too_short = NS.ttd_too_short
+local create_racial_strategy = NS.create_racial_strategy
 local resolve_totem_spell = NS.resolve_totem_spell
 local timer_needs_refresh = NS.timer_needs_refresh
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
@@ -359,29 +359,11 @@ local Resto_TotemManagement = {
 }
 
 -- [5] Racial (off-GCD)
-local Resto_Racial = {
-    requires_combat = true,
-    is_gcd_gated = false,
-    setting_key = "use_racial",
-
-    matches = function(context, state)
-        if ttd_too_short(context) then return false end
-        -- Caster shaman uses SP Blood Fury or Berserking
-        if A.BloodFurySP:IsReady(PLAYER_UNIT) then return true end
-        if A.Berserking:IsReady(PLAYER_UNIT) then return true end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        if A.BloodFurySP:IsReady(PLAYER_UNIT) then
-            return A.BloodFurySP:Show(icon), "[RESTO] Blood Fury (SP)"
-        end
-        if A.Berserking:IsReady(PLAYER_UNIT) then
-            return A.Berserking:Show(icon), "[RESTO] Berserking"
-        end
-        return nil
-    end,
+local RESTO_RACIAL_SPELLS = {
+    { A.BloodFurySP, "Blood Fury (SP)" },
+    { A.Berserking, "Berserking" },
 }
+local Resto_Racial = create_racial_strategy({ prefix = "RESTO", spells = RESTO_RACIAL_SPELLS })
 
 -- [6] Chain Heal — primary healing spell (bounces to 3 targets, smart targeting)
 local Resto_ChainHeal = {

@@ -26,19 +26,12 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
-        { header = "Spec Selection", settings = {
-            { type = "dropdown", key = "playstyle", default = "affliction", label = "Active Spec",
-              tooltip = "Which spec rotation to use.",
-              options = {
-                  { value = "affliction", text = "Affliction" },
-                  { value = "demonology", text = "Demonology" },
-                  { value = "destruction", text = "Destruction" },
-              }},
-        }},
+        S.immunity(),
+        S.spec({ default = "affliction", options = {
+            { value = "affliction", text = "Affliction" },
+            { value = "demonology", text = "Demonology" },
+            { value = "destruction", text = "Destruction" },
+        }}),
         { header = "Curse Assignment", settings = {
             { type = "dropdown", key = "curse_type", default = "elements", label = "Curse",
               tooltip = "Which curse to maintain on the target.",
@@ -59,10 +52,7 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "slider", key = "aoe_threshold", default = 0, min = 0, max = 8, label = "AoE Threshold",
               tooltip = "Minimum enemies to switch to AoE rotation (Seed of Corruption). Set to 0 to disable.", format = "%d" },
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         { header = "Utility", settings = {
             { type = "checkbox", key = "use_soulshatter", default = true, label = "Auto Soulshatter",
               tooltip = "Use Soulshatter when threat is high (costs 1 Soul Shard)." },
@@ -80,9 +70,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "slider", key = "death_coil_hp", default = 20, min = 0, max = 50, label = "Death Coil HP (%)",
               tooltip = "Use Death Coil when HP drops below this (3s Horror + self-heal). Set to 0 to disable.", format = "%d%%" },
         }},
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Affliction

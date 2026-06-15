@@ -26,19 +26,12 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 1: General
     [1] = { name = "General", sections = {
-        { header = "Immunity Learning", settings = {
-            { type = "slider", key = "immune_learn_ttl_min", default = 5, min = 1, max = 60, label = "Learned Immunity Memory (min)",
-              tooltip = "After a spell is resisted as Immune on a creature, remember it for this long so the rotation stops re-casting it. Learned per creature type, not per individual mob.", format = "%d min" },
-        }},
-        { header = "Spec Selection", settings = {
-            { type = "dropdown", key = "playstyle", default = "combat", label = "Active Spec",
-              tooltip = "Which spec rotation to use.",
-              options = {
-                  { value = "combat", text = "Combat" },
-                  { value = "assassination", text = "Assassination" },
-                  { value = "subtlety", text = "Subtlety" },
-              }},
-        }},
+        S.immunity(),
+        S.spec({ default = "combat", options = {
+            { value = "combat", text = "Combat" },
+            { value = "assassination", text = "Assassination" },
+            { value = "subtlety", text = "Subtlety" },
+        }}),
         { header = "Utility", settings = {
             { type = "checkbox", key = "use_kick", default = true, label = "Auto Kick",
               tooltip = "Interrupt enemy casts with Kick." },
@@ -59,10 +52,7 @@ _G.Menagerie_SETTINGS_SCHEMA = {
                   { value = "none", text = "None" },
               }},
         }},
-        { header = "Cooldown Management", settings = {
-            { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD (sec)",
-              tooltip = "Don't use major CDs (trinkets, racial) if target dies sooner than this. Set to 0 to disable.", format = "%d sec" },
-        }},
+        S.cooldowns(),
         S.recovery({
             header = "Recovery Items",
             healthstone_hp = 35,
@@ -71,9 +61,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             healing_potion_toggle_tooltip = "Use Healing Potion when HP drops low in combat.",
             healing_potion_tooltip = "Use Healing Potion below this HP%.",
         }),
-        S.burst(),
-        S.dashboard(),
-        S.debug(),
     }},
 
     -- Tab 2: Combat
