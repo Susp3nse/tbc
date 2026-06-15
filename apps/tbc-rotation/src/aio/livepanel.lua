@@ -197,6 +197,30 @@ function NS.CreateLivePanel(opts)
          row.band:Hide()
       end
 
+      -- Transparent hover target over kv rows. When a value is wider than its cell
+      -- (the common case for rows that pack several fields into one value, e.g. the
+      -- Hunter PvP/Pet panel), this surfaces the full label + value as a tooltip so
+      -- the clipped text is still readable without resizing. Forwards drag to the
+      -- window so grabbing a row still moves the panel.
+      row.hit = CreateFrame("Button", nil, frame)
+      row.hit:EnableMouse(true)
+      row.hit:RegisterForDrag("LeftButton")
+      row.hit:SetScript("OnDragStart", function() frame:StartMoving() end)
+      row.hit:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+      row.hit:SetScript("OnEnter", function(self)
+         local e = entries[self.entry_index or 0]
+         if not (e and e.kind == "kv") then return end
+         local v = rows[self.entry_index].value
+         if v:GetStringWidth() <= v:GetWidth() + 0.5 then return end -- not clipped
+         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+         GameTooltip:ClearLines()
+         GameTooltip:AddLine(e.label or "", DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3])
+         GameTooltip:AddLine(e.value or "", DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3], true)
+         GameTooltip:Show()
+      end)
+      row.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      row.hit:Hide()
+
       rows[index] = row
       return row
    end
@@ -242,6 +266,7 @@ function NS.CreateLivePanel(opts)
             row.line:Hide()
             row.label:Hide()
             row.value:Hide()
+            row.hit:Hide()
             if row.band then row.band:Hide() end
             y = y - e.amount
          elseif e.kind == "kv" then
@@ -259,10 +284,18 @@ function NS.CreateLivePanel(opts)
             row.value:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -left_pad, y)
             row.value:Show()
 
+            row.hit:ClearAllPoints()
+            row.hit:SetPoint("TOPLEFT", frame, "TOPLEFT", left_pad, y)
+            row.hit:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -left_pad, y)
+            row.hit:SetHeight(line_h)
+            row.hit.entry_index = i
+            row.hit:Show()
+
             y = y - line_h
          else -- header / line
             row.label:Hide()
             row.value:Hide()
+            row.hit:Hide()
 
             if e.kind == "header" and i > 1 then
                y = y - header_top_pad
@@ -301,6 +334,7 @@ function NS.CreateLivePanel(opts)
          row.line:Hide()
          row.label:Hide()
          row.value:Hide()
+         row.hit:Hide()
          if row.band then row.band:Hide() end
       end
 
@@ -382,6 +416,31 @@ function NS.CreateLivePanel(opts)
          hint:SetPoint("BOTTOMLEFT", left_pad, 8)
          hint:SetText(opts.hint)
          hint:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+      end
+
+      -- Width-only resize grip. Height auto-fits content (see layout's SetHeight),
+      -- so only width is user-adjustable -- and width is exactly what unclips wide
+      -- value cells. StartSizing("RIGHT") drags the right edge alone; value cells
+      -- anchor TOPLEFT+TOPRIGHT so they reflow wider live. Mirrors the /mlog grip.
+      if opts.resizable ~= false then
+         frame:SetResizeBounds(width, min_height, opts.max_width or 560, 2000)
+         local grip = CreateFrame("Button", nil, frame)
+         grip:SetSize(12, 12)
+         grip:SetPoint("BOTTOMRIGHT", -2, 2)
+         local grip_tex = grip:CreateTexture(nil, "OVERLAY")
+         grip_tex:SetAllPoints()
+         grip_tex:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 0.6)
+         grip:SetScript("OnEnter", function()
+            grip_tex:SetColorTexture(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 0.8)
+         end)
+         grip:SetScript("OnLeave", function()
+            grip_tex:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 0.6)
+         end)
+         grip:SetScript("OnMouseDown", function() frame:StartSizing("RIGHT") end)
+         grip:SetScript("OnMouseUp", function()
+            frame:StopMovingOrSizing()
+            refresh()
+         end)
       end
 
       frame:Hide()
