@@ -36,34 +36,28 @@ local BACKDROP = {
 
 local RAPTOR_NAME = GetSpellInfo and GetSpellInfo(2973) or "Raptor Strike"
 
-local THEME = {
-    bg       = { 0.031, 0.031, 0.039, 0.96 },
-    panel    = { 0.059, 0.059, 0.075, 1 },
-    border   = { 0.118, 0.118, 0.149, 1 },
-    text     = { 0.90, 0.90, 0.94, 1 },
-    dim      = { 0.58, 0.58, 0.66, 1 },
-    gray     = { 0.30, 0.32, 0.36, 1 },
-    green    = { 0.10, 0.78, 0.28, 1 },
-    yellow   = { 0.95, 0.82, 0.18, 1 },
-    orange   = { 1.00, 0.55, 0.12, 1 },
-    red      = { 1.00, 0.18, 0.18, 1 },
-}
+local THEME = NS.Theme
+if not THEME then
+    print("|cFFFF0000[Menagerie Hunter Weave]|r Theme module not loaded!")
+    return
+end
+local THEME_STATE = THEME.state
 
 local RANGE_STATES = {
-    UNKNOWN = { color = THEME.gray,   label = "range unknown" },
-    IDEAL   = { color = THEME.green,  label = "ideal 5-7yd" },
-    FAR     = { color = THEME.red,    label = "too far 7-10yd" },
-    MELEE   = { color = THEME.red,    label = "melee <5yd" },
-    DEAD    = { color = THEME.red,    label = "deadzone" },
-    RANGED  = { color = THEME.gray,   label = "ranged" },
-    OUT     = { color = THEME.gray,   label = "out of range" },
+    UNKNOWN = { color = THEME_STATE.neutral, label = "range unknown" },
+    IDEAL   = { color = THEME_STATE.good,    label = "ideal 5-7yd" },
+    FAR     = { color = THEME_STATE.bad,     label = "too far 7-10yd" },
+    MELEE   = { color = THEME_STATE.bad,     label = "melee <5yd" },
+    DEAD    = { color = THEME_STATE.bad,     label = "deadzone" },
+    RANGED  = { color = THEME_STATE.neutral, label = "ranged" },
+    OUT     = { color = THEME_STATE.neutral, label = "out of range" },
 }
 
 local STATES = {
-    GRAY   = { color = THEME.gray,   title = "HOLD" },
-    GREEN  = { color = THEME.green,  title = "GO" },
-    ORANGE = { color = THEME.orange, title = "OUT" },
-    RED    = { color = THEME.red,    title = "BACK" },
+    GRAY   = { color = THEME_STATE.neutral, title = "HOLD" },
+    GREEN  = { color = THEME_STATE.good,    title = "GO" },
+    ORANGE = { color = THEME_STATE.warn,    title = "OUT" },
+    RED    = { color = THEME_STATE.bad,     title = "BACK" },
 }
 
 local Coach = {
@@ -208,32 +202,32 @@ local function rangeBudgetMultiplier(rangeState)
 end
 
 local function severityColor(severity)
-    if severity == "RED" then return THEME.red end
-    if severity == "ORANGE" then return THEME.orange end
-    if severity == "YELLOW" then return THEME.yellow end
-    if severity == "GREEN" then return THEME.green end
-    return THEME.gray
+    if severity == "RED" then return THEME_STATE.bad end
+    if severity == "ORANGE" then return THEME_STATE.warn end
+    if severity == "YELLOW" then return THEME_STATE.gold end
+    if severity == "GREEN" then return THEME_STATE.good end
+    return THEME_STATE.neutral
 end
 
 local function getLastAutoBadge()
     local tracker = NS.HunterClipTracker
     if not tracker or not tracker.GetLastAutoResult then
-        return "AUTO --", THEME.gray
+        return "AUTO --", THEME_STATE.neutral
     end
 
     local result = tracker:GetLastAutoResult()
     if not result then
-        return "AUTO --", THEME.gray
+        return "AUTO --", THEME_STATE.neutral
     end
 
     local clip = result.clipDuration or 0
     if clip <= 0.001 then
         if result.verdict == "HASTE" then
-            return "AUTO HASTE RESET", THEME.gray
+            return "AUTO HASTE RESET", THEME_STATE.neutral
         elseif result.verdict == "SYNC" or result.verdict == "RESET" then
-            return "AUTO SYNC", THEME.gray
+            return "AUTO SYNC", THEME_STATE.neutral
         end
-        return "AUTO CLEAN", THEME.green
+        return "AUTO CLEAN", THEME_STATE.good
     end
 
     return format("CLIP +%.2fs", clip), severityColor(result.severity)
@@ -442,7 +436,7 @@ function Coach:Create()
     f:SetSize(204, 246)
     f:SetPoint("CENTER", UIParent, "CENTER", 270, 0)
     f:SetBackdrop(BACKDROP)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
+    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.96)
     f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -458,14 +452,14 @@ function Coach:Create()
     close.text = close:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     close.text:SetPoint("CENTER")
     close.text:SetText("x")
-    setTextColor(close.text, THEME.dim)
+    setTextColor(close.text, THEME.text_dim)
     close:SetScript("OnClick", function() f:Hide() end)
 
     f.rangeBadge = CreateFrame("Frame", nil, f, "BackdropTemplate")
     f.rangeBadge:SetSize(184, 26)
     f.rangeBadge:SetPoint("TOP", f, "TOP", 0, -8)
     f.rangeBadge:SetBackdrop(BACKDROP)
-    setFrameColor(f.rangeBadge, THEME.gray)
+    setFrameColor(f.rangeBadge, THEME_STATE.neutral)
 
     f.rangeText = f.rangeBadge:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     f.rangeText:SetPoint("CENTER")
@@ -476,7 +470,7 @@ function Coach:Create()
     f.light:SetSize(144, 144)
     f.light:SetPoint("TOP", f.rangeBadge, "BOTTOM", 0, -7)
     f.light:SetBackdrop(BACKDROP)
-    setFrameColor(f.light, THEME.gray)
+    setFrameColor(f.light, THEME_STATE.neutral)
 
     f.cooldown = CreateFrame("Cooldown", nil, f.light, "CooldownFrameTemplate")
     f.cooldown:SetAllPoints(f.light)
@@ -516,7 +510,7 @@ function Coach:Create()
     f.clipBadge:SetSize(184, 24)
     f.clipBadge:SetPoint("TOP", f.bar, "BOTTOM", 0, -7)
     f.clipBadge:SetBackdrop(BACKDROP)
-    setFrameColor(f.clipBadge, THEME.gray)
+    setFrameColor(f.clipBadge, THEME_STATE.neutral)
 
     f.clipText = f.clipBadge:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     f.clipText:SetPoint("CENTER")
@@ -534,8 +528,8 @@ function Coach:Refresh()
     local d = self:Evaluate("target")
     local f = self.Frame
     local st = STATES[d.state] or STATES.GRAY
-    local color = d.color or THEME.gray
-    local rangeColor = d.rangeColor or THEME.gray
+    local color = d.color or THEME_STATE.neutral
+    local rangeColor = d.rangeColor or THEME_STATE.neutral
     local clipText, clipColor = getLastAutoBadge()
 
     setFrameColor(f.light, color)

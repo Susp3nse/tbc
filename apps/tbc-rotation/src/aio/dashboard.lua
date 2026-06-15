@@ -32,6 +32,12 @@ if not NS then
     return
 end
 
+local THEME = NS.Theme
+if not THEME then
+    print("|cFFFF0000[Menagerie Dashboard]|r Theme module not loaded!")
+    return
+end
+local THEME_STATE = THEME.state
 local Unit = NS.Unit
 local Player = NS.Player
 local rotation_registry = NS.rotation_registry
@@ -132,22 +138,6 @@ cleu_frame:SetScript("OnEvent", function()
     end
 end)
 
--- ============================================================================
--- THEME
--- ============================================================================
-local THEME = {
-    bg          = { 0.086, 0.075, 0.059, 1 },       -- #16130f
-    bg_light    = { 0.118, 0.102, 0.078, 0.7 },     -- #1e1a14
-    border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
-    accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
-    text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
-    text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
-    buff_active = { 0.85, 0.70, 0.20, 1 },    -- gold border for active buffs
-    threat_green  = { 0.20, 0.90, 0.20 },
-    threat_orange = { 1.00, 0.67, 0.20 },
-    threat_red    = { 1.00, 0.20, 0.20 },
-}
-
 local BACKDROP_THIN = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -200,24 +190,6 @@ local energy_tick_tracker = {
     confident = false,
     last_stance = -1,
     stance_change_at = 0,
-}
-
-local CLASS_HEX = {
-    Druid = "ff7d0a", Hunter = "abd473", Mage = "69ccf0", Paladin = "f58cba",
-    Priest = "ffffff", Rogue = "fff569", Shaman = "0070dd", Warlock = "9482c9",
-    Warrior = "c79c6e",
-}
-
-local CLASS_RGB = {
-    Druid   = { 1.00, 0.49, 0.04 },
-    Hunter  = { 0.67, 0.83, 0.45 },
-    Mage    = { 0.41, 0.80, 0.94 },
-    Paladin = { 0.96, 0.55, 0.73 },
-    Priest  = { 1.00, 1.00, 1.00 },
-    Rogue   = { 1.00, 0.96, 0.41 },
-    Shaman  = { 0.00, 0.44, 0.87 },
-    Warlock = { 0.58, 0.51, 0.79 },
-    Warrior = { 0.78, 0.61, 0.43 },
 }
 
 -- ============================================================================
@@ -386,7 +358,7 @@ local function create_dashboard()
     local f = CreateFrame("Frame", "MenagerieDashboard", UIParent, "BackdropTemplate")
     f:SetSize(FRAME_WIDTH, 300)
     f:SetBackdrop(BACKDROP_THIN)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
+    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 1)
     f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.6)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -748,7 +720,7 @@ local function update_dashboard()
 
     -- Header: class name + playstyle in one line
     -- Fall back to last valid playstyle when current returns nil (e.g. Druid flight form)
-    local class_hex = CLASS_HEX[cc.name] or "e08a3c"
+    local accent_hex = THEME.accent_hex or "e08a3c"
     local active_ps = cc.get_active_playstyle and cc.get_active_playstyle(dash_context)
     if active_ps then
         last_valid_ps = active_ps
@@ -756,16 +728,15 @@ local function update_dashboard()
         active_ps = last_valid_ps or cc.idle_playstyle_name or "?"
     end
     local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
-    ui.header_text:SetText(format("|cff%s%s|r |cffb3a587\194\183|r |cffe08a3c%s|r", class_hex, cc.name or "Unknown", ps_display))
+    ui.header_text:SetText(format("|cff%s%s|r |cffb3a587\194\183|r |cff%s%s|r", accent_hex, cc.name or "Unknown", accent_hex, ps_display))
     if ui.version_text then
         local class_version = NS.format_class_version and NS.format_class_version(cc) or (cc.version or "")
         ui.version_text:SetText(class_version)
     end
 
-    -- Update accent stripe to class color
-    local crgb = CLASS_RGB[cc.name]
-    if crgb and ui.accent_stripe then
-        ui.accent_stripe:SetColorTexture(crgb[1], crgb[2], crgb[3], 0.8)
+    -- Update accent stripe to the shared class-resolved accent.
+    if ui.accent_stripe then
+        ui.accent_stripe:SetColorTexture(THEME.accent[1], THEME.accent[2], THEME.accent[3], 0.8)
     end
 
     local f = dashboard_frame
@@ -1001,7 +972,6 @@ local function update_dashboard()
 
     -- Current Priority (inline)
     local la = last_action
-    local accent_hex = "e08a3c"
     if la and la.name then
         local target_text = la.target and format(" |cffb3a587[%s]|r", la.target) or ""
         ui.priority_text:SetText(format("|cff%sPriority|r  > %s%s", accent_hex, la.name, target_text))
@@ -1169,7 +1139,7 @@ local function update_dashboard()
                 position_icon(slot, f, ICON_X, icons_y, i)
 
                 if dur > 0 then
-                    slot.border:SetColorTexture(THEME.buff_active[1], THEME.buff_active[2], THEME.buff_active[3], THEME.buff_active[4])
+                    slot.border:SetColorTexture(THEME_STATE.gold[1], THEME_STATE.gold[2], THEME_STATE.gold[3], 1)
                     slot.tint:Hide()
                     slot.text:SetText(format_timer(dur))
                     -- Urgency color: white >60s, yellow 30-60s, red <30s
@@ -1251,8 +1221,8 @@ local function update_dashboard()
         local tbw = bar_max * (capped / 130)
         if tbw < 1 then tbw = 1 end
         ui.threat_fill:SetWidth(tbw)
-        local tc = threat_pct >= 100 and THEME.threat_red
-            or (threat_pct >= 80 and THEME.threat_orange or THEME.threat_green)
+        local tc = threat_pct >= 100 and THEME_STATE.bad
+            or (threat_pct >= 80 and THEME_STATE.warn or THEME_STATE.good)
         ui.threat_fill:SetVertexColor(tc[1], tc[2], tc[3])
         ui.threat_fill:Show()
         ui.threat_text:SetText(format("%d%%", threat_pct))

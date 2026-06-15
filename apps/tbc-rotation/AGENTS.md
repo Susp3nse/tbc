@@ -51,7 +51,7 @@ Each class folder contributes files into shared slots; the order is data-driven 
 `builder.config.json` `loadOrder` (the package reads it — there is no longer an `ORDER_MAP` in
 `build.ts`). Shared and class modules interleave by `order`:
 
-1. `common.lua` (shared)
+1. `theme.lua` (shared) **/** `common.lua` (shared) — shared theme self-bootstraps namespace; common helpers load in the same slot
 2. `schema.lua` (class) — settings schema, `ProfileEnabled`
 3. `ui.lua` (shared) — ProfileUI generator (framework backing store)
 4. `core.lua` (shared) — namespace, settings, registry, constants, force flags, burst context
@@ -106,7 +106,8 @@ unmet (burst held).
 
 | File            | Owns                                                                                                                                                              |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `common.lua`    | Loads first; shared low-level helpers used before core.                                                                                                           |
+| `theme.lua`     | Shared warm Menagerie color palette (`NS.Theme`), semantic state colors, and curated per-class accent resolution.                                                 |
+| `common.lua`    | First-slot shared low-level helpers used before core.                                                                                                             |
 | `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
 | `debug.lua`     | Shared debug substrate: structured debug log, log window, throttled `debug_print`, debug chrome/theme exports, `/mlog`.                                      |
 | `ui.lua`        | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                                                           |

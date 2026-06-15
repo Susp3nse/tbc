@@ -27,30 +27,22 @@ local GetToggle = NS.GetToggle
 local SetToggle = NS.SetToggle
 local rotation_registry = NS.rotation_registry
 local cc = rotation_registry and rotation_registry.class_config
+local THEME = NS.Theme
+if not THEME then
+    print("|cFFFF0000[Menagerie Settings]|r Theme module not loaded!")
+    return
+end
 
 -- Derive display name from class config
 local class_name = cc and cc.name or "Unknown"
-local CLASS_TITLE_COLORS = { Druid = "ff7d0a", Hunter = "abd473", Mage = "69ccf0", Paladin = "f58cba", Priest = "ffffff", Rogue = "fff569", Shaman = "0070dd", Warlock = "9482c9", Warrior = "c79c6e" }
-local class_hex = CLASS_TITLE_COLORS[class_name] or "e08a3c"
-local addon_title_colored = format("|cff%s%s|r |cffe08a3cAIO|r", class_hex, class_name)
+local class_hex = THEME.accent_hex or "e08a3c"
+local addon_title_colored = format("|cff%s%s|r |cff%sAIO|r", class_hex, class_name, class_hex)
 local version = NS.format_class_version and NS.format_class_version(cc) or (cc and cc.version or "v1.0.0")
 
 -- ============================================================================
--- THEME
+-- LAYOUT
 -- ============================================================================
-local THEME = {
-    bg          = { 0.086, 0.075, 0.059, 0.97 },   -- #16130f
-    bg_light    = { 0.110, 0.094, 0.071, 1 },       -- #1c1812
-    bg_widget   = { 0.118, 0.102, 0.078, 1 },       -- #1e1a14
-    bg_hover    = { 0.149, 0.125, 0.102, 1 },       -- #26201a
-    border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
-    accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
-    accent_dim  = { 0.773, 0.447, 0.165, 1 },       -- #c5722a (dimmed accent)
-    accent_bg   = { 0.141, 0.102, 0.063, 1 },       -- #241a10 (accent bg tint)
-    text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
-    text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
-    text_header = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2 (primary text)
-
+local LAYOUT = {
     frame_w     = 650,
     frame_h     = 520,
     tab_h       = 28,
@@ -120,13 +112,13 @@ end
 -- ============================================================================
 -- WIDGET FACTORY
 -- ============================================================================
-local content_w = THEME.frame_w - THEME.pad * 2 - 20
-local inner_w = content_w - THEME.card_pad * 2
-local inner_col_w = floor((inner_w - THEME.col_gap) / 2)
+local content_w = LAYOUT.frame_w - LAYOUT.pad * 2 - 20
+local inner_w = content_w - LAYOUT.card_pad * 2
+local inner_col_w = floor((inner_w - LAYOUT.col_gap) / 2)
 
 local function create_section_header(parent, y, text)
     local hdr = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    hdr:SetPoint("TOPLEFT", THEME.pad, y)
+    hdr:SetPoint("TOPLEFT", LAYOUT.pad, y)
     hdr:SetTextColor(THEME.text_header[1], THEME.text_header[2], THEME.text_header[3])
     hdr:SetText(text)
 
@@ -135,7 +127,7 @@ end
 
 local function create_checkbox(parent, x, y, w, def, scroll)
     local row = CreateFrame("Button", nil, parent)
-    row:SetSize(w, THEME.row_h)
+    row:SetSize(w, LAYOUT.row_h)
     row:SetPoint("TOPLEFT", x, y)
 
     local box = CreateFrame("Frame", nil, row, "BackdropTemplate")
@@ -188,7 +180,7 @@ local function create_checkbox(parent, x, y, w, def, scroll)
     row.key = def.key
     row.default = def.default
     row.set_value = function(v) checked = v and true or false; refresh() end
-    return row, THEME.row_h + THEME.widget_gap
+    return row, LAYOUT.row_h + LAYOUT.widget_gap
 end
 
 local function create_slider(parent, x, y, w, def, scroll)
@@ -208,7 +200,7 @@ local function create_slider(parent, x, y, w, def, scroll)
     val_text:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
 
     local slider = CreateFrame("Slider", nil, ctr)
-    slider:SetSize(THEME.slider_w, 14)
+    slider:SetSize(LAYOUT.slider_w, 14)
     slider:SetPoint("TOPLEFT", 0, -22)
     slider:SetOrientation("HORIZONTAL")
     slider:SetMinMaxValues(def.min, def.max)
@@ -269,7 +261,7 @@ local function create_slider(parent, x, y, w, def, scroll)
         slider:SetValue(v)
         val_text:SetText(format(fmt, v))
     end
-    return ctr, h + THEME.widget_gap
+    return ctr, h + LAYOUT.widget_gap
 end
 
 -- Decimal slider: explicit type for fractional values (e.g. weapon speed 2.9).
@@ -297,7 +289,7 @@ local function create_slider_decimal(parent, x, y, w, def, scroll)
     val_text:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
 
     local slider = CreateFrame("Slider", nil, ctr)
-    slider:SetSize(THEME.slider_w, 14)
+    slider:SetSize(LAYOUT.slider_w, 14)
     slider:SetPoint("TOPLEFT", 0, -22)
     slider:SetOrientation("HORIZONTAL")
     slider:SetMinMaxValues(def.min, def.max)
@@ -358,7 +350,7 @@ local function create_slider_decimal(parent, x, y, w, def, scroll)
         slider:SetValue(v)
         val_text:SetText(format(fmt, v))
     end
-    return ctr, h + THEME.widget_gap
+    return ctr, h + LAYOUT.widget_gap
 end
 
 local function create_dropdown(parent, x, y, w, def, scroll)
@@ -463,7 +455,7 @@ local function create_dropdown(parent, x, y, w, def, scroll)
     ctr.key = def.key
     ctr.default = def.default
     ctr.set_value = function(v) cur_val = v; update_display() end
-    return ctr, h + THEME.widget_gap
+    return ctr, h + LAYOUT.widget_gap
 end
 
 -- ============================================================================
@@ -487,7 +479,7 @@ local function create_tab_panel(tab_index)
     scroll:EnableMouseWheel(true)
 
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetWidth(THEME.frame_w - 10)
+    content:SetWidth(LAYOUT.frame_w - 10)
     scroll:SetScrollChild(content)
 
     scroll:SetScript("OnMouseWheel", function(self, delta)
@@ -502,7 +494,7 @@ local function create_tab_panel(tab_index)
     for _, section in ipairs(tab_def.sections) do
         y_pos = create_section_header(content, y_pos, section.header)
 
-        local cp = THEME.card_pad
+        local cp = LAYOUT.card_pad
         local card_top = y_pos
         local card = CreateFrame("Frame", nil, content, "BackdropTemplate")
         card:SetFrameLevel(content:GetFrameLevel() + 1)
@@ -513,7 +505,7 @@ local function create_tab_panel(tab_index)
         y_pos = y_pos - cp
         local col = 0
         local row_max_h = 0
-        local ix = THEME.pad + cp
+        local ix = LAYOUT.pad + cp
 
         for _, setting in ipairs(section.settings) do
             if not setting.hidden then
@@ -529,7 +521,7 @@ local function create_tab_panel(tab_index)
                     x = ix
                     w = inner_w
                 else
-                    x = ix + col * (inner_col_w + THEME.col_gap)
+                    x = ix + col * (inner_col_w + LAYOUT.col_gap)
                     w = inner_col_w
                 end
 
@@ -568,10 +560,10 @@ local function create_tab_panel(tab_index)
         end
 
         y_pos = y_pos - cp
-        card:SetPoint("TOPLEFT", THEME.pad, card_top)
+        card:SetPoint("TOPLEFT", LAYOUT.pad, card_top)
         card:SetSize(content_w, math.abs(y_pos - card_top))
 
-        y_pos = y_pos - THEME.section_gap
+        y_pos = y_pos - LAYOUT.section_gap
     end
 
     content:SetHeight(math.abs(y_pos) + 20)
@@ -623,11 +615,11 @@ end
 -- ============================================================================
 local function create_main_frame()
     local f = CreateFrame("Frame", "MenagerieSettingsFrame", UIParent, "BackdropTemplate")
-    f:SetSize(THEME.frame_w, THEME.frame_h)
+    f:SetSize(LAYOUT.frame_w, LAYOUT.frame_h)
     f:SetPoint("CENTER")
     f:SetBackdrop(BACKDROP_THIN)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
-    f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], THEME.border[4])
+    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
+    f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:SetClampedToScreen(true)
@@ -639,7 +631,7 @@ local function create_main_frame()
     -- Title icon (favicon-style "M")
     local title_icon = CreateFrame("Frame", nil, f, "BackdropTemplate")
     title_icon:SetSize(20, 20)
-    title_icon:SetPoint("TOPLEFT", THEME.pad, -8)
+    title_icon:SetPoint("TOPLEFT", LAYOUT.pad, -8)
     title_icon:SetBackdrop(BACKDROP_THIN)
     title_icon:SetBackdropColor(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], 1)
     title_icon:SetBackdropBorderColor(THEME.accent_dim[1], THEME.accent_dim[2], THEME.accent_dim[3], 0.6)
@@ -670,7 +662,7 @@ local function create_main_frame()
 
     -- Version
     local ver = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    ver:SetPoint("BOTTOMRIGHT", -THEME.pad, 8)
+    ver:SetPoint("BOTTOMRIGHT", -LAYOUT.pad, 8)
     ver:SetText(version)
     ver:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
 
@@ -679,13 +671,13 @@ local function create_main_frame()
     local tab_bar = f:CreateTexture(nil, "ARTWORK")
     tab_bar:SetPoint("TOPLEFT", 1, tab_y)
     tab_bar:SetPoint("TOPRIGHT", -1, tab_y)
-    tab_bar:SetHeight(THEME.tab_h)
+    tab_bar:SetHeight(LAYOUT.tab_h)
     tab_bar:SetColorTexture(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], 1)
 
-    local tab_w = (THEME.frame_w - 2) / #TAB_DEFS
+    local tab_w = (LAYOUT.frame_w - 2) / #TAB_DEFS
     for i, td in ipairs(TAB_DEFS) do
         local tb = CreateFrame("Button", nil, f)
-        tb:SetSize(tab_w, THEME.tab_h)
+        tb:SetSize(tab_w, LAYOUT.tab_h)
         tb:SetPoint("TOPLEFT", 1 + (i - 1) * tab_w, tab_y)
 
         local bg = tb:CreateTexture(nil, "BACKGROUND")
@@ -724,12 +716,12 @@ local function create_main_frame()
 
     -- Separator below tabs
     local sep = f:CreateTexture(nil, "ARTWORK")
-    sep:SetPoint("TOPLEFT", 0, tab_y - THEME.tab_h)
-    sep:SetPoint("TOPRIGHT", 0, tab_y - THEME.tab_h)
+    sep:SetPoint("TOPLEFT", 0, tab_y - LAYOUT.tab_h)
+    sep:SetPoint("TOPRIGHT", 0, tab_y - LAYOUT.tab_h)
     sep:SetHeight(1)
     sep:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 1)
 
-    f.content_top = tab_y - THEME.tab_h - 1
+    f.content_top = tab_y - LAYOUT.tab_h - 1
 
     tinsert(UISpecialFrames, "MenagerieSettingsFrame")
 

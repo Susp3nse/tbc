@@ -49,19 +49,11 @@ local MeleeSpellNames = {
     ["Counterattack"] = true,
 }
 
--- ============================================================================
--- THEME (matches settings.lua for visual consistency)
--- ============================================================================
-local THEME = {
-    bg          = { 0.031, 0.031, 0.039, 0.97 },
-    bg_light    = { 0.047, 0.047, 0.059, 1 },
-    bg_widget   = { 0.059, 0.059, 0.075, 1 },
-    bg_hover    = { 0.075, 0.075, 0.086, 1 },
-    border      = { 0.118, 0.118, 0.149, 1 },
-    accent      = { 0.424, 0.388, 1.0, 1 },
-    text        = { 0.863, 0.863, 0.894, 1 },
-    text_dim    = { 0.580, 0.580, 0.659, 1 },
-}
+local THEME = NS.Theme
+if not THEME then
+    print("|cFFFF0000[Menagerie Hunter ClipTracker]|r Theme module not loaded!")
+    return
+end
 
 local BACKDROP_THIN = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -882,8 +874,8 @@ function ClipTracker:CreateFrame()
     f:SetSize(FRAME_WIDTH, 430)
     f:SetPoint("CENTER", UIParent, "CENTER", 190, 0)
     f:SetBackdrop(BACKDROP_THIN)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
-    f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], THEME.border[4])
+    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
+    f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
@@ -1189,8 +1181,8 @@ function ClipTracker:ShowExportWindow()
         f:SetSize(600, 400)
         f:SetPoint("CENTER")
         f:SetBackdrop(BACKDROP_THIN)
-        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
-        f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], THEME.border[4])
+        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
+        f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
         f:SetMovable(true)
         f:EnableMouse(true)
         f:RegisterForDrag("LeftButton")

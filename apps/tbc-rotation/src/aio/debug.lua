@@ -26,15 +26,8 @@ local DBG_COL_GAP = 6
 local MSG_TRUNC_W = 120
 local DBG_TOOLTIP_WRAP = 96
 
-local DBG_THEME = {
-   bg          = { 0.094, 0.082, 0.063, 0.75 },    -- #18140f
-   bg_widget   = { 0.118, 0.102, 0.078, 1 },       -- #1e1a14
-   bg_hover    = { 0.149, 0.125, 0.102, 1 },       -- #26201a
-   border      = { 0.200, 0.169, 0.125, 1 },       -- #332b20
-   accent      = { 0.878, 0.541, 0.235, 1 },       -- #e08a3c
-   text        = { 0.925, 0.890, 0.824, 1 },       -- #ece3d2
-   text_dim    = { 0.702, 0.647, 0.529, 1 },       -- #b3a587
-}
+local DBG_THEME = NS.Theme
+if not DBG_THEME then return end
 local DBG_BACKDROP = {
    bgFile = "Interface\\Buttons\\WHITE8X8",
    edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -147,8 +140,8 @@ local function CreateDebugWindow(title_text)
    f:SetSize(320, 240)
    f:SetPoint("TOPLEFT", 50, -100)
    f:SetBackdrop(DBG_BACKDROP)
-   f:SetBackdropColor(DBG_THEME.bg[1], DBG_THEME.bg[2], DBG_THEME.bg[3], DBG_THEME.bg[4])
-   f:SetBackdropBorderColor(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], DBG_THEME.border[4])
+   f:SetBackdropColor(DBG_THEME.bg[1], DBG_THEME.bg[2], DBG_THEME.bg[3], 0.75)
+   f:SetBackdropBorderColor(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
    f:SetMovable(true)
    f:SetResizable(true)
    f:EnableMouse(true)

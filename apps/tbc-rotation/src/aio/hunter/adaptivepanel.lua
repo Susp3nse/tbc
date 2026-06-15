@@ -25,22 +25,12 @@ local GetCVar     = _G.GetCVar
 local UnitRangedDamage = _G.UnitRangedDamage
 local UnitRangedAttackPower = _G.UnitRangedAttackPower
 
--- Match cliptracker palette
-local THEME = {
-    bg          = { 0.031, 0.031, 0.039, 0.97 },
-    bg_light    = { 0.047, 0.047, 0.059, 0.88 },
-    bg_widget   = { 0.059, 0.059, 0.075, 1 },
-    bg_hover    = { 0.075, 0.075, 0.086, 1 },
-    border      = { 0.118, 0.118, 0.149, 1 },
-    accent      = { 0.424, 0.388, 1.0, 1 },
-    text        = { 0.863, 0.863, 0.894, 1 },
-    text_dim    = { 0.580, 0.580, 0.659, 1 },
-    text_section= { 0.424, 0.749, 1.0, 1 },
-    good        = { 0.4, 0.9, 0.4, 1 },
-    warn        = { 1.0, 0.85, 0.3, 1 },
-    bad         = { 1.0, 0.4, 0.4, 1 },
-    chosen      = { 0.6, 1.0, 0.6, 1 },
-}
+local THEME = NS.Theme
+if not THEME then
+    print("|cFFFF0000[Menagerie Hunter Adaptive Panel]|r Theme module not loaded!")
+    return
+end
+local THEME_STATE = THEME.state
 
 local BACKDROP = {
     bgFile   = "Interface\\Buttons\\WHITE8X8",
@@ -89,7 +79,7 @@ function Panel:Create()
     f:SetSize(360, 590)
     f:SetPoint("CENTER", UIParent, "CENTER", -190, 0)
     f:SetBackdrop(BACKDROP)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
+    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
     f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -133,11 +123,11 @@ function Panel:Create()
         local band = f:CreateTexture(nil, "ARTWORK")
         band:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y + 2)
         band:SetSize(344, 14)
-        band:SetColorTexture(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], THEME.bg_light[4])
+        band:SetColorTexture(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], 0.88)
         local h = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         h:SetPoint("TOPLEFT", 12, y)
         h:SetText(text)
-        h:SetTextColor(THEME.text_section[1], THEME.text_section[2], THEME.text_section[3])
+        h:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
         y = y - 17
         return h
     end
@@ -231,16 +221,16 @@ local function optionLine(score, delay, jitterFloor, gated, isChosen)
     local clip, color
     if delay <= jitterFloor + 0.001 then
         clip = "open"
-        color = THEME.good
+        color = THEME_STATE.good
     elseif delay <= 0.3 then
         clip = format("clips %.2fs", delay)
-        color = THEME.warn
+        color = THEME_STATE.warn
     else
         clip = format("clips %.2fs", delay)
-        color = THEME.bad
+        color = THEME_STATE.bad
     end
     local line = format("%5d  d=%.2f  %s%s", score, delay, clip, isChosen and "  <" or "")
-    if isChosen then color = THEME.chosen end
+    if isChosen then color = THEME_STATE.chosen end
     return line, color
 end
 
@@ -296,7 +286,7 @@ function Panel:Refresh()
     local rng = (getID and getID("player", 18)) or 0
     self.rows.weps:SetText(format("MH:%d OH:%d Rng:%d%s",
         mh, oh, rng, (mh == 30312 or oh == 30312) and "  BLADE!" or ""))
-    colored(self.rows.weps, (mh == 30312 or oh == 30312) and THEME.good or THEME.text)
+    colored(self.rows.weps, (mh == 30312 or oh == 30312) and THEME_STATE.good or THEME.text)
 
     local auraDebug = HA.GetAuraDebug and HA.GetAuraDebug()
     if auraDebug then
@@ -307,7 +297,7 @@ function Panel:Refresh()
             auraDebug.recomputeDue and "due" or "scheduled",
             math.max(0, nextIn),
             auraDebug.buffCount or 0))
-        colored(self.rows.auraNext, auraDebug.recomputeDue and THEME.warn or THEME.good)
+        colored(self.rows.auraNext, auraDebug.recomputeDue and THEME_STATE.warn or THEME_STATE.good)
     else
         self.rows.auraFirst:SetText("--")
         self.rows.auraTrack:SetText("--")
@@ -332,7 +322,7 @@ function Panel:Refresh()
     if State.useMultiForCatchup then
         colored(self.rows.catchup, THEME.text)
     else
-        colored(self.rows.catchup, THEME.warn)
+        colored(self.rows.catchup, THEME_STATE.warn)
     end
 
     -- LIVE DECISION
@@ -384,7 +374,7 @@ function Panel:ShowDecisionExport()
         f:SetSize(760, 460)
         f:SetPoint("CENTER")
         f:SetBackdrop(BACKDROP)
-        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], THEME.bg[4])
+        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
         f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
         f:SetMovable(true)
         f:EnableMouse(true)
