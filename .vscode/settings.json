@@ -48,92 +48,34 @@
   },
 
   // --- Lua Language Server ---
-  "Lua.workspace.library": ["${workspaceFolder}/docs/api"],
+  "Lua.workspace.library": [
+    "${workspaceFolder}/docs/api",
+    "~/.vscode/extensions/ketho.wow-api-0.22.3/Annotations/Core"
+  ],
   "Lua.runtime.version": "Lua 5.1",
   "Lua.diagnostics.globals": [
-    "_G",
-    "select",
-    "unpack",
-    "date",
-    "wipe",
-
-    "GetTime",
-    "GetSpellInfo",
-    "GetSpellTexture",
-    "GetSpellCooldown",
-    "GetTotemInfo",
-    "GetWeaponEnchantInfo",
-    "GetInventoryItemID",
-    "GetInventoryItemTexture",
-    "GetInventoryItemCooldown",
-    "GetItemCount",
-    "GetNumGroupMembers",
     "GetNumRaidMembers",
     "GetNumPartyMembers",
-    "GetRaidRosterInfo",
-
     "IsSpellKnown",
     "IsSpellInRange",
-    "IsUsableSpell",
-    "IsInGroup",
-    "IsInRaid",
-    "InCombatLockdown",
-    "CombatLogGetCurrentEventInfo",
-
-    "UnitExists",
-    "UnitHealth",
-    "UnitHealthMax",
-    "UnitPower",
-    "UnitPowerMax",
-    "UnitName",
-    "UnitGUID",
-    "UnitClass",
-    "UnitLevel",
-    "UnitIsPlayer",
-    "UnitIsUnit",
-    "UnitIsEnemy",
-    "UnitIsFriend",
-    "UnitIsDead",
-    "UnitIsDeadOrGhost",
-    "UnitIsVisible",
-    "UnitIsConnected",
-    "UnitInRange",
-    "UnitCanAssist",
-    "UnitAffectingCombat",
-    "UnitFactionGroup",
-    "UnitClassification",
-    "UnitCreatureType",
-    "UnitGroupRolesAssigned",
-    "UnitDetailedThreatSituation",
-    "UnitThreatSituation",
-    "UnitRangedDamage",
-    "UnitCastingInfo",
-    "UnitChannelInfo",
-    "UnitBuff",
-    "UnitDebuff",
-
-    "CreateFrame",
     "UIParent",
     "UISpecialFrames",
     "Minimap",
     "GameTooltip",
     "GameTooltip_Hide",
-    "C_Timer",
-
     "SlashCmdList",
     "SLASH_MENAGERIELOG1",
     "SLASH_MENAGERIELOG2",
     "SLASH_MENAGERIE1",
     "SLASH_MENAGERIE2",
-
     "RAID_CLASS_COLORS",
     "INVSLOT_HEAD",
-
     "TMW",
     "Toaster",
     "LibStub",
-
-    "Action"
+    "Action",
+    "DEFAULT_CHAT_FRAME",
+    "ScrollingEdit_OnTextChanged"
   ],
   "Lua.diagnostics.disable": [
     "lowercase-global",
@@ -142,5 +84,17 @@
     "redefined-local",
     "need-check-nil"
   ],
-  "stylua.targetReleaseVersion": "latest"
+  "stylua.targetReleaseVersion": "latest",
+  "Lua.runtime.builtin": {
+    "basic": "disable",
+    "debug": "disable",
+    "io": "disable",
+    "math": "disable",
+    "os": "disable",
+    "package": "disable",
+    "string": "disable",
+    "table": "disable",
+    "utf8": "disable"
+  },
+  "Lua.type.weakUnionCheck": true
 }
