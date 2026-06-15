@@ -99,6 +99,10 @@ local Player = NS.Player
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local TARGET_UNIT = NS.TARGET_UNIT
+local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
+local try_cast = NS.try_cast
+local is_spell_available = NS.is_spell_available
+local format = string.format
 
 -- Framework helpers
 local MultiUnits = A.MultiUnits
@@ -185,6 +189,93 @@ NS.get_curse_duration = get_curse_duration
 NS.get_curse_spell = get_curse_spell
 
 -- ============================================================================
+-- SHARED STRATEGY FACTORIES (identical logic across all three specs)
+-- ============================================================================
+-- Maintain the assigned curse. CoA has accelerating ticks, so it is refreshed
+-- only at the last moment (0.1s) instead of the standard 1.5s window — clipping
+-- it early throws away its biggest ticks. opts.amplify enables the Amplify Curse
+-- pre-cast (Affliction only).
+local function make_maintain_curse(prefix, opts)
+    opts = opts or {}
+    return {
+        requires_combat = true,
+        requires_enemy = true,
+
+        matches = function(context, state)
+            if context.settings.curse_type == "none" then return false end
+            local threshold = 1.5
+            if context.settings.curse_type == "agony" then threshold = 0.1 end
+            return state.curse_duration < threshold
+        end,
+
+        execute = function(icon, context, state)
+            local curse_type = context.settings.curse_type
+            if opts.amplify and context.settings.aff_use_amplify_curse
+                and (curse_type == "doom" or curse_type == "agony")
+                and is_spell_available(A.AmplifyCurse) then
+                local result = try_cast(A.AmplifyCurse, icon, PLAYER_UNIT,
+                    format("[%s] Amplify Curse", prefix))
+                if result then return result end
+            end
+
+            local curse_spell = get_curse_spell(context)
+            if curse_spell then
+                return try_cast(curse_spell, icon, TARGET_UNIT,
+                    format("[%s] %s", prefix, curse_type))
+            end
+            return nil
+        end,
+    }
+end
+
+-- Seed of Corruption AoE — fires when enemy_count meets the configured threshold.
+local function make_aoe(prefix)
+    return {
+        requires_combat = true,
+        requires_enemy = true,
+
+        matches = function(context, state)
+            local threshold = context.settings.aoe_threshold or 0
+            if threshold == 0 then return false end
+            if context.enemy_count < threshold then return false end
+            if context.is_moving then return false end
+            return true
+        end,
+
+        execute = function(icon, context, state)
+            return try_cast(A.SeedOfCorruption, icon, TARGET_UNIT,
+                format("[%s] Seed of Corruption (AoE) - Enemies: %d", prefix, context.enemy_count))
+        end,
+    }
+end
+
+-- Life Tap mana fallback (lowest priority) — backstop if middleware Life Tap didn't fire.
+local function make_lifetap(prefix)
+    return {
+        requires_combat = true,
+        spell = A.LifeTap,
+        spell_target = PLAYER_UNIT,
+
+        matches = function(context, state)
+            local min_hp = context.settings.life_tap_min_hp or 40
+            if context.hp < min_hp then return false end
+            -- Mirror the middleware threshold so this only fires when middleware would also fire
+            local threshold = context.settings.life_tap_mana_pct or 30
+            return context.mana_pct < threshold
+        end,
+
+        execute = function(icon, context, state)
+            return try_cast(A.LifeTap, icon, PLAYER_UNIT,
+                format("[%s] Life Tap (fallback) - Mana: %.0f%%", prefix, context.mana_pct))
+        end,
+    }
+end
+
+NS.make_maintain_curse = make_maintain_curse
+NS.make_aoe = make_aoe
+NS.make_lifetap = make_lifetap
+
+-- ============================================================================
 -- CLASS REGISTRATION
 -- ============================================================================
 rotation_registry:register_class({
@@ -236,10 +327,11 @@ rotation_registry:register_class({
         local moving = Player:IsMoving()
         ctx.is_moving = moving ~= nil and moving ~= false and moving ~= 0
         ctx.is_mounted = Player:IsMounted()
-        ctx.combat_time = Unit("player"):CombatTime() or 0
+        -- combat_time is already set by create_context (main.lua) before extend_context runs
 
         -- Pet state
-        ctx.pet_exists = _G.UnitExists("pet") == 1 or _G.UnitExists("pet") == true
+        local pet_exists = _G.UnitExists("pet")
+        ctx.pet_exists = pet_exists == 1 or pet_exists == true
         ctx.pet_hp = ctx.pet_exists and (Unit("pet"):HealthPercent() or 0) or 0
         ctx.pet_active = ctx.pet_exists and not _G.UnitIsDeadOrGhost("pet")
 
@@ -247,12 +339,10 @@ rotation_registry:register_class({
         ctx.has_shadow_trance = (Unit("player"):HasBuffs(Constants.BUFF_ID.SHADOW_TRANCE) or 0) > 0
         ctx.has_backlash = (Unit("player"):HasBuffs(Constants.BUFF_ID.BACKLASH) or 0) > 0
 
-        -- Demonic Sacrifice buffs
+        -- Demonic Sacrifice buffs (shadow/fire read individually; has_ds_any covers all four)
         ctx.has_ds_shadow = (Unit("player"):HasBuffs(Constants.BUFF_ID.DS_TOUCH_SHADOW) or 0) > 0
         ctx.has_ds_fire = (Unit("player"):HasBuffs(Constants.BUFF_ID.DS_BURNING_WISH) or 0) > 0
-        ctx.has_ds_any = ctx.has_ds_shadow or ctx.has_ds_fire
-            or (Unit("player"):HasBuffs(Constants.BUFF_ID.DS_FEL_STAMINA) or 0) > 0
-            or (Unit("player"):HasBuffs(Constants.BUFF_ID.DS_FEL_ENERGY) or 0) > 0
+        ctx.has_ds_any = (Unit("player"):HasBuffs(Constants.DS_BUFF_IDS) or 0) > 0
 
         -- Armor buff
         ctx.has_fel_armor = (Unit("player"):HasBuffs(Constants.BUFF_ID.FEL_ARMOR_R2) or 0) > 0

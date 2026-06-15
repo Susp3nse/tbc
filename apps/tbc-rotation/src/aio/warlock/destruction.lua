@@ -29,9 +29,7 @@ local try_cast = NS.try_cast
 local named = NS.named
 local create_racial_strategy = NS.create_racial_strategy
 local get_curse_duration = NS.get_curse_duration
-local get_curse_spell = NS.get_curse_spell
 local is_spell_available = NS.is_spell_available
-local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
 
@@ -127,24 +125,7 @@ local Destro_Conflagrate = {
 }
 
 -- [4] Maintain Curse — apply assigned curse if missing/expired
-local Destro_MaintainCurse = {
-    requires_combat = true,
-    requires_enemy = true,
-
-    matches = function(context, state)
-        if context.settings.curse_type == "none" then return false end
-        return state.curse_duration < 1.5
-    end,
-
-    execute = function(icon, context, state)
-        local curse_spell = get_curse_spell(context)
-        if curse_spell then
-            return try_cast(curse_spell, icon, TARGET_UNIT,
-                format("[DESTRO] %s", context.settings.curse_type))
-        end
-        return nil
-    end,
-}
+local Destro_MaintainCurse = NS.make_maintain_curse("DESTRO")
 
 -- [5] Shadowfury — instant AoE stun on CD (41pt Destro talent)
 local Destro_Shadowfury = {
@@ -187,23 +168,7 @@ local Destro_Shadowburn = {
 }
 
 -- [7] AoE — Seed of Corruption when enough enemies
-local Destro_AoE = {
-    requires_combat = true,
-    requires_enemy = true,
-
-    matches = function(context, state)
-        local threshold = context.settings.aoe_threshold or 0
-        if threshold == 0 then return false end
-        if context.enemy_count < threshold then return false end
-        if context.is_moving then return false end
-        return true
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.SeedOfCorruption, icon, TARGET_UNIT,
-            format("[DESTRO] Seed of Corruption (AoE) - Enemies: %d", context.enemy_count))
-    end,
-}
+local Destro_AoE = NS.make_aoe("DESTRO")
 
 -- [8] Racial (off-GCD)
 local DESTRO_RACIAL_SPELLS = {
@@ -232,22 +197,7 @@ local Destro_PrimarySpell = {
 }
 
 -- [11] Life Tap — mana fallback
-local Destro_LifeTap = {
-    requires_combat = true,
-    spell = A.LifeTap,
-
-    matches = function(context, state)
-        local min_hp = context.settings.life_tap_min_hp or 40
-        if context.hp < min_hp then return false end
-        local threshold = context.settings.life_tap_mana_pct or 30
-        return context.mana_pct < threshold
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.LifeTap, icon, PLAYER_UNIT,
-            format("[DESTRO] Life Tap (fallback) - Mana: %.0f%%", context.mana_pct))
-    end,
-}
+local Destro_LifeTap = NS.make_lifetap("DESTRO")
 
 -- ============================================================================
 -- REGISTRATION

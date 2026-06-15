@@ -29,7 +29,6 @@ local try_cast = NS.try_cast
 local named = NS.named
 local create_racial_strategy = NS.create_racial_strategy
 local get_curse_duration = NS.get_curse_duration
-local get_curse_spell = NS.get_curse_spell
 local is_spell_available = NS.is_spell_available
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
@@ -40,7 +39,7 @@ local format = string.format
 -- ============================================================================
 -- Pre-allocated state table — no inline {} in combat
 local demo_state = {
-    pet_exists = false,
+    pet_active = false,
     pet_hp = 0,
     has_sacrifice = false,
     corruption_duration = 0,
@@ -52,7 +51,7 @@ local function get_demo_state(context)
     if context._demo_valid then return demo_state end
     context._demo_valid = true
 
-    demo_state.pet_exists = context.pet_active
+    demo_state.pet_active = context.pet_active
     demo_state.pet_hp = context.pet_hp
     demo_state.has_sacrifice = context.has_ds_any
     demo_state.corruption_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.CORRUPTION, "player", true) or 0
@@ -67,10 +66,11 @@ end
 -- ============================================================================
 do
 
--- [1] Fel Domination + Pet Resummon — instant resummon if pet dies mid-fight
+-- [1] Fel Domination + Pet Resummon — instant resummon if pet dies mid-fight.
+-- No `spell` field: this strategy casts one of two spells, and Fel Domination's
+-- long CD must not gate the Felguard resummon. try_cast guards each spell.
 local Demo_FelDomResummon = {
     requires_combat = true,
-    spell = A.FelDomination,
     setting_key = "demo_use_fel_domination",
 
     matches = function(context, state)
@@ -80,22 +80,17 @@ local Demo_FelDomResummon = {
     end,
 
     execute = function(icon, context, state)
-        -- Try Fel Domination first (makes next summon instant)
-        if is_spell_available(A.FelDomination) and A.FelDomination:IsReady(PLAYER_UNIT) then
-            local result = try_cast(A.FelDomination, icon, PLAYER_UNIT, "[DEMO] Fel Domination")
-            if result then return result end
-        end
-        -- Then summon Felguard
-        if is_spell_available(A.SummonFelguard) and A.SummonFelguard:IsReady(PLAYER_UNIT) then
-            return try_cast(A.SummonFelguard, icon, PLAYER_UNIT, "[DEMO] Summon Felguard (resummon)")
-        end
-        return nil
+        -- Fel Domination first (makes next summon instant), then summon Felguard
+        local result = try_cast(A.FelDomination, icon, PLAYER_UNIT, "[DEMO] Fel Domination")
+        if result then return result end
+        return try_cast(A.SummonFelguard, icon, PLAYER_UNIT, "[DEMO] Summon Felguard (resummon)")
     end,
 }
 
 -- [2] Soul Link — maintain pet+player damage sharing buff
 local Demo_SoulLink = {
     spell = A.SoulLink,
+    spell_target = PLAYER_UNIT,
     setting_key = "demo_use_soul_link",
 
     matches = function(context, state)
@@ -114,10 +109,11 @@ local Demo_SoulLink = {
 local Demo_HealthFunnel = {
     requires_combat = true,
     spell = A.HealthFunnel,
+    spell_target = "pet",
 
     matches = function(context, state)
         if context.settings.demo_use_sacrifice then return false end  -- DS/Ruin build
-        if not state.pet_exists then return false end
+        if not state.pet_active then return false end
         if context.is_moving then return false end
         local threshold = context.settings.demo_pet_heal_hp or 40
         return state.pet_hp < threshold and state.pet_hp > 0
@@ -129,14 +125,42 @@ local Demo_HealthFunnel = {
     end,
 }
 
--- [4] Demonic Sacrifice — sacrifice pet if DS build + no buff active
+-- [4] Summon sacrifice pet — DS build with no pet out: summon the configured pet
+-- so the next frame can sacrifice it. Makes the demo_sacrifice_pet setting functional.
+local SACRIFICE_PET_SPELLS = {
+    succubus = A.SummonSuccubus,
+    imp = A.SummonImp,
+}
+local Demo_SummonSacrificePet = {
+    requires_combat = true,
+    setting_key = "demo_use_sacrifice",
+
+    matches = function(context, state)
+        if state.has_sacrifice then return false end  -- buff already up
+        if context.pet_active then return false end   -- a pet is already out to sacrifice
+        return true
+    end,
+
+    execute = function(icon, context, state)
+        local choice = context.settings.demo_sacrifice_pet or "succubus"
+        local pet_spell = SACRIFICE_PET_SPELLS[choice]
+        if pet_spell then
+            return try_cast(pet_spell, icon, PLAYER_UNIT,
+                format("[DEMO] Summon %s (for sacrifice)", choice))
+        end
+        return nil
+    end,
+}
+
+-- [5] Demonic Sacrifice — sacrifice pet if DS build + no buff active
 local Demo_DemonicSacrifice = {
     spell = A.DemonicSacrifice,
+    spell_target = PLAYER_UNIT,
     setting_key = "demo_use_sacrifice",
 
     matches = function(context, state)
         if state.has_sacrifice then return false end
-        if not state.pet_exists then return false end
+        if not state.pet_active then return false end
         return true
     end,
 
@@ -145,27 +169,10 @@ local Demo_DemonicSacrifice = {
     end,
 }
 
--- [5] Maintain Curse — apply assigned curse if missing/expired
-local Demo_MaintainCurse = {
-    requires_combat = true,
-    requires_enemy = true,
+-- [6] Maintain Curse — apply assigned curse if missing/expired
+local Demo_MaintainCurse = NS.make_maintain_curse("DEMO")
 
-    matches = function(context, state)
-        if context.settings.curse_type == "none" then return false end
-        return state.curse_duration < 1.5
-    end,
-
-    execute = function(icon, context, state)
-        local curse_spell = get_curse_spell(context)
-        if curse_spell then
-            return try_cast(curse_spell, icon, TARGET_UNIT,
-                format("[DEMO] %s", context.settings.curse_type))
-        end
-        return nil
-    end,
-}
-
--- [4] Maintain Corruption — if enabled (Felguard build usually)
+-- [7] Maintain Corruption — if enabled (Felguard build usually)
 local Demo_MaintainCorruption = NS.maintain_aura({
     name = "MaintainCorruption",
     log_prefix = "[DEMO]",
@@ -179,7 +186,7 @@ local Demo_MaintainCorruption = NS.maintain_aura({
     setting_key = "demo_use_corruption",
 })
 
--- [5] Maintain Immolate — if enabled
+-- [8] Maintain Immolate — if enabled
 local Demo_MaintainImmolate = NS.maintain_aura({
     name = "MaintainImmolate",
     log_prefix = "[DEMO]",
@@ -196,33 +203,17 @@ local Demo_MaintainImmolate = NS.maintain_aura({
     end,
 })
 
--- [6] AoE — Seed of Corruption when enough enemies
-local Demo_AoE = {
-    requires_combat = true,
-    requires_enemy = true,
+-- [9] AoE — Seed of Corruption when enough enemies
+local Demo_AoE = NS.make_aoe("DEMO")
 
-    matches = function(context, state)
-        local threshold = context.settings.aoe_threshold or 0
-        if threshold == 0 then return false end
-        if context.enemy_count < threshold then return false end
-        if context.is_moving then return false end
-        return true
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.SeedOfCorruption, icon, TARGET_UNIT,
-            format("[DEMO] Seed of Corruption (AoE) - Enemies: %d", context.enemy_count))
-    end,
-}
-
--- [7] Racial (off-GCD)
+-- [10] Racial (off-GCD)
 local DEMO_RACIAL_SPELLS = {
     { A.BloodFury, "Blood Fury" },
     { A.ArcaneTorrent, "Arcane Torrent" },
 }
 local Demo_Racial = create_racial_strategy({ prefix = "DEMO", spells = DEMO_RACIAL_SPELLS })
 
--- [9] Primary Filler — Shadow Bolt or Incinerate (DS/Ruin fire build)
+-- [11] Primary Filler — Shadow Bolt or Incinerate (DS/Ruin fire build)
 local Demo_PrimarySpell = {
     requires_combat = true,
     requires_enemy = true,
@@ -242,23 +233,8 @@ local Demo_PrimarySpell = {
     end,
 }
 
--- [10] Life Tap — mana fallback
-local Demo_LifeTap = {
-    requires_combat = true,
-    spell = A.LifeTap,
-
-    matches = function(context, state)
-        local min_hp = context.settings.life_tap_min_hp or 40
-        if context.hp < min_hp then return false end
-        local threshold = context.settings.life_tap_mana_pct or 30
-        return context.mana_pct < threshold
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.LifeTap, icon, PLAYER_UNIT,
-            format("[DEMO] Life Tap (fallback) - Mana: %.0f%%", context.mana_pct))
-    end,
-}
+-- [12] Life Tap — mana fallback
+local Demo_LifeTap = NS.make_lifetap("DEMO")
 
 -- ============================================================================
 -- REGISTRATION
@@ -267,6 +243,7 @@ rotation_registry:register("demonology", {
     named("FelDomResummon",      Demo_FelDomResummon),
     named("SoulLink",            Demo_SoulLink),
     named("HealthFunnel",        Demo_HealthFunnel),
+    named("SummonSacrificePet",  Demo_SummonSacrificePet),
     named("DemonicSacrifice",    Demo_DemonicSacrifice),
     named("MaintainCurse",       Demo_MaintainCurse),
     named("MaintainCorruption",  Demo_MaintainCorruption),

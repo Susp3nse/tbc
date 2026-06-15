@@ -32,7 +32,7 @@ Armor: **`FelArmor` `28189` (R2) + `FelArmorR1` `28176` are separate actions** (
 ## Rotation theory / priorities
 
 - **affliction**: ShadowTrance (Nightfall instant-SB proc) → MaintainCurse → MaintainUA → MaintainCorruption → MaintainSiphonLife → MaintainImmolate → DrainSoul → AoE → Racial → **ShadowBolt (filler)** → LifeTap. The whole spec is **DoT-uptime first** — all the `Maintain*` strategies sit above the AoE/filler so DoTs are never allowed to drop. ShadowTrance fires Shadow Bolt instantly when the proc is up.
-- **demonology**: FelDomResummon → SoulLink → HealthFunnel → DemonicSacrifice → MaintainCurse → MaintainCorruption → MaintainImmolate → AoE → Racial → PrimarySpell → LifeTap. Pet health/uptime (FelDomResummon, HealthFunnel, SoulLink) is gated above damage — the demon is the damage source. PrimarySpell resolves to Shadow Bolt.
+- **demonology**: FelDomResummon → SoulLink → HealthFunnel → SummonSacrificePet → DemonicSacrifice → MaintainCurse → MaintainCorruption → MaintainImmolate → AoE → Racial → PrimarySpell → LifeTap. Pet health/uptime (FelDomResummon, HealthFunnel, SoulLink) is gated above damage — the demon is the damage source. In a DS/Ruin build (`demo_use_sacrifice`), SummonSacrificePet brings out the `demo_sacrifice_pet` (Succubus/Imp) when no pet is up, then DemonicSacrifice consumes it. PrimarySpell resolves to Shadow Bolt.
 - **destruction**: **Backlash (instant-cast proc) → MaintainImmolate → Conflagrate (consumes Immolate) → MaintainCurse → Shadowfury → Shadowburn → AoE → Racial → PrimarySpell → LifeTap.** Immolate must be up before Conflagrate (Conflagrate consumes the Immolate DoT). PrimarySpell is Incinerate (if known/Immolate up) or Shadow Bolt.
 
 **Life Tap** appears both as the lowest-priority strategy in every spec (top off mana when nothing else to do) **and** as middleware (emergency mana). Tune via `context.settings`.
@@ -41,7 +41,7 @@ Middleware (priority high→low): DeathCoil (`EMERGENCY_HEAL`, escape/heal) → 
 
 ## Class-specific context extensions
 
-`extend_context(ctx)` adds: `is_moving`, `is_mounted`, `combat_time`; **pet state** (`pet_exists`, `pet_hp`, `pet_active` — uses raw `_G.UnitExists`/`UnitIsDeadOrGhost` on `"pet"`); proc buffs (`has_shadow_trance` = Nightfall, `has_backlash`); **Demonic Sacrifice** buffs (`has_ds_shadow`, `has_ds_fire`, `has_ds_any` covering all four DS variants); `has_fel_armor` (checks R1+R2 IDs); `has_soul_link`; `soul_shards` (`GetItemCount(6265)`); `enemy_count` (`MultiUnits:GetByRangeInCombat(30)`).
+`extend_context(ctx)` adds: `is_moving`, `is_mounted` (`combat_time` comes from the framework's `create_context`, not here); **pet state** (`pet_exists`, `pet_hp`, `pet_active` — uses raw `_G.UnitExists`/`UnitIsDeadOrGhost` on `"pet"`); proc buffs (`has_shadow_trance` = Nightfall, `has_backlash`); **Demonic Sacrifice** buffs (`has_ds_shadow`, `has_ds_fire`, `has_ds_any` covering all four DS variants); `has_fel_armor` (checks R1+R2 IDs); `has_soul_link`; `soul_shards` (`GetItemCount(6265)`); `enemy_count` (`MultiUnits:GetByRangeInCombat(30)`).
 
 Per-playstyle cache flags `_affliction_valid` / `_demo_valid` / `_destro_valid` reset to `false` each frame.
 
@@ -51,7 +51,8 @@ Per-playstyle cache flags `_affliction_valid` / `_demo_valid` / `_destro_valid` 
 - **Conflagrate consumes Immolate** — order matters: MaintainImmolate must precede Conflagrate, or you waste the DoT.
 - **Two Fel Armor ranks are distinct actions** (`FelArmor`/`FelArmorR1`) and both buff IDs are checked; don't collapse them.
 - **Soul shard count** is read from inventory (`GetItemCount(6265)`), not a resource API.
-- **Demonic Sacrifice removes the pet** for a self-buff — `has_ds_any` exists so demonology strategies don't try to use pet abilities while sacrificed.
+- **Demonic Sacrifice removes the pet** for a self-buff — `has_ds_any` exists so demonology strategies don't try to use pet abilities while sacrificed. SummonSacrificePet summons the configured pet when one isn't out; it does **not** swap an already-summoned wrong pet (avoids wasting a manually chosen demon).
+- **MaintainCurse / AoE / LifeTap are shared factories** (`NS.make_maintain_curse` / `make_aoe` / `make_lifetap` in `class.lua`), used by all three specs — the CoA early-clip protection (0.1s vs 1.5s) lives in the factory so every spec gets it. Don't re-inline these per spec.
 - Settings runtime-mutable: read via `context.settings.<key>`; per-frame state tables pre-allocated (no `{}` in combat).
 
 ## See also

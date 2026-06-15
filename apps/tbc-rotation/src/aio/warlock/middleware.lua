@@ -101,14 +101,14 @@ rotation_registry:register_middleware({
 })
 
 -- ============================================================================
--- DARK PACT (Pet mana -> warlock mana, Affliction talent)
+-- DARK PACT (Pet mana -> warlock mana — cross-playstyle, any spec with the talent)
 -- ============================================================================
 rotation_registry:register_middleware({
     name = "Warlock_DarkPact",
     priority = Priority.MIDDLEWARE.INNERVATE,
 
     matches = function(context)
-        if not context.settings.aff_use_dark_pact then return false end
+        if not context.settings.use_dark_pact then return false end
         if not context.in_combat then return false end
         local threshold = context.settings.life_tap_mana_pct or 30
         if context.mana_pct > threshold then return false end

@@ -92,9 +92,7 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             { type = "slider", key = "aff_drain_soul_hp", default = 25, min = 10, max = 50, label = "Drain Soul HP%",
               tooltip = "Switch to Drain Soul when target HP drops below this.", format = "%d%%" },
         }},
-        { header = "Mana", settings = {
-            { type = "checkbox", key = "aff_use_dark_pact", default = true, label = "Use Dark Pact",
-              tooltip = "Prefer Dark Pact over Life Tap for mana (drains pet mana, requires Affliction talent)." },
+        { header = "Amplify Curse", settings = {
             { type = "checkbox", key = "aff_use_amplify_curse", default = true, label = "Use Amplify Curse",
               tooltip = "Auto-use Amplify Curse before Curse of Doom/Agony (requires Affliction talent)." },
         }},
@@ -157,11 +155,13 @@ _G.Menagerie_SETTINGS_SCHEMA = {
     -- Tab 5: CDs & Mana
     [5] = { name = "CDs & Mana", sections = {
         S.trinkets("Use racial ability (Blood Fury, Arcane Torrent, etc.) during combat."),
-        { header = "Life Tap", settings = {
+        { header = "Life Tap & Dark Pact", settings = {
             { type = "slider", key = "life_tap_mana_pct", default = 30, min = 10, max = 60, label = "Life Tap Mana%",
               tooltip = "Use Life Tap when mana drops below this.", format = "%d%%" },
             { type = "slider", key = "life_tap_min_hp", default = 40, min = 20, max = 70, label = "Life Tap Min HP%",
               tooltip = "Don't Life Tap when HP is below this (safety threshold).", format = "%d%%" },
+            { type = "checkbox", key = "use_dark_pact", default = true, label = "Use Dark Pact",
+              tooltip = "Prefer Dark Pact over Life Tap for mana (drains pet mana, requires the talent). Works in any spec." },
         }},
         S.mana_recovery({
             mana_potion = true,
@@ -170,9 +170,6 @@ _G.Menagerie_SETTINGS_SCHEMA = {
             mana_potion_max = 80,
             mana_potion_toggle_tooltip = "Auto-use Super Mana Potion for mana recovery.",
             mana_potion_tooltip = "Use Mana Potion when mana drops below this.",
-        }),
-        S.mana_recovery({
-            header = "Mana Recovery (cont.)",
             dark_rune = true,
             dark_rune_pct = 30,
             dark_rune_min = 10,

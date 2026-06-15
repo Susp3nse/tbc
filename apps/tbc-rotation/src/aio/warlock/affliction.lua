@@ -29,9 +29,6 @@ local try_cast = NS.try_cast
 local named = NS.named
 local create_racial_strategy = NS.create_racial_strategy
 local get_curse_duration = NS.get_curse_duration
-local get_curse_spell = NS.get_curse_spell
-local is_spell_available = NS.is_spell_available
-local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
 
@@ -83,40 +80,8 @@ local Aff_ShadowTrance = {
     end,
 }
 
--- [2] Maintain Curse — apply assigned curse if missing/expired
--- Amplify Curse cast before CoD/CoA when available
-local Aff_MaintainCurse = {
-    requires_combat = true,
-    requires_enemy = true,
-
-    matches = function(context, state)
-        if context.settings.curse_type == "none" then return false end
-        -- CoA has accelerating ticks — last ticks deal most damage, never clip early
-        local threshold = 1.5
-        if context.settings.curse_type == "agony" then
-            threshold = 0.1
-        end
-        return state.curse_duration < threshold
-    end,
-
-    execute = function(icon, context, state)
-        -- Amplify Curse before CoD or CoA
-        local curse_type = context.settings.curse_type
-        if context.settings.aff_use_amplify_curse
-            and (curse_type == "doom" or curse_type == "agony")
-            and is_spell_available(A.AmplifyCurse) then
-            local result = try_cast(A.AmplifyCurse, icon, PLAYER_UNIT, "[AFF] Amplify Curse")
-            if result then return result end
-        end
-
-        local curse_spell = get_curse_spell(context)
-        if curse_spell then
-            return try_cast(curse_spell, icon, TARGET_UNIT,
-                format("[AFF] %s", context.settings.curse_type))
-        end
-        return nil
-    end,
-}
+-- [2] Maintain Curse — apply assigned curse if missing/expired (with Amplify Curse pre-cast)
+local Aff_MaintainCurse = NS.make_maintain_curse("AFF", { amplify = true })
 
 -- [3] Maintain Unstable Affliction — refresh when dot falls off
 local Aff_MaintainUA = NS.maintain_aura({
@@ -205,23 +170,7 @@ local Aff_DrainSoul = {
 }
 
 -- [8] AoE — Seed of Corruption when enough enemies
-local Aff_AoE = {
-    requires_combat = true,
-    requires_enemy = true,
-
-    matches = function(context, state)
-        local threshold = context.settings.aoe_threshold or 0
-        if threshold == 0 then return false end
-        if context.enemy_count < threshold then return false end
-        if context.is_moving then return false end
-        return true
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.SeedOfCorruption, icon, TARGET_UNIT,
-            format("[AFF] Seed of Corruption (AoE) - Enemies: %d", context.enemy_count))
-    end,
-}
+local Aff_AoE = NS.make_aoe("AFF")
 
 -- [9] Racial (off-GCD)
 local AFF_RACIAL_SPELLS = {
@@ -247,23 +196,7 @@ local Aff_ShadowBolt = {
 }
 
 -- [12] Life Tap — mana fallback (backup if middleware didn't fire)
-local Aff_LifeTap = {
-    requires_combat = true,
-    spell = A.LifeTap,
-
-    matches = function(context, state)
-        local min_hp = context.settings.life_tap_min_hp or 40
-        if context.hp < min_hp then return false end
-        -- Mirror the middleware threshold so this only fires when middleware would also fire
-        local threshold = context.settings.life_tap_mana_pct or 30
-        return context.mana_pct < threshold
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.LifeTap, icon, PLAYER_UNIT,
-            format("[AFF] Life Tap (fallback) - Mana: %.0f%%", context.mana_pct))
-    end,
-}
+local Aff_LifeTap = NS.make_lifetap("AFF")
 
 -- ============================================================================
 -- REGISTRATION
