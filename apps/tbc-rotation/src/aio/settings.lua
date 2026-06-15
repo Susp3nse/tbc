@@ -56,11 +56,9 @@ local LAYOUT = {
     dropdown_w  = 220,
 }
 
-local BACKDROP_THIN = {
-    bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Buttons\\WHITE8X8",
-    edgeSize = 1,
-}
+-- Reuse the one canonical thin backdrop from NS.Widgets (loaded at order 1).
+-- Shared by the settings frame, cards, checkboxes, and the dropdown button/popup.
+local BACKDROP_THIN = NS.Widgets.BACKDROP_THIN
 
 -- ============================================================================
 -- STATE
@@ -117,10 +115,9 @@ local inner_w = content_w - LAYOUT.card_pad * 2
 local inner_col_w = floor((inner_w - LAYOUT.col_gap) / 2)
 
 local function create_section_header(parent, y, text)
-    local hdr = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    -- Shared widget owns the FontString + theme coloring; settings owns layout.
+    local hdr = NS.Widgets.section_header(parent, text, { theme = THEME })
     hdr:SetPoint("TOPLEFT", LAYOUT.pad, y)
-    hdr:SetTextColor(THEME.text_header[1], THEME.text_header[2], THEME.text_header[3])
-    hdr:SetText(text)
 
     return y - 24
 end
