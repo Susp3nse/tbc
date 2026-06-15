@@ -178,6 +178,7 @@ NS.show_notification = show_notification
 local Priority = {
    MIDDLEWARE = {
       FORM_RESHIFT = 500,
+      EMERGENCY_DEFENSIVE = 490,   -- panic survival CDs (e.g. Divine Shield) — above emergency heals
       EMERGENCY_HEAL = 400,
       PROACTIVE_HEAL = 390,
       DISPEL_CURSE = 350,
@@ -1732,6 +1733,339 @@ local function register_interrupt_middleware(opts)
 end
 
 NS.register_interrupt_middleware = register_interrupt_middleware
+
+-- ============================================================================
+-- THREAT-AWARE TAB TARGETING (shared melee-tank factory)
+-- ============================================================================
+-- Used by Protection Warrior + Protection Paladin (ported originally from Druid
+-- Bear). Scans nameplates, categorizes mobs by threat tier (0=loose .. 3=secure),
+-- and decides whether to fire AUTOTARGET to cycle toward a higher-priority loose
+-- mob. The per-class strategy differed ONLY by the range-check spell (Rend vs
+-- Judgement) and which class-local prot_state table holds the cross-frame fields,
+-- so the whole scan is hoisted here and parameterized on those two inputs.
+do
+   local MultiUnits = A.MultiUnits
+   local UnitExists = _G.UnitExists
+   local UnitIsUnit = _G.UnitIsUnit
+   local UnitIsPlayer = _G.UnitIsPlayer
+   local UnitClassification = _G.UnitClassification
+   local UnitIsDead = _G.UnitIsDead
+   local UnitIsVisible = _G.UnitIsVisible
+   local UnitGUID = _G.UnitGUID
+   local UnitThreatSituation = _G.UnitThreatSituation
+   local UnitDetailedThreatSituation = _G.UnitDetailedThreatSituation
+   local huge = math.huge
+
+   -- Threat level: 0=not on table, 1=have threat but not tanking,
+   -- 2=insecurely tanking, 3=securely tanking (highest threat).
+   -- Fallback: if API says 0/1 but mob's target is us, treat as 2.
+   local function get_target_threat(unitID)
+      unitID = unitID or TARGET_UNIT
+      local threat = UnitThreatSituation("player", unitID) or 0
+      if threat < 2 then
+         local tt = unitID .. "target"
+         if UnitExists(tt) and UnitIsUnit(tt, PLAYER_UNIT) then
+            return 2
+         end
+      end
+      return threat
+   end
+
+   -- A mob being tanked by another player tank (not us).
+   local function is_other_tank_target(unitID)
+      unitID = unitID or TARGET_UNIT
+      local mobTarget = unitID .. "target"
+      if not UnitExists(mobTarget) then return false end
+      if UnitIsUnit(mobTarget, PLAYER_UNIT) then return false end
+      if not UnitIsPlayer(mobTarget) then return false end
+      return Unit(mobTarget):IsTank() == true
+   end
+
+   -- Unit priority for tab-targeting: boss > elite > trash
+   local PRIO_BOSS = 3
+   local PRIO_ELITE = 2
+   local PRIO_TRASH = 1
+
+   local function get_unit_priority(unitID)
+      local class = UnitClassification(unitID)
+      if class == "worldboss" then return PRIO_BOSS end
+      if class == "elite" or class == "rareelite" then return PRIO_ELITE end
+      return PRIO_TRASH
+   end
+
+   local function get_min_priority_from_setting(setting)
+      if setting == "bosses" then return PRIO_BOSS end
+      if setting == "elites" then return PRIO_ELITE end
+      return PRIO_TRASH  -- "all" or nil
+   end
+
+   -- Taunt helpers (shared by paladin/warrior taunt strategies).
+   -- Reliable aggro check: target is targeting us.
+   local function has_target_aggro()
+      return UnitExists("targettarget") and UnitIsUnit("targettarget", PLAYER_UNIT)
+   end
+
+   -- Target is CC'd above a threshold (taunting a CC'd mob wastes the CD).
+   local function is_target_cc_locked(threshold)
+      local cc_remaining = Unit(TARGET_UNIT):InCC() or 0
+      return cc_remaining > threshold
+   end
+
+   -- The friendly our target is attacking is a healer (taunt exception).
+   local function is_targettarget_healer()
+      if not UnitExists("targettarget") then return false end
+      return Unit("targettarget"):IsHealer() == true
+   end
+
+   -- Export pure helpers for class strategies that use them outside the scan.
+   NS.get_target_threat = get_target_threat
+   NS.is_other_tank_target = is_other_tank_target
+   NS.get_unit_priority = get_unit_priority
+   NS.get_min_priority_from_setting = get_min_priority_from_setting
+   NS.has_target_aggro = has_target_aggro
+   NS.is_target_cc_locked = is_target_cc_locked
+   NS.is_targettarget_healer = is_targettarget_healer
+
+   local TAB_MAX_ATTEMPTS = 10
+   local MANUAL_TARGET_GRACE = 3
+
+   -- Cross-frame manual-target detection: when the target GUID changes and we
+   -- didn't cause it (no pending tab desire), open a grace window so the smart
+   -- tab doesn't yank the player off a manual selection. Call once per frame
+   -- from the class context_builder, passing the class prot_state table.
+   function NS.update_manual_target_tracking(st)
+      local current_guid = UnitGUID(TARGET_UNIT)
+      if current_guid ~= st.last_target_guid then
+         if st.last_target_guid ~= nil and not st.tab_target_desired then
+            st.manual_target_time = GetTime()
+         end
+         st.last_target_guid = current_guid
+      end
+   end
+
+   -- Build a should_tab(ctx) predicate for a melee tank.
+   --   opts.range_spell      : Action exposing :IsInRange(unit) (A.Rend / A.Judgement / A.MangleBear)
+   --   opts.state            : the class tank state table — must carry the fields
+   --                           tab_target_desired, tab_target_attempts,
+   --                           last_target_guid, manual_target_time.
+   --   opts.max_mobs_key     : settings key for max mobs to manage (default "prot_tab_max_mobs")
+   --   opts.min_priority_key : settings key for min priority (default "prot_tab_min_priority")
+   -- Optional class-specific seams (all default to no-op — used by Druid Bear):
+   --   opts.tab_away_check(ctx) -> bool : extra "tab off current target" trigger,
+   --                           evaluated once combat is confirmed (e.g. target is CC'd).
+   --   opts.reset_scan()       : zero per-frame accumulators before the nameplate loop.
+   --   opts.scan_unit(unitID, unitPriority) : called for each qualifying scanned mob.
+   --   opts.tail_hook(ctx, current_out_of_range) -> nil|bool : runs after threat
+   --                           equalization, before the out-of-range fallback. Return
+   --                           true/false to short-circuit, nil to continue.
+   function NS.make_threat_tab(opts)
+      local range_spell = opts and opts.range_spell
+      local st = opts and opts.state
+      if not range_spell then error("make_threat_tab requires range_spell") end
+      if not st then error("make_threat_tab requires state") end
+      local max_mobs_key = opts.max_mobs_key or "prot_tab_max_mobs"
+      local min_priority_key = opts.min_priority_key or "prot_tab_min_priority"
+      local tab_away_check = opts.tab_away_check
+      local reset_scan = opts.reset_scan
+      local scan_unit = opts.scan_unit
+      local tail_hook = opts.tail_hook
+
+      return function(ctx)
+         -- Mid-cycle: actively cycling toward a desired target
+         local desired = st.tab_target_desired
+         if desired then
+            if UnitExists(TARGET_UNIT) and UnitIsUnit(TARGET_UNIT, desired) then
+               st.tab_target_desired = nil
+               st.tab_target_attempts = 0
+               return false
+            end
+            if not UnitExists(desired) or UnitIsDead(desired)
+               or range_spell:IsInRange(desired) ~= true then
+               st.tab_target_desired = nil
+               st.tab_target_attempts = 0
+               return false
+            end
+            st.tab_target_attempts = st.tab_target_attempts + 1
+            if st.tab_target_attempts > TAB_MAX_ATTEMPTS then
+               st.tab_target_desired = nil
+               st.tab_target_attempts = 0
+               return false
+            end
+            return true
+         end
+
+         -- Respect manual target selection
+         if (GetTime() - st.manual_target_time) < MANUAL_TARGET_GRACE then return false end
+
+         -- Normal evaluation
+         if UnitIsPlayer(TARGET_UNIT) then return false end
+
+         -- Switch if current target dead or doesn't exist
+         if not UnitExists(TARGET_UNIT) or UnitIsDead(TARGET_UNIT) then return true end
+
+         -- Not in combat yet, skip
+         if Unit(TARGET_UNIT):CombatTime() == 0 then return false end
+
+         -- Class-specific tab-away trigger (e.g. Bear: current target is CC'd —
+         -- switch away to find a valid one; AUTOTARGET picks).
+         if tab_away_check and tab_away_check(ctx) then return true end
+
+         -- Current target out of melee range or not visible
+         local current_out_of_range = not ctx.in_melee_range or not UnitIsVisible(TARGET_UNIT)
+         -- Current target is another tank's mob
+         local current_other_tank = not current_out_of_range and is_other_tank_target()
+
+         -- Single enemy, no reason to tab
+         if ctx.enemy_count < 2 and not current_other_tank and not current_out_of_range then return false end
+
+         -- Threat-level assessment of current target:
+         --   other_tank / out_of_range = treat as secure (3) to force scan
+         --   0 = stay (urgently need threat here)
+         --   1 = stay unless threat-0 mob exists
+         --   2 = insecure — scan for threat 0-1 mobs
+         --   3 = secure — scan for threat 0-2 mobs (safe to leave)
+         local currentThreat = (current_out_of_range or current_other_tank) and 3 or get_target_threat()
+         if currentThreat == 0 then return false end
+
+         -- Scan nameplates: categorize mobs by threat level + unit priority
+         local maxMobsToManage = ctx.settings[max_mobs_key] or 4
+         local minPriority = get_min_priority_from_setting(ctx.settings[min_priority_key])
+         if reset_scan then reset_scan() end
+         local secureMobs = 0
+
+         local bestT0Unit, bestT0Prio = nil, 0
+         local bestT1Unit, bestT1Prio = nil, 0
+         local bestT2Unit, bestT2Prio = nil, 0
+         local t0Count, t1Count, t2Count = 0, 0, 0
+
+         -- Threat equalization: track lowest-threat secure mob
+         local lowestSecureUnit = nil
+         local lowestSecureThreatVal = huge
+
+         -- Best in-range unit (for out-of-range swap fallback)
+         local bestInRangeUnit, bestInRangePriority = nil, 0
+
+         local plates = MultiUnits:GetActiveUnitPlates()
+         if plates then
+            for unitID in pairs(plates) do
+               if unitID
+                  and UnitExists(unitID)
+                  and not UnitIsDead(unitID)
+                  and not UnitIsPlayer(unitID)
+                  and not UnitIsUnit(unitID, TARGET_UNIT)
+                  and Unit(unitID):CombatTime() > 0
+                  and range_spell:IsInRange(unitID) == true
+                  and (Unit(unitID):InCC() or 0) == 0
+                  and not is_other_tank_target(unitID)
+               then
+                  local unitTTD = Unit(unitID):TimeToDie()
+                  local unitIsDying = unitTTD > 0 and unitTTD < 5
+
+                  if not unitIsDying then
+                     local unitThreat = get_target_threat(unitID)
+                     local unitPriority = get_unit_priority(unitID)
+
+                     if unitPriority > bestInRangePriority then
+                        bestInRangePriority = unitPriority
+                        bestInRangeUnit = unitID
+                     end
+
+                     if unitThreat == 3 then
+                        secureMobs = secureMobs + 1
+                        local _, _, _, tvRaw = UnitDetailedThreatSituation(PLAYER_UNIT, unitID)
+                        local tv = tvRaw or 0
+                        if tv < lowestSecureThreatVal then
+                           lowestSecureThreatVal = tv
+                           lowestSecureUnit = unitID
+                        end
+                     elseif unitThreat == 2 then
+                        t2Count = t2Count + 1
+                        if unitPriority >= minPriority and unitPriority > bestT2Prio then
+                           bestT2Prio = unitPriority
+                           bestT2Unit = unitID
+                        end
+                     elseif unitThreat == 1 then
+                        t1Count = t1Count + 1
+                        if unitPriority >= minPriority and unitPriority > bestT1Prio then
+                           bestT1Prio = unitPriority
+                           bestT1Unit = unitID
+                        end
+                     else
+                        t0Count = t0Count + 1
+                        if unitPriority >= minPriority and unitPriority > bestT0Prio then
+                           bestT0Prio = unitPriority
+                           bestT0Unit = unitID
+                        end
+                     end
+
+                     -- Class-specific per-unit accumulation (e.g. Bear: low-Lacerate count)
+                     if scan_unit then scan_unit(unitID, unitPriority) end
+                  end
+               end
+            end
+         end
+
+         -- Select best tab-target: lower threat tier = more urgent.
+         -- Only switch to mobs MORE urgent than current.
+         local looseMobs = t0Count + t1Count
+         local bestUnit = nil
+
+         if currentThreat == 1 then
+            if t0Count > 0 and bestT0Unit then bestUnit = bestT0Unit end
+         elseif currentThreat == 2 then
+            if bestT0Unit then bestUnit = bestT0Unit
+            elseif bestT1Unit then bestUnit = bestT1Unit end
+         elseif currentThreat >= 3 then
+            if bestT0Unit then bestUnit = bestT0Unit
+            elseif bestT1Unit then bestUnit = bestT1Unit
+            elseif bestT2Unit then bestUnit = bestT2Unit end
+         end
+
+         -- Don't exceed max mobs to manage
+         if bestUnit and looseMobs > 0 and secureMobs >= maxMobsToManage then
+            local bestThreat = get_target_threat(bestUnit)
+            if bestThreat >= 2 then bestUnit = nil end
+         end
+
+         if bestUnit then
+            st.tab_target_desired = bestUnit
+            st.tab_target_attempts = 0
+            return true
+         end
+
+         -- Threat equalization: when all mobs securely tanked, rotate to lowest-threat mob
+         if currentThreat >= 3 and not current_out_of_range
+            and t0Count == 0 and t1Count == 0 and t2Count == 0
+            and lowestSecureUnit
+         then
+            local _, _, _, currentThreatVal = UnitDetailedThreatSituation(PLAYER_UNIT, TARGET_UNIT)
+            currentThreatVal = currentThreatVal or 0
+            -- 10% threshold to prevent ping-ponging between similar-threat mobs
+            if currentThreatVal > 0 and lowestSecureThreatVal < (currentThreatVal * 0.9) then
+               st.tab_target_desired = lowestSecureUnit
+               st.tab_target_attempts = 0
+               return true
+            end
+         end
+
+         -- Class-specific tail (e.g. Bear: spread Lacerate on multi-target, and
+         -- don't swap off an out-of-range mob when Feral Charge is available).
+         if tail_hook then
+            local hooked = tail_hook(ctx, current_out_of_range)
+            if hooked ~= nil then return hooked end
+         end
+
+         -- Current target out of melee → switch to best in-range target
+         if current_out_of_range and bestInRangeUnit then
+            st.tab_target_desired = bestInRangeUnit
+            st.tab_target_attempts = 0
+            return true
+         end
+
+         return false
+      end
+   end
+end
 
 -- ============================================================================
 -- MODULE LOADED

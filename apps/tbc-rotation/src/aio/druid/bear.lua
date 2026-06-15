@@ -82,42 +82,12 @@ do
       return cd > 0 and cd <= MANGLE_HOLD_WINDOW
    end
 
-   local function is_target_cc_locked(threshold)
-      local cc_remaining = Unit(TARGET_UNIT):InCC() or 0
-      return cc_remaining > threshold
-   end
-
-   local function is_targettarget_healer()
-      if not _G.UnitExists("targettarget") then return false end
-      return Unit("targettarget"):IsHealer() == true
-   end
-
-   -- Check if a mob is being tanked by another tank (not us)
-   -- Returns true if the mob's target is another player detected as a tank
-   local function is_other_tank_target(unitID)
-      unitID = unitID or TARGET_UNIT
-      local mobTarget = unitID .. "target"
-      if not _G.UnitExists(mobTarget) then return false end
-      if _G.UnitIsUnit(mobTarget, PLAYER_UNIT) then return false end
-      if not _G.UnitIsPlayer(mobTarget) then return false end
-      return Unit(mobTarget):IsTank() == true
-   end
-
-   -- Threat level helper: returns 0-3 threat status for a unit
-   -- 0 = not on threat table, 1 = have threat but not tanking,
-   -- 2 = insecurely tanking, 3 = securely tanking (highest threat)
-   -- Fallback: if API says 0/1 but mob's target is us, treat as 2
-   local function get_target_threat(unitID)
-      unitID = unitID or TARGET_UNIT
-      local threat = _G.UnitThreatSituation(PLAYER_UNIT, unitID) or 0
-      if threat < 2 then
-         local tt = unitID .. "target"
-         if _G.UnitExists(tt) and _G.UnitIsUnit(tt, PLAYER_UNIT) then
-            return 2
-         end
-      end
-      return threat
-   end
+   -- Shared threat-tab + taunt helpers (hoisted to core.lua — see make_threat_tab).
+   -- Used here both by the tab-target factory and by Growl/Challenging Roar below.
+   local is_target_cc_locked = NS.is_target_cc_locked
+   local is_targettarget_healer = NS.is_targettarget_healer
+   local is_other_tank_target = NS.is_other_tank_target
+   local get_target_threat = NS.get_target_threat
 
    -- AoE floor: when swipe_min=1, AoE optimization still kicks in at this enemy count
    local AOE_MIN_ENEMIES = 3
@@ -187,260 +157,13 @@ do
       return false
    end
 
-   -- Forward declaration: populated below, needed by should_tab_target
+   -- Forward declarations. bear_state is populated below; should_tab_target is
+   -- built from the shared NS.make_threat_tab factory once bear_state exists
+   -- (see "TAB TARGETING (shared factory wiring)" below). The bulk threat scan
+   -- lives in core.lua — bear only supplies its range spell (Mangle), its CC
+   -- tab-away trigger, and its Lacerate-spread tail.
    local bear_state
-
-   -- Unit priority for tab-targeting: boss > elite > trash
-   local PRIO_BOSS = 3
-   local PRIO_ELITE = 2
-   local PRIO_TRASH = 1
-   local function get_unit_priority(unitID)
-      local class = _G.UnitClassification(unitID)
-      if class == "worldboss" then return PRIO_BOSS end
-      if class == "elite" or class == "rareelite" then return PRIO_ELITE end
-      return PRIO_TRASH
-   end
-
-   local TAB_MAX_ATTEMPTS = 10  -- safety: give up cycling after this many frames
-   local MANUAL_TARGET_GRACE = 3  -- seconds: don't tab-target after manual target selection
-
-   -- Convert setting string to minimum priority threshold
-   local function get_min_priority_from_setting(setting)
-      if setting == "bosses" then return PRIO_BOSS end
-      if setting == "elites" then return PRIO_ELITE end
-      return PRIO_TRASH  -- "all" or nil
-   end
-
-   local function should_tab_target(ctx, state)
-      if not ctx.settings.enable_tab_targeting then
-         bear_state.tab_target_desired = nil
-         return false
-      end
-
-      -- Mid-cycle: we're actively cycling toward a desired target
-      local desired = bear_state.tab_target_desired
-      if desired then
-         -- Landed on it → done
-         if _G.UnitExists(TARGET_UNIT) and _G.UnitIsUnit(TARGET_UNIT, desired) then
-            bear_state.tab_target_desired = nil
-            bear_state.tab_target_attempts = 0
-            return false
-         end
-         -- Desired target gone or out of melee → abort
-         if not _G.UnitExists(desired) or _G.UnitIsDead(desired)
-            or A.MangleBear:IsInRange(desired) ~= true then
-            bear_state.tab_target_desired = nil
-            bear_state.tab_target_attempts = 0
-            return false
-         end
-         -- Max attempts → give up (prevent infinite cycling)
-         bear_state.tab_target_attempts = bear_state.tab_target_attempts + 1
-         if bear_state.tab_target_attempts > TAB_MAX_ATTEMPTS then
-            bear_state.tab_target_desired = nil
-            bear_state.tab_target_attempts = 0
-            return false
-         end
-         return true  -- keep cycling
-      end
-
-      -- Respect manual target selection: don't override player clicks for a few seconds
-      -- Covers: targeting out-of-range mob to Feral Charge, clicking teammate to Innervate, etc.
-      if (GetTime() - bear_state.manual_target_time) < MANUAL_TARGET_GRACE then return false end
-
-      -- Normal evaluation: decide IF and WHERE to switch
-      if _G.UnitIsPlayer(TARGET_UNIT) then return false end
-
-      -- Switch if current target is dead or doesn't exist
-      if not _G.UnitExists(TARGET_UNIT) or _G.UnitIsDead(TARGET_UNIT) then return true end
-
-      if Unit(TARGET_UNIT):CombatTime() == 0 then return false end
-
-      -- Switch away from CC'd target to find a valid one (no specific target, AUTOTARGET picks)
-      if is_target_breakable_cc() then return true end
-
-      -- Current target out of melee or not visible → fall through to scan
-      local current_out_of_range = not ctx.in_melee_range or not _G.UnitIsVisible(TARGET_UNIT)
-      -- Current target is another tank's mob → need to switch, let scan find our mob
-      local current_other_tank = not current_out_of_range and is_other_tank_target()
-
-      -- With only 1 enemy and it's not another tank's mob, nothing to tab to
-      if ctx.enemy_count < 2 and not current_other_tank and not current_out_of_range then return false end
-
-      -- Threat-level-aware current-target decision:
-      --   other_tank / out_of_range = treat as secure (3) to force scan
-      --   0 = stay (urgently need threat here)
-      --   1 = stay unless threat-0 mob exists (scan will check)
-      --   2 = insecure — scan for threat 0-1 mobs only
-      --   3 = secure — scan for threat 0-2 mobs (safe to leave)
-      local currentThreat = (current_out_of_range or current_other_tank) and 3 or get_target_threat()
-      if currentThreat == 0 then return false end -- absolutely stay, we have zero threat
-
-      -- Scan nameplates: categorize mobs by threat level + unit priority
-      -- Threat tiers: 0 (no threat) > 1 (have threat, not tanking) > 2 (insecure)
-      -- Within each tier, prefer boss > elite > trash
-      local maxMobsToManage = ctx.settings.tab_max_mobs or 4
-      local minPriority = get_min_priority_from_setting(ctx.settings.tab_min_priority)
-      local secureMobs = 0  -- count of threat-3 mobs (for max-mobs check)
-      local mobsWithLowLacerate = 0
-      local bestLacUnit, bestLacPriority = nil, 0
-      local bestInRangeUnit, bestInRangePriority = nil, 0
-
-      -- Best target per threat tier (primary sort: threat asc, secondary: unit priority desc)
-      local bestT0Unit, bestT0Prio = nil, 0  -- threat 0: not on threat table
-      local bestT1Unit, bestT1Prio = nil, 0  -- threat 1: have threat, not tanking
-      local bestT2Unit, bestT2Prio = nil, 0  -- threat 2: insecurely tanking
-      local t0Count, t1Count, t2Count = 0, 0, 0
-
-      -- Threat equalization: among secure (threat 3) mobs, track the one with lowest threatValue
-      local lowestSecureUnit = nil
-      local lowestSecureThreatVal = math.huge
-
-      local plates = A.MultiUnits:GetActiveUnitPlates()
-      for unitID in pairs(plates) do
-         if unitID
-            and _G.UnitExists(unitID)
-            and not _G.UnitIsDead(unitID)
-            and not _G.UnitIsPlayer(unitID)
-            and not _G.UnitIsUnit(unitID, TARGET_UNIT)
-            and Unit(unitID):CombatTime() > 0
-            and A.MangleBear:IsInRange(unitID) == true
-            and (Unit(unitID):InCC() or 0) == 0
-            and not is_other_tank_target(unitID) -- skip mobs another tank is handling
-         then
-            local unitTTD = Unit(unitID):TimeToDie()
-            local unitIsDying = unitTTD > 0 and unitTTD < 5
-
-            if not unitIsDying then
-               local unitThreat = get_target_threat(unitID)
-               local unitPriority = get_unit_priority(unitID)
-
-               -- Track best in-range unit overall (for out-of-range swap)
-               if unitPriority > bestInRangePriority then
-                  bestInRangePriority = unitPriority
-                  bestInRangeUnit = unitID
-               end
-
-               if unitThreat == 3 then
-                  secureMobs = secureMobs + 1
-                  -- Track lowest-threat secure mob for equalization
-                  local _, _, _, tvRaw = _G.UnitDetailedThreatSituation(PLAYER_UNIT, unitID)
-                  local tv = tvRaw or 0
-                  if tv < lowestSecureThreatVal then
-                     lowestSecureThreatVal = tv
-                     lowestSecureUnit = unitID
-                  end
-               elseif unitThreat == 2 then
-                  t2Count = t2Count + 1
-                  if unitPriority >= minPriority and unitPriority > bestT2Prio then
-                     bestT2Prio = unitPriority
-                     bestT2Unit = unitID
-                  end
-               elseif unitThreat == 1 then
-                  t1Count = t1Count + 1
-                  if unitPriority >= minPriority and unitPriority > bestT1Prio then
-                     bestT1Prio = unitPriority
-                     bestT1Unit = unitID
-                  end
-               else -- unitThreat == 0
-                  t0Count = t0Count + 1
-                  if unitPriority >= minPriority and unitPriority > bestT0Prio then
-                     bestT0Prio = unitPriority
-                     bestT0Unit = unitID
-                  end
-               end
-
-               -- Count mobs with low lacerate stacks for DPS optimization
-               if is_spell_available(A.Lacerate) then
-                  local unitLacerateStacks = Unit(unitID):HasDeBuffsStacks(A.Lacerate.ID, true)
-                  if unitLacerateStacks < 3 then
-                     mobsWithLowLacerate = mobsWithLowLacerate + 1
-                     if unitPriority > bestLacPriority then
-                        bestLacPriority = unitPriority
-                        bestLacUnit = unitID
-                     end
-                  end
-               end
-            end
-         end
-      end
-
-      -- Select best tab-target based on current threat level:
-      -- Lower threat tier = more urgent. Only switch to mobs MORE urgent than current.
-      local looseMobs = t0Count + t1Count
-      local bestUnit = nil
-
-      if currentThreat == 1 then
-         -- We have threat but not tanking: only switch for threat-0 mobs (completely uncontrolled)
-         if t0Count > 0 and bestT0Unit then bestUnit = bestT0Unit end
-      elseif currentThreat == 2 then
-         -- Insecurely tanking: switch for loose mobs (threat 0-1)
-         if bestT0Unit then bestUnit = bestT0Unit
-         elseif bestT1Unit then bestUnit = bestT1Unit end
-      elseif currentThreat >= 3 then
-         -- Securely tanking: switch for loose (0-1) or insecure (2) mobs
-         if bestT0Unit then bestUnit = bestT0Unit
-         elseif bestT1Unit then bestUnit = bestT1Unit
-         elseif bestT2Unit then bestUnit = bestT2Unit end
-      end
-
-      -- Don't exceed max mobs to manage
-      if bestUnit and looseMobs > 0 and secureMobs >= maxMobsToManage then
-         -- Only switch if the target is truly loose (threat 0-1), not insecure
-         local bestThreat = get_target_threat(bestUnit)
-         if bestThreat >= 2 then bestUnit = nil end
-      end
-
-      if bestUnit then
-         bear_state.tab_target_desired = bestUnit
-         bear_state.tab_target_attempts = 0
-         return true
-      end
-
-      -- Threat equalization: when all mobs securely tanked, rotate to the lowest-threat mob
-      -- so Mangle/Maul/Swipe/Lacerate build threat on the weakest link
-      if currentThreat >= 3 and not current_out_of_range
-         and t0Count == 0 and t1Count == 0 and t2Count == 0
-         and lowestSecureUnit
-      then
-         -- Only switch if the lowest mob has meaningfully less threat than current target
-         local _, _, _, currentThreatVal = _G.UnitDetailedThreatSituation(PLAYER_UNIT, TARGET_UNIT)
-         currentThreatVal = currentThreatVal or 0
-         -- 10% threshold to prevent ping-ponging between similar-threat mobs
-         if currentThreatVal > 0 and lowestSecureThreatVal < (currentThreatVal * 0.9) then
-            bear_state.tab_target_desired = lowestSecureUnit
-            bear_state.tab_target_attempts = 0
-            return true
-         end
-      end
-
-      -- DPS optimization: Spread lacerate on multi-target (but below swipe threshold)
-      -- Only do this on non-boss fights to maximize DPS
-      if ctx.settings.tab_spread_lacerate ~= false and not ctx.is_boss and ctx.enemy_count >= 2 and ctx.enemy_count < 3 then
-         local currentLacerateStacks = state.lacerate_stacks
-         if currentLacerateStacks >= 3 and mobsWithLowLacerate > 0 then
-            if bestLacUnit then
-               bear_state.tab_target_desired = bestLacUnit
-               bear_state.tab_target_attempts = 0
-            end
-            return true
-         end
-      end
-
-      -- Don't swap off out-of-range target if Feral Charge is available (player may want to charge)
-      if current_out_of_range and is_spell_available(A.FeralChargeBear) then
-         local charge_cd = A.FeralChargeBear:GetCooldown()
-         if charge_cd <= 0 then return false end
-      end
-
-      -- Current target out of melee → switch to best in-range target
-      if current_out_of_range and bestInRangeUnit then
-         bear_state.tab_target_desired = bestInRangeUnit
-         bear_state.tab_target_attempts = 0
-         return true
-      end
-
-      return false
-   end
+   local should_tab_target
 
    -- =========================================================================
    -- SHARED BEAR STATE (computed once per frame, cached)
@@ -462,6 +185,76 @@ do
       last_ff_cast = 0,          -- GetTime() of last Faerie Fire cast (throttle tab-target spam)
       last_swipe_aoe_cast = 0,   -- GetTime() of last AoE Swipe (Mangle weave: open with Swipe, then yield)
    }
+
+   -- =========================================================================
+   -- TAB TARGETING (shared factory wiring)
+   -- =========================================================================
+   -- The threat scan + tier selection + equalization is shared (NS.make_threat_tab,
+   -- core.lua). Bear's three divergences are wired in as hooks:
+   --   1. tab_away_check — switch away from a breakable-CC'd current target.
+   --   2. scan_unit       — accumulate low-Lacerate mobs for the DPS-spread tail.
+   --   3. tail_hook       — spread Lacerate below the Swipe threshold, and don't
+   --                        swap off an out-of-range mob when Feral Charge is up.
+   -- Per-frame scratch for the Lacerate-spread accumulation (reset each scan).
+   local lac_low_count = 0
+   local lac_best_unit = nil
+   local lac_best_prio = 0
+
+   should_tab_target = NS.make_threat_tab({
+      range_spell = A.MangleBear,
+      state = bear_state,
+      max_mobs_key = "tab_max_mobs",
+      min_priority_key = "tab_min_priority",
+
+      -- Switch away from CC'd target to find a valid one (AUTOTARGET picks).
+      tab_away_check = function(ctx)
+         return is_target_breakable_cc()
+      end,
+
+      reset_scan = function()
+         lac_low_count = 0
+         lac_best_unit = nil
+         lac_best_prio = 0
+      end,
+
+      -- Count mobs with low lacerate stacks for the DPS-spread tail.
+      scan_unit = function(unitID, unitPriority)
+         if is_spell_available(A.Lacerate) then
+            local unitLacerateStacks = Unit(unitID):HasDeBuffsStacks(A.Lacerate.ID, true)
+            if unitLacerateStacks < 3 then
+               lac_low_count = lac_low_count + 1
+               if unitPriority > lac_best_prio then
+                  lac_best_prio = unitPriority
+                  lac_best_unit = unitID
+               end
+            end
+         end
+      end,
+
+      tail_hook = function(ctx, current_out_of_range)
+         -- DPS optimization: spread Lacerate on multi-target (but below Swipe
+         -- threshold). Only on non-boss fights to maximize DPS.
+         if ctx.settings.tab_spread_lacerate ~= false and not ctx.is_boss
+            and ctx.enemy_count >= 2 and ctx.enemy_count < 3 then
+            if bear_state.lacerate_stacks >= 3 and lac_low_count > 0 then
+               if lac_best_unit then
+                  bear_state.tab_target_desired = lac_best_unit
+                  bear_state.tab_target_attempts = 0
+               end
+               return true
+            end
+         end
+
+         -- Don't swap off an out-of-range target if Feral Charge is available
+         -- (the player may want to charge in).
+         if current_out_of_range and is_spell_available(A.FeralChargeBear) then
+            local charge_cd = A.FeralChargeBear:GetCooldown()
+            if charge_cd <= 0 then return false end
+         end
+
+         return nil
+      end,
+   })
 
    -- Rage costs (untalented base fallbacks; refreshed dynamically in get_bear_state)
    local RAGE_COST_MAUL = 15
@@ -541,15 +334,9 @@ do
       if context._bear_valid then return bear_state end
       context._bear_valid = true
 
-      -- Manual target detection: if target GUID changed and we didn't cause it, it's manual
-      local current_guid = _G.UnitGUID(TARGET_UNIT)
-      if current_guid ~= bear_state.last_target_guid then
-         if bear_state.last_target_guid ~= nil and not bear_state.tab_target_desired then
-            -- Target changed outside of our tab cycle → manual selection
-            bear_state.manual_target_time = GetTime()
-         end
-         bear_state.last_target_guid = current_guid
-      end
+      -- Manual target detection (shared helper): opens a grace window when the
+      -- player manually retargets so the smart tab doesn't immediately override it.
+      NS.update_manual_target_tracking(bear_state)
 
       if bear_state.maul_queued then
          local isc = A.Maul:IsSpellCurrent()
@@ -803,7 +590,7 @@ do
       requires_combat = true,
       setting_key = "enable_tab_targeting",
       matches = function(context, state)
-         return should_tab_target(context, state)
+         return should_tab_target(context)
       end,
       execute = function(icon, context)
          local desired = bear_state.tab_target_desired
