@@ -138,8 +138,6 @@ cleu_frame:SetScript("OnEvent", function()
     end
 end)
 
-local BACKDROP_THIN = NS.Widgets.BACKDROP_THIN
-
 -- ============================================================================
 -- LAYOUT CONSTANTS
 -- ============================================================================
@@ -340,7 +338,7 @@ local function create_dashboard()
 
     local f = CreateFrame("Frame", "MenagerieDashboard", UIParent, "BackdropTemplate")
     f:SetSize(FRAME_WIDTH, 300)
-    f:SetBackdrop(BACKDROP_THIN)
+    f:SetBackdrop(NS.Widgets.BACKDROP_THIN)
     f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 1)
     f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.6)
     f:SetMovable(true)
@@ -435,7 +433,7 @@ local function create_dashboard()
     local bar_bg = CreateFrame("Frame", nil, f, "BackdropTemplate")
     bar_bg:SetSize(FRAME_WIDTH - 16, RES_BAR_H)
     bar_bg:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y)
-    bar_bg:SetBackdrop(BACKDROP_THIN)
+    bar_bg:SetBackdrop(NS.Widgets.BACKDROP_THIN)
     bar_bg:SetBackdropColor(0, 0, 0, 0.6)
     bar_bg:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.5)
 
@@ -466,7 +464,7 @@ local function create_dashboard()
     -- Secondary resource bar (positioned dynamically in update)
     ui.resource_bg2 = CreateFrame("Frame", nil, f, "BackdropTemplate")
     ui.resource_bg2:SetSize(FRAME_WIDTH - 16, RES_BAR_H)
-    ui.resource_bg2:SetBackdrop(BACKDROP_THIN)
+    ui.resource_bg2:SetBackdrop(NS.Widgets.BACKDROP_THIN)
     ui.resource_bg2:SetBackdropColor(0, 0, 0, 0.6)
     ui.resource_bg2:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.5)
     ui.resource_bg2:Hide()
@@ -499,7 +497,7 @@ local function create_dashboard()
     for i = 1, MAX_TIMER_BARS do
         local tbg = CreateFrame("Frame", nil, f, "BackdropTemplate")
         tbg:SetSize(FRAME_WIDTH - 16, TIMER_BAR_HEIGHT)
-        tbg:SetBackdrop(BACKDROP_THIN)
+        tbg:SetBackdrop(NS.Widgets.BACKDROP_THIN)
         tbg:SetBackdropColor(0, 0, 0, 0.4)
         tbg:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.3)
         tbg:Hide()
@@ -634,7 +632,7 @@ local function create_dashboard()
     -- Threat bar (small progress bar below target info)
     ui.threat_bg = CreateFrame("Frame", nil, f, "BackdropTemplate")
     ui.threat_bg:SetSize(FRAME_WIDTH - 16, THREAT_BAR_H)
-    ui.threat_bg:SetBackdrop(BACKDROP_THIN)
+    ui.threat_bg:SetBackdrop(NS.Widgets.BACKDROP_THIN)
     ui.threat_bg:SetBackdropColor(0, 0, 0, 0.5)
     ui.threat_bg:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.3)
     ui.threat_bg:Hide()
