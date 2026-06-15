@@ -1,9 +1,10 @@
 -- Menagerie - Widgets
 -- Shared low-level UI chrome primitives (backdrop / button / header). No
 -- settings, schema, or panel knowledge -- pure chrome consumed by debug.lua,
--- livepanel.lua, settings.lua, and per-class panels. Loads at order 1 alongside
--- theme.lua/common.lua; theme colors are read at call-time, not load-time, so
--- there is no load-order dependency on theme.lua executing first.
+-- livepanel.lua, settings.lua, dashboard.lua, and class diagnostic panels.
+-- Loads at order 1 alongside theme.lua/common.lua; theme colors are read at
+-- call-time, not load-time, so there is no load-order dependency on theme.lua
+-- executing first.
 
 local _G = _G
 local CreateFrame = _G.CreateFrame

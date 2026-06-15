@@ -809,7 +809,7 @@ local function create_settings_button()
         GameTooltip:SetText(addon_title_colored, 1, 1, 1)
         GameTooltip:AddLine("Left-click to open settings", 1, 1, 1)
         GameTooltip:AddLine("Drag to move", 0.7, 0.7, 0.7)
-        GameTooltip:AddLine("/menagerie help for commands", 0.5, 0.5, 0.5)
+        GameTooltip:AddLine("/mhelp for commands", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", GameTooltip_Hide)
@@ -847,69 +847,56 @@ create_settings_button()
 -- SLASH COMMANDS
 -- ============================================================================
 SLASH_MENAGERIE1 = "/menagerie"
-SLASH_MENAGERIE2 = "/maio"
-SlashCmdList["MENAGERIE"] = function(msg)
-    msg = (msg or ""):lower():match("^%s*(.-)%s*$")
+SLASH_MENAGERIE2 = nil
+SlashCmdList["MENAGERIE"] = toggle_settings
 
-    if msg == "" then
-        toggle_settings()
+SLASH_MBURST1 = "/mburst"
+SlashCmdList["MBURST"] = function()
+    NS.set_force_flag("force_burst")
+    NS.show_notification("BURST", 3.0, { 1.0, 0.5, 0.1 })
+    print(format("|cff%s[Menagerie]|r |cFFFFFF00Burst|r cooldowns activated!", class_hex))
+end
+
+SLASH_MDEF1 = "/mdef"
+SlashCmdList["MDEF"] = function()
+    NS.set_force_flag("force_defensive")
+    NS.show_notification("DEFENSIVE", 3.0, { 0.3, 0.7, 1.0 })
+    print(format("|cff%s[Menagerie]|r |cFFFFFF00Defensive|r cooldowns activated!", class_hex))
+end
+
+SLASH_MGAP1 = "/mgap"
+SlashCmdList["MGAP"] = function()
+    NS.set_force_flag("force_gap")
+    print(format("|cff%s[Menagerie]|r |cFFFFFF00Gap closer|r activated!", class_hex))
+end
+
+SLASH_MRAPTOR1 = "/mraptor"
+SlashCmdList["MRAPTOR"] = function()
+    if class_name ~= "Hunter" then
+        print(format("|cff%s[Menagerie]|r Manual Raptor queue is Hunter-only.", class_hex))
         return
     end
+    NS.set_force_flag("force_raptor")
+    NS.show_notification("RAPTOR", 3.0, { 0.67, 0.83, 0.45 })
+    print(format("|cff%s[Menagerie]|r |cFFFFFF00Manual Raptor queue|r activated!", class_hex))
+end
 
-    if msg == "burst" then
-        NS.set_force_flag("force_burst")
-        NS.show_notification("BURST", 3.0, { 1.0, 0.5, 0.1 })
-        print(format("|cff%s[Menagerie]|r |cFFFFFF00Burst|r cooldowns activated!", class_hex))
-        return
+SLASH_MHELP1 = "/mhelp"
+SlashCmdList["MHELP"] = function()
+    print(format("|cff%s[Menagerie]|r Commands:", class_hex))
+    print("  /menagerie  - Open settings")
+    print("  /mlog       - Toggle debug log")
+    print("  /mdebug     - Toggle debug panel")
+    print("  /mdash      - Toggle combat dashboard")
+    print("  /mburst     - Force burst cooldowns")
+    print("  /mdef       - Force defensive cooldowns")
+    print("  /mgap       - Use gap closer")
+    if class_name == "Hunter" then
+        print("  /mraptor    - Force one manual Raptor queue window")
     end
-
-    if msg == "defensive" or msg == "def" then
-        NS.set_force_flag("force_defensive")
-        NS.show_notification("DEFENSIVE", 3.0, { 0.3, 0.7, 1.0 })
-        print(format("|cff%s[Menagerie]|r |cFFFFFF00Defensive|r cooldowns activated!", class_hex))
-        return
+    if class_name == "Druid" then
+        print("  /mticks     - Toggle cat energy-tick debug print")
     end
-
-    if msg == "gap" then
-        NS.set_force_flag("force_gap")
-        print(format("|cff%s[Menagerie]|r |cFFFFFF00Gap closer|r activated!", class_hex))
-        return
-    end
-
-    if msg == "raptor" and class_name == "Hunter" then
-        NS.set_force_flag("force_raptor")
-        NS.show_notification("RAPTOR", 3.0, { 0.67, 0.83, 0.45 })
-        print(format("|cff%s[Menagerie]|r |cFFFFFF00Manual Raptor queue|r activated!", class_hex))
-        return
-    end
-
-    if msg == "status" then
-        if NS.toggle_dashboard then
-            NS.toggle_dashboard()
-        else
-            print(format("|cff%s[Menagerie]|r Dashboard not yet loaded.", class_hex))
-        end
-        return
-    end
-
-    if msg == "help" then
-        print(format("|cff%s[Menagerie]|r Slash commands:", class_hex))
-        print("  /menagerie           - Open settings")
-        print("  /menagerie burst     - Force burst cooldowns")
-        print("  /menagerie def       - Force defensive cooldowns")
-        print("  /menagerie gap       - Use gap closer")
-        if class_name == "Hunter" then
-            print("  /menagerie raptor    - Force one manual Raptor queue window")
-        end
-        print("  /menagerie status    - Toggle combat dashboard")
-        print("  /mdash               - Toggle combat dashboard")
-        print("  /mticks         - Toggle cat energy-tick debug print")
-        print("  /menagerie help      - Show this help")
-        return
-    end
-
-    -- Unknown subcommand: fallback to settings toggle
-    toggle_settings()
 end
 
 -- Dedicated tick-debug toggle (kept as its own slash so it can't be intercepted

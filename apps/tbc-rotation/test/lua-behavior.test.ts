@@ -42,6 +42,7 @@ Menagerie = {
    rotation_registry = {},
 }
 
+dofile("src/aio/widgets.lua")
 dofile("src/aio/dashboard.lua")
 
 if SLASH_MENAGERIEDASH1 ~= "/mdash" then
@@ -55,6 +56,483 @@ io.write("PASS: dashboard slash alias\n")
 `);
 
   assert.match(output, /PASS: dashboard slash alias/);
+}
+
+{
+  const output = runLua(String.raw`
+local frames = {}
+local timer_value_sets = 0
+local current_gcd = 1.0
+local now = 10
+
+function print() end
+function GetTime() return now end
+function GetSpellInfo() return nil end
+function GetSpellTexture() return "icon" end
+function GetInventoryItemTexture() return nil end
+function GetInventoryItemCooldown() return 0, 0 end
+function UnitRangedDamage() return 2.0 end
+function UnitName() return nil end
+function UnitGUID(unit) return unit == "player" and "Player-1" or nil end
+function UnitDetailedThreatSituation() return nil, nil, nil end
+function CombatLogGetCurrentEventInfo() return nil end
+
+local function new_frame(kind, name, parent)
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   function f:SetSize(w, h) self.width = w; self.height = h end
+   function f:SetWidth(w) self.width = w end
+   function f:SetHeight(h) self.height = h end
+   function f:SetPoint(...) self.point = { ... } end
+   function f:ClearAllPoints() self.point = nil end
+   function f:SetAllPoints() self.allPoints = true end
+   function f:SetBackdrop(v) self.backdrop = v end
+   function f:SetBackdropColor(...) self.backdropColor = { ... } end
+   function f:SetBackdropBorderColor(...) self.borderColor = { ... } end
+   function f:SetMovable(v) self.movable = v end
+   function f:EnableMouse(v) self.mouse = v end
+   function f:SetClampedToScreen(v) self.clamped = v end
+   function f:RegisterForDrag(...) self.drag = { ... } end
+   function f:RegisterEvent(...) self.events = { ... } end
+   function f:SetScript(event, cb) self.scripts[event] = cb end
+   function f:GetScript(event) return self.scripts[event] end
+   function f:SetFrameStrata(v) self.strata = v end
+   function f:SetAlpha(v) self.alpha = v end
+   function f:GetCenter() return nil end
+   function f:IsShown() return self.visible end
+   function f:Show() self.visible = true end
+   function f:Hide() self.visible = false end
+   function f:StartMoving() self.moving = true end
+   function f:StopMovingOrSizing() self.moving = false end
+   function f:GetParent() return self.parent end
+   function f:GetRegions() return end
+   function f:GetChildren() return end
+   function f:SetTexture(v) self.texture = v end
+   function f:SetTexCoord(...) self.texCoord = { ... } end
+   function f:SetVertexColor(...) self.vertexColor = { ... } end
+   function f:SetColorTexture(...) self.colorTexture = { ... } end
+   function f:SetFont(...) self.font = { ... } end
+   function f:SetJustifyH(v) self.justifyH = v end
+   function f:SetSpacing(v) self.spacing = v end
+   function f:SetTextColor(...) self.textColor = { ... } end
+   function f:SetShadowColor(...) self.shadowColor = { ... } end
+   function f:SetShadowOffset(...) self.shadowOffset = { ... } end
+   function f:SetText(v)
+      self.text = v
+      if self.kind == "FontString" and v == "1.0" then
+         timer_value_sets = timer_value_sets + 1
+      end
+   end
+   function f:CreateTexture(_, layer)
+      local texture = new_frame("Texture", nil, self)
+      texture.layer = layer
+      return texture
+   end
+   function f:CreateFontString(_, layer)
+      local fs = new_frame("FontString", nil, self)
+      fs.layer = layer
+      return fs
+   end
+   frames[#frames + 1] = f
+   if name then _G[name] = f end
+   return f
+end
+
+function CreateFrame(kind, name, parent)
+   return new_frame(kind, name, parent)
+end
+
+local function run_updates(elapsed)
+   for i = 1, #frames do
+      local cb = frames[i].scripts.OnUpdate
+      if cb then cb(frames[i], elapsed) end
+   end
+end
+
+UIParent = new_frame("Frame", "UIParent")
+GameTooltip = {
+   SetOwner = function() end,
+   SetInventoryItem = function() end,
+   SetSpellByID = function() end,
+   Show = function() end,
+}
+function GameTooltip_Hide() end
+SlashCmdList = {}
+
+Menagerie = {
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      accent_hex = "ff8800",
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+      state = {
+         good = { 0.2, 0.9, 0.2 },
+         warn = { 1.0, 0.8, 0.2 },
+         bad = { 1.0, 0.2, 0.2 },
+      },
+   },
+   A = {
+      GetGCD = function() return 1.5 end,
+      GetCurrentGCD = function() return current_gcd end,
+   },
+   Player = {
+      Energy = function() return 0 end,
+      EnergyMax = function() return 100 end,
+      GetSwingShoot = function() return 0 end,
+      GetSwingStart = function() return 0 end,
+      GetSwing = function() return 0 end,
+   },
+   Unit = function()
+      return {
+         TimeToDie = function() return 0 end,
+         GetRange = function() return nil, nil end,
+         HasBuffs = function() return 0 end,
+         HasDeBuffs = function() return 0 end,
+         HasDeBuffsStacks = function() return 0 end,
+      }
+   end,
+   cached_settings = { show_dashboard = false },
+   rotation_registry = {
+      class_config = {
+         name = "Hunter",
+         version = "v1.0.0",
+         idle_playstyle_name = "ranged",
+         get_active_playstyle = function() return "ranged" end,
+         dashboard = { swing_label = false },
+      },
+   },
+}
+
+dofile("src/aio/widgets.lua")
+dofile("src/aio/dashboard.lua")
+
+Menagerie.toggle_dashboard()
+run_updates(0.11)
+
+timer_value_sets = 0
+run_updates(0.01)
+if timer_value_sets ~= 0 then error("unchanged GCD text should not be rewritten") end
+
+current_gcd = 0
+run_updates(0.01)
+current_gcd = 1.0
+timer_value_sets = 0
+run_updates(0.01)
+if timer_value_sets ~= 1 then error("GCD text should rewrite after hiding and re-showing") end
+
+io.write("PASS: dashboard timer text updates only on change\n")
+`);
+
+  assert.match(output, /PASS: dashboard timer text updates only on change/);
+}
+
+{
+  const output = runLua(String.raw`
+local frames = {}
+local named_counts = {}
+
+function print() end
+function GetTime() return 0 end
+function GetSpellInfo() return nil end
+function GetSpellTexture() return "icon" end
+function GetInventoryItemTexture() return nil end
+function GetInventoryItemCooldown() return 0, 0 end
+function UnitRangedDamage() return 2.0 end
+function UnitName() return nil end
+function UnitGUID(unit) return unit == "player" and "Player-1" or nil end
+function UnitDetailedThreatSituation() return nil, nil, nil end
+function CombatLogGetCurrentEventInfo() return nil end
+
+local function new_frame(kind, name, parent)
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   function f:SetSize(w, h) self.width = w; self.height = h end
+   function f:SetWidth(w) self.width = w end
+   function f:SetHeight(h) self.height = h end
+   function f:SetPoint(...) self.point = { ... } end
+   function f:ClearAllPoints() self.point = nil end
+   function f:SetAllPoints() self.allPoints = true end
+   function f:SetBackdrop(v) self.backdrop = v end
+   function f:SetBackdropColor(...) self.backdropColor = { ... } end
+   function f:SetBackdropBorderColor(...) self.borderColor = { ... } end
+   function f:SetMovable(v) self.movable = v end
+   function f:EnableMouse(v) self.mouse = v end
+   function f:SetClampedToScreen(v) self.clamped = v end
+   function f:RegisterForDrag(...) self.drag = { ... } end
+   function f:RegisterEvent(...) self.events = { ... } end
+   function f:SetScript(event, cb) self.scripts[event] = cb end
+   function f:GetScript(event) return self.scripts[event] end
+   function f:SetFrameStrata(v) self.strata = v end
+   function f:SetAlpha(v) self.alpha = v end
+   function f:GetCenter() return nil end
+   function f:IsShown() return self.visible end
+   function f:Show() self.visible = true end
+   function f:Hide() self.visible = false end
+   function f:StartMoving() self.moving = true end
+   function f:StopMovingOrSizing() self.moving = false end
+   function f:GetParent() return self.parent end
+   function f:GetRegions() return end
+   function f:GetChildren() return end
+   function f:SetTexture(v) self.texture = v end
+   function f:SetTexCoord(...) self.texCoord = { ... } end
+   function f:SetVertexColor(...) self.vertexColor = { ... } end
+   function f:SetColorTexture(...) self.colorTexture = { ... } end
+   function f:SetFont(...) self.font = { ... } end
+   function f:SetJustifyH(v) self.justifyH = v end
+   function f:SetSpacing(v) self.spacing = v end
+   function f:SetTextColor(...) self.textColor = { ... } end
+   function f:SetShadowColor(...) self.shadowColor = { ... } end
+   function f:SetShadowOffset(...) self.shadowOffset = { ... } end
+   function f:SetText(v) self.text = v end
+   function f:CreateTexture(_, layer)
+      local texture = new_frame("Texture", nil, self)
+      texture.layer = layer
+      return texture
+   end
+   function f:CreateFontString(_, layer)
+      local fs = new_frame("FontString", nil, self)
+      fs.layer = layer
+      return fs
+   end
+   frames[#frames + 1] = f
+   if name then
+      named_counts[name] = (named_counts[name] or 0) + 1
+      _G[name] = f
+   end
+   return f
+end
+
+function CreateFrame(kind, name, parent)
+   return new_frame(kind, name, parent)
+end
+
+UIParent = new_frame("Frame", "UIParent")
+GameTooltip = {
+   SetOwner = function() end,
+   SetInventoryItem = function() end,
+   SetSpellByID = function() end,
+   Show = function() end,
+}
+function GameTooltip_Hide() end
+SlashCmdList = {}
+
+Menagerie = {
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      accent_hex = "ff8800",
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+      state = {
+         good = { 0.2, 0.9, 0.2 },
+         warn = { 1.0, 0.8, 0.2 },
+         bad = { 1.0, 0.2, 0.2 },
+      },
+   },
+   A = {
+      GetGCD = function() return 1.5 end,
+      GetCurrentGCD = function() return 0 end,
+   },
+   Player = {
+      Energy = function() return 0 end,
+      EnergyMax = function() return 100 end,
+      GetSwingShoot = function() return 0 end,
+      GetSwingStart = function() return 0 end,
+      GetSwing = function() return 0 end,
+   },
+   Unit = function()
+      return {
+         TimeToDie = function() return 0 end,
+         GetRange = function() return nil, nil end,
+         HasBuffs = function() return 0 end,
+         HasDeBuffs = function() return 0 end,
+         HasDeBuffsStacks = function() return 0 end,
+      }
+   end,
+   cached_settings = { show_dashboard = false },
+   rotation_registry = {
+      class_config = {
+         name = "Hunter",
+         version = "v1.0.0",
+         idle_playstyle_name = "ranged",
+         get_active_playstyle = function() return "ranged" end,
+         dashboard = { swing_label = false },
+      },
+   },
+}
+
+dofile("src/aio/widgets.lua")
+dofile("src/aio/dashboard.lua")
+Menagerie.toggle_dashboard()
+
+local first = MenagerieDashboard
+if not first then error("first dashboard frame should be named globally") end
+
+dofile("src/aio/dashboard.lua")
+Menagerie.toggle_dashboard()
+
+if MenagerieDashboard ~= first then error("dashboard frame should be reused across module re-exec") end
+if named_counts.MenagerieDashboard ~= 1 then
+   error("expected one MenagerieDashboard frame, got " .. tostring(named_counts.MenagerieDashboard))
+end
+if not first.ui then error("dashboard should persist child refs on the frame for rebind") end
+
+local ticker_names = {
+   "MenagerieDashUpdateFrame",
+   "MenagerieDashFrameRateFrame",
+   "MenagerieDashWatchFrame",
+}
+for i = 1, #ticker_names do
+   local name = ticker_names[i]
+   if not _G[name] then error("missing named ticker " .. name) end
+   if named_counts[name] ~= 1 then
+      error("expected one " .. name .. ", got " .. tostring(named_counts[name]))
+   end
+   if not _G[name].scripts.OnUpdate then error(name .. " should have an OnUpdate script") end
+end
+
+io.write("PASS: dashboard reuses frame and tickers across re-exec\n")
+`);
+
+  assert.match(output, /PASS: dashboard reuses frame and tickers across re-exec/);
+}
+
+{
+  const output = runLua(String.raw`
+local frames = {}
+local printed = {}
+function print(msg) printed[#printed + 1] = tostring(msg or "") end
+
+local function new_frame(kind, name, parent)
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   function f:SetSize(w, h) self.width = w; self.height = h end
+   function f:SetFrameStrata(v) self.strata = v end
+   function f:SetFrameLevel(v) self.level = v end
+   function f:SetClampedToScreen(v) self.clamped = v end
+   function f:SetMovable(v) self.movable = v end
+   function f:EnableMouse(v) self.mouse = v end
+   function f:EnableMouseWheel(v) self.mouseWheel = v end
+   function f:RegisterForDrag(...) self.drag = { ... } end
+   function f:RegisterForClicks(...) self.clicks = { ... } end
+   function f:SetScript(event, cb) self.scripts[event] = cb end
+   function f:GetScript(event) return self.scripts[event] end
+   function f:SetPoint(...) self.point = { ... } end
+   function f:ClearAllPoints() self.point = nil end
+   function f:SetBackdrop(v) self.backdrop = v end
+   function f:SetBackdropColor(...) self.backdropColor = { ... } end
+   function f:SetBackdropBorderColor(...) self.borderColor = { ... } end
+   function f:SetAllPoints() self.allPoints = true end
+   function f:SetTexture(v) self.texture = v end
+   function f:SetVertexColor(...) self.vertexColor = { ... } end
+   function f:SetFont(...) self.font = { ... } end
+   function f:SetText(v) self.text = v end
+   function f:SetTextColor(...) self.textColor = { ... } end
+   function f:SetJustifyH(v) self.justifyH = v end
+   function f:SetWidth(v) self.width = v end
+   function f:SetHeight(v) self.height = v end
+   function f:GetCenter() return nil end
+   function f:IsShown() return self.visible end
+   function f:Show() self.visible = true end
+   function f:Hide() self.visible = false end
+   function f:StartMoving() self.moving = true end
+   function f:StopMovingOrSizing() self.moving = false end
+   function f:CreateTexture(_, layer)
+      local texture = new_frame("Texture", nil, self)
+      texture.layer = layer
+      return texture
+   end
+   function f:CreateFontString(_, layer)
+      local fs = new_frame("FontString", nil, self)
+      fs.layer = layer
+      return fs
+   end
+   frames[#frames + 1] = f
+   if name then _G[name] = f end
+   return f
+end
+
+function CreateFrame(kind, name, parent)
+   return new_frame(kind, name, parent)
+end
+
+UIParent = new_frame("Frame", "UIParent")
+Minimap = new_frame("Frame", "Minimap")
+GameTooltip = {
+   SetOwner = function() end,
+   SetText = function() end,
+   AddLine = function() end,
+   Show = function() end,
+}
+function GameTooltip_Hide() end
+C_Timer = { After = function(_, cb) cb() end }
+SlashCmdList = {}
+Action = {}
+
+local forced = {}
+local notifications = {}
+Menagerie = {
+   A = Action,
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      accent_hex = "ff8800",
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+   },
+   GetToggle = function() return nil end,
+   SetToggle = function() end,
+   set_force_flag = function(key) forced[#forced + 1] = key end,
+   show_notification = function(label) notifications[#notifications + 1] = label end,
+   rotation_registry = {
+      class_config = { name = "Hunter", version = "v1.0.0" },
+   },
+}
+
+dofile("src/aio/widgets.lua")
+dofile("src/aio/settings.lua")
+
+if SLASH_MENAGERIE1 ~= "/menagerie" then error("brand slash should be /menagerie") end
+if SLASH_MENAGERIE2 ~= nil then error("legacy /maio alias should be removed") end
+if SlashCmdList["MENAGERIE"] ~= Menagerie.toggle_settings then error("/menagerie should toggle settings only") end
+
+if SLASH_MBURST1 ~= "/mburst" then error("missing /mburst") end
+if SLASH_MDEF1 ~= "/mdef" then error("missing /mdef") end
+if SLASH_MGAP1 ~= "/mgap" then error("missing /mgap") end
+if SLASH_MRAPTOR1 ~= "/mraptor" then error("missing /mraptor") end
+if SLASH_MHELP1 ~= "/mhelp" then error("missing /mhelp") end
+if SLASH_MSTATUS1 ~= nil or SlashCmdList["MSTATUS"] ~= nil then error("/mstatus should not be registered") end
+
+SlashCmdList["MBURST"]()
+SlashCmdList["MDEF"]()
+SlashCmdList["MGAP"]()
+SlashCmdList["MRAPTOR"]()
+
+if table.concat(forced, ",") ~= "force_burst,force_defensive,force_gap,force_raptor" then
+   error("unexpected force command sequence: " .. table.concat(forced, ","))
+end
+if table.concat(notifications, ",") ~= "BURST,DEFENSIVE,RAPTOR" then
+   error("unexpected notifications: " .. table.concat(notifications, ","))
+end
+
+printed = {}
+SlashCmdList["MHELP"]()
+local help = table.concat(printed, "\n")
+if not help:find("/mraptor", 1, true) then error("Hunter help should include /mraptor") end
+if help:find("/mticks", 1, true) then error("Hunter help should not advertise cat tick debug") end
+if help:find("/menagerie burst", 1, true) then error("help should not advertise old /menagerie subcommands") end
+
+io.write("PASS: settings slash commands use flat m namespace\n")
+`);
+
+  assert.match(output, /PASS: settings slash commands use flat m namespace/);
 }
 
 {
@@ -178,14 +656,25 @@ Menagerie_SETTINGS_SCHEMA = {
 }
 
 local unit = {}
+local function aura_remaining(store, spell_id, source)
+   if type(spell_id) == "table" then
+      for i = 1, #spell_id do
+         local remaining = aura_remaining(store, spell_id[i], source)
+         if remaining > 0 then return remaining end
+      end
+      return 0
+   end
+   return store[aura_key(spell_id, source)] or 0
+end
 function unit:HasDeBuffs(spell_id, source)
-   return TestAuras.debuff[aura_key(spell_id, source)] or 0
+   return aura_remaining(TestAuras.debuff, spell_id, source)
 end
 function unit:HasDeBuffsStacks(spell_id, source)
    return TestAuras.debuff_stacks[aura_key(spell_id, source)] or 0
 end
-function unit:HasBuffs(spell_id, source)
-   return TestAuras.buff[aura_key(spell_id, source)] or 0
+function unit:HasBuffs(spell_id, source, byID)
+   unit.last_has_buffs_by_id = byID
+   return aura_remaining(TestAuras.buff, spell_id, source)
 end
 function unit:HasBuffsStacks(spell_id, source)
    return TestAuras.buff_stacks[aura_key(spell_id, source)] or 0
@@ -254,6 +743,41 @@ io.write("PASS: core cached shared settings\n")
   );
 
   assert.match(output, /PASS: core cached shared settings/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+
+ClearAuras()
+SetBuff(10278, 5)
+if not NS.has_phys_immunity("target") then error("Blessing of Protection should be physical immunity") end
+if NS.has_total_immunity("target") then error("Blessing of Protection should not be total immunity") end
+if NS.has_magic_immunity("target") then error("Blessing of Protection should not be magic immunity") end
+if unit.last_has_buffs_by_id ~= true then error("immunity checks should match buffs by spell ID") end
+
+ClearAuras()
+SetBuff(642, 5)
+if not NS.has_total_immunity("target") then error("Divine Shield should be total immunity") end
+if not NS.has_phys_immunity("target") then error("total immunity should satisfy physical immunity") end
+if not NS.has_magic_immunity("target") then error("total immunity should satisfy magic immunity") end
+if not NS.has_cc_immunity("target") then error("total immunity should satisfy CC immunity") end
+if not NS.has_stun_immunity("target") then error("total immunity should satisfy stun immunity") end
+if not NS.has_kick_immunity("target") then error("total immunity should satisfy kick immunity") end
+
+ClearAuras()
+SetBuff(31224, 5)
+if not NS.has_magic_immunity("target") then error("Cloak of Shadows should be magic immunity") end
+if NS.has_total_immunity("target") then error("Cloak of Shadows should not be total immunity") end
+if NS.has_phys_immunity("target") then error("Cloak of Shadows should not be physical immunity") end
+
+io.write("PASS: immunity aura categories are decontaminated\n")
+`,
+  );
+
+  assert.match(output, /PASS: immunity aura categories are decontaminated/);
 }
 
 {
@@ -912,6 +1436,56 @@ io.write("PASS: shared copy window singleton\n")
 `);
 
   assert.match(output, /PASS: shared copy window singleton/);
+}
+
+{
+  const output = runLua(String.raw`
+local now = 1
+function GetTime() return now end
+function date() return "12:34:56" end
+function print() end
+
+SlashCmdList = {}
+Menagerie = {
+   cached_settings = { debug_mode = false },
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+   },
+}
+
+dofile("src/aio/widgets.lua")
+dofile("src/aio/debug.lua")
+
+local tostring_calls = 0
+local expensive = setmetatable({}, {
+   __tostring = function()
+      tostring_calls = tostring_calls + 1
+      return "expensive"
+   end,
+})
+
+Menagerie.debug_print(expensive)
+if tostring_calls ~= 0 then error("debug_print should not stringify args when debug_mode is off") end
+
+local hidden = Menagerie.debug_log("TEST", "TRACE", false, "%s", "hidden")
+if hidden ~= nil then error("debug_log should skip non-forced entries when debug_mode is off") end
+
+local forced = Menagerie.debug_log("TEST", "ERROR", true, "%s", "visible")
+if not forced then error("forced debug_log should still emit when debug_mode is off") end
+if forced.text ~= "visible" then error("forced debug_log should format text") end
+if SLASH_MENAGERIELOG1 ~= "/mlog" then error("debug log primary slash should be /mlog") end
+if SLASH_MENAGERIELOG2 ~= nil then error("legacy /menagerielog alias should not be registered") end
+
+io.write("PASS: debug substrate respects debug_mode gate\n")
+`);
+
+  assert.match(output, /PASS: debug substrate respects debug_mode gate/);
 }
 
 {

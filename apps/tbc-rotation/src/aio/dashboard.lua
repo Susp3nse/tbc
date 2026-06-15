@@ -1,6 +1,6 @@
 -- Menagerie - Combat Dashboard
 -- Shared, data-driven dashboard — classes register configs, this module renders.
--- Toggle via "Show Dashboard" setting or /menagerie status
+-- Toggle via "Show Dashboard" setting or /mdash
 
 local _G = _G
 local format = string.format
@@ -138,11 +138,7 @@ cleu_frame:SetScript("OnEvent", function()
     end
 end)
 
-local BACKDROP_THIN = {
-    bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Buttons\\WHITE8X8",
-    edgeSize = 1,
-}
+local BACKDROP_THIN = NS.Widgets.BACKDROP_THIN
 
 -- ============================================================================
 -- LAYOUT CONSTANTS
@@ -335,24 +331,11 @@ local dash_context = { settings = nil }
 local function create_dashboard()
     if dashboard_frame then return dashboard_frame end
 
-    -- Aggressively clean up stale frame from previous /reload
-    local stale = _G["MenagerieDashboard"]
-    if stale then
-        stale:Hide()
-        stale:SetAlpha(0)
-        -- Hide all child regions (fontstrings, textures) that may ghost-render
-        local regions = { stale:GetRegions() }
-        for _, r in pairs(regions) do r:Hide() end
-        local children = { stale:GetChildren() }
-        for _, c in pairs(children) do
-            c:Hide()
-            c:SetAlpha(0)
-            -- Hide grandchildren (fontstrings parented to sub-frames like bar_bg)
-            local sub = { c:GetRegions() }
-            for _, s in pairs(sub) do s:Hide() end
-        end
-        stale:ClearAllPoints()
-        stale:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, 5000)
+    local existing = _G["MenagerieDashboard"]
+    if existing and existing.ui then
+        dashboard_frame = existing
+        ui = existing.ui
+        return dashboard_frame
     end
 
     local f = CreateFrame("Frame", "MenagerieDashboard", UIParent, "BackdropTemplate")
@@ -426,16 +409,15 @@ local function create_dashboard()
     ui.version_text:SetTextColor(1, 1, 1, 0.9)
 
     -- Close button
-    local close = CreateFrame("Button", nil, f)
-    close:SetSize(16, 16)
+    local close = NS.Widgets.themed_button(f, {
+        width = 18,
+        height = 18,
+        text = "x",
+        font = "GameFontNormalSmall",
+        theme = THEME,
+    })
     close:SetPoint("TOPRIGHT", -4, -4)
-    local close_txt = close:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    close_txt:SetPoint("CENTER")
-    close_txt:SetText("x")
-    close_txt:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
     close:SetScript("OnClick", function() f:Hide() end)
-    close:SetScript("OnEnter", function() close_txt:SetTextColor(1, 0.3, 0.3) end)
-    close:SetScript("OnLeave", function() close_txt:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3]) end)
 
     y = y - 18
 
@@ -666,6 +648,7 @@ local function create_dashboard()
     ui.threat_text:SetPoint("CENTER", ui.threat_bg)
     ui.threat_text:SetTextColor(1, 1, 1)
 
+    f.ui = ui
     dashboard_frame = f
     return f
 end
@@ -1358,7 +1341,7 @@ SlashCmdList["MENAGERIEDASH"] = toggle_dashboard
 -- ============================================================================
 -- UPDATE TIMER (10 Hz when visible)
 -- ============================================================================
-local update_frame = CreateFrame("Frame")
+local update_frame = _G.MenagerieDashUpdateFrame or CreateFrame("Frame", "MenagerieDashUpdateFrame")
 update_frame.elapsed = 0
 update_frame:SetScript("OnUpdate", function(self, elapsed)
     self.elapsed = self.elapsed + elapsed
@@ -1374,7 +1357,7 @@ end)
 local fr_bar_max = FRAME_WIDTH - 18
 local fr_sweep_max = FRAME_WIDTH - 19  -- bar_max minus 1px left padding
 local fr_dim = { THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3] }
-local fr_frame = CreateFrame("Frame")
+local fr_frame = _G.MenagerieDashFrameRateFrame or CreateFrame("Frame", "MenagerieDashFrameRateFrame")
 fr_frame:SetScript("OnUpdate", function()
     if not dashboard_frame or not dashboard_frame:IsShown() then return end
 
@@ -1412,11 +1395,16 @@ fr_frame:SetScript("OnUpdate", function()
                 if bw < 1 then bw = 1 end
                 tb.bar:SetWidth(bw)
                 tb.bar:Show()
-                tb.value:SetText(format("%.1f", gcd_rem))
+                local vt = format("%.1f", gcd_rem)
+                if tb._last_value_text ~= vt then
+                    tb._last_value_text = vt
+                    tb.value:SetText(vt)
+                end
                 tb.value:Show()
                 tb.label:SetTextColor(1, 1, 1, 0.9)
             else
                 tb.bar:Hide()
+                tb._last_value_text = nil
                 tb.value:Hide()
                 tb.label:SetTextColor(fr_dim[1], fr_dim[2], fr_dim[3], 0.4)
             end
@@ -1444,11 +1432,16 @@ fr_frame:SetScript("OnUpdate", function()
                 if bw < 1 then bw = 1 end
                 tb.bar:SetWidth(bw)
                 tb.bar:Show()
-                tb.value:SetText(format("%.1f", rem))
+                local vt = format("%.1f", rem)
+                if tb._last_value_text ~= vt then
+                    tb._last_value_text = vt
+                    tb.value:SetText(vt)
+                end
                 tb.value:Show()
                 tb.label:SetTextColor(1, 1, 1, 0.9)
             else
                 tb.bar:Hide()
+                tb._last_value_text = nil
                 tb.value:Hide()
                 tb.label:SetTextColor(fr_dim[1], fr_dim[2], fr_dim[3], 0.4)
             end
@@ -1460,7 +1453,7 @@ end)
 -- ============================================================================
 -- TOGGLE WATCHER (checks setting every 0.5s)
 -- ============================================================================
-local watch_frame = CreateFrame("Frame")
+local watch_frame = _G.MenagerieDashWatchFrame or CreateFrame("Frame", "MenagerieDashWatchFrame")
 watch_frame.elapsed = 0
 local last_toggle_state = nil
 

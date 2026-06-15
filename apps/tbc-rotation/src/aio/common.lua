@@ -1,6 +1,6 @@
 -- Common Schema Sections
 -- Shared section factories used by all class schemas to avoid duplication.
--- Must load before any schema.lua (order 0 in build.ts).
+-- Must load before any schema.lua (order 1 in builder.config.json).
 
 local _G = _G
 
@@ -8,7 +8,7 @@ _G.Menagerie_SECTIONS = {
     dashboard = function()
         return { header = "Dashboard", settings = {
             { type = "checkbox", key = "show_dashboard", default = false, label = "Show Dashboard",
-              tooltip = "Display the combat dashboard overlay (/menagerie status)." },
+              tooltip = "Display the combat dashboard overlay (/mdash)." },
         }}
     end,
 

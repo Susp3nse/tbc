@@ -560,7 +560,7 @@ local function CreateDebugLogFrame()
    -- Hint text
    local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
    hint:SetPoint("BOTTOMLEFT", 8, 8)
-   hint:SetText("/menagerielog to toggle")
+   hint:SetText("/mlog to toggle")
    hint:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
 
    repaint()
@@ -598,6 +598,8 @@ local last_debug_cache_prune = 0
 local select = select
 
 local function debug_log(src, kind, forced, fmt, ...)
+   if not forced and not (NS.cached_settings and NS.cached_settings.debug_mode) then return nil end
+
    src = src or "SYS"
    kind = kind or "TRACE"
    local text = select("#", ...) > 0 and format(fmt, ...) or tostring(fmt or "")
@@ -662,6 +664,8 @@ local function RefreshDebugLogFrame()
 end
 
 local function debug_print(...)
+   if not (NS.cached_settings and NS.cached_settings.debug_mode) then return end
+
    local n = select('#', ...)
    for i = 1, n do
       debug_string_args[i] = tostring(select(i, ...))
@@ -678,9 +682,9 @@ NS.debug_log = debug_log
 NS.debug_print = debug_print
 NS.AddDebugLogLine = AddDebugLogLine
 
--- /menagerielog slash command
-SLASH_MENAGERIELOG1 = "/menagerielog"
-SLASH_MENAGERIELOG2 = "/mlog"
+-- /mlog slash command
+SLASH_MENAGERIELOG1 = "/mlog"
+SLASH_MENAGERIELOG2 = nil
 SlashCmdList["MENAGERIELOG"] = function()
    if not DebugLogFrame then
       CreateDebugLogFrame()

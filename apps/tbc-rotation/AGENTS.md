@@ -56,7 +56,9 @@ Each class folder contributes files into shared slots; the order is data-driven 
 3. `profileui.lua` (shared) — ProfileUI generator (framework backing store)
 4. `core.lua` (shared) — namespace, settings, registry, constants, force flags, burst context
 5. `debug.lua` (shared) — debug log substrate, shared debug chrome/theme, `/mlog`
-6. `class.lua` (class) — actions, constants, `register_class()`
+6. `livepanel.lua` (shared) **/** `class.lua` (class) — shared live-panel factory, then actions,
+   constants, `register_class()`. `livepanel.lua` captures `NS.CreateDebugWindow` /
+   `NS.CreateDebugButton`, so it must load after `debug.lua` and before slot-9 panels.
 7. `healing.lua` (class) **/** `settings.lua` (shared) — same order slot, no mutual deps
 8. `middleware.lua` (class) — shared middleware strategies
 9. `debugpanel.lua` (shared) **/** `dashboard.lua` (shared) — diagnostic and combat overlays
@@ -86,13 +88,14 @@ result, log_msg`, plus optional `is_burst`, `is_defensive`, `setting_key` (auto-
 `idle_playstyle_name`, `get_active_playstyle(context)`, `get_idle_playstyle(context)`,
 `extend_context(ctx)`, optional `gap_handler(icon, ctx)`, and a declarative `dashboard` table.
 
-**Context object** — `create_context(icon)` in `main.lua` rebuilds a reusable table each frame:
-player state (stance/hp/mana/energy/rage/cp/in_combat/is_stealthed), target state
-(target_exists/target_dead/target_enemy/target_hp/ttd), positioning (in_melee_range/is_behind/
-enemy_count), `context.settings` (cached from UI toggles), plus per-class fields from
-`extend_context`.
+**Context object** — `create_context(icon)` in `main.lua` rebuilds a reusable table each frame.
+Core always sets: `on_gcd`, `icon`, `in_combat`, `hp`, `mana_pct`, `mana`, target existence/death/enemy
+state, `target_hp`, `ttd`, `target_range`, `in_melee_range`, target immunity/reflect flags,
+elite/boss flags, `combat_time`, `settings`, and `gcd_remaining`. Class `extend_context(ctx)` adds
+class-specific fields such as `stance`, `energy`, `rage`, combo points, stealth/behind/enemy-count
+state, pet state, movement, and class timers.
 
-**Force-bypass & burst context** — `/menagerie burst` and `/menagerie def` set force flags
+**Force-bypass & burst context** — `/mburst` and `/mdef` set force flags
 (`is_force_active`) that skip `matches()` + `check_prerequisites()` for tagged entries, but if a
 `spell` is set `IsReady()` is still checked (CD/range/stance respected). `should_auto_burst(context)`
 gates _automatic_ burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_pull`,
@@ -100,22 +103,25 @@ gates _automatic_ burst from schema checkboxes (`burst_on_bloodlust`, `burst_on_
 unmet (burst held).
 
 **Dashboard** — shared combat overlay (`dashboard.lua`), driven by the `dashboard` table passed to
-`register_class()`. Toggled via the `show_dashboard` setting or `/menagerie status`.
+`register_class()`. Toggled via the `show_dashboard` setting or `/mdash`. Dashboard `custom_lines` and
+`extend_context` callbacks may receive a live alias of `NS.last_rotation_context`; treat that context as
+read-only or you can corrupt the next rotation frame.
 
 ## Shared modules (`src/aio/*.lua`)
 
-| File            | Owns                                                                                                                                                              |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `theme.lua`     | Shared warm Menagerie color palette (`NS.Theme`), semantic state colors, and curated per-class accent resolution.                                                 |
-| `common.lua`    | First-slot shared low-level helpers used before core.                                                                                                             |
-| `widgets.lua`   | Shared low-level UI chrome primitives (`NS.Widgets`): `BACKDROP_THIN`, `themed_button`, `section_header`. Pure chrome — no settings/schema/panel knowledge.        |
-| `core.lua`      | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
-| `debug.lua`     | Shared debug substrate: structured debug log, log window, throttled `debug_print`, debug chrome/theme exports, `/mlog`.                                      |
-| `profileui.lua` | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                                                           |
-| `settings.lua`  | Custom tabbed settings UI, movable toggle button, `/menagerie` slash commands.                                                                                    |
-| `debugpanel.lua`| Shared live diagnostic panel (`/mdebug`) with class-provided sections.                                                                                            |
-| `dashboard.lua` | Data-driven combat overlay.                                                                                                                                       |
-| `main.lua`      | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                                                             |
+| File             | Owns                                                                                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme.lua`      | Shared warm Menagerie color palette (`NS.Theme`), semantic state colors, and curated per-class accent resolution.                                                 |
+| `common.lua`     | Shared settings-schema section factories (`Menagerie_SECTIONS`) used by class schemas before core.                                                                |
+| `widgets.lua`    | Shared low-level UI chrome primitives (`NS.Widgets`): `BACKDROP_THIN`, `themed_button`, `section_header`. Pure chrome — no settings/schema/panel knowledge.       |
+| `core.lua`       | Namespace, settings cache, utilities, `Constants`, the `rotation_registry`, force flags, burst context, trinket middleware factory, immunity helpers (see below). |
+| `debug.lua`      | Shared debug substrate: structured debug log, log window, throttled `debug_print`, debug chrome/theme exports, `/mlog`.                                           |
+| `livepanel.lua`  | Shared reusable live-panel shell (`NS.CreateLivePanel`) used by diagnostic panels such as debug/adaptive views.                                                   |
+| `profileui.lua`  | Generates `A.Data.ProfileUI[2]` from the active class schema (framework backing store).                                                                           |
+| `settings.lua`   | Custom tabbed settings UI, movable toggle button, `/menagerie` settings slash and flat `/m*` combat commands.                                                     |
+| `debugpanel.lua` | Shared live diagnostic panel (`/mdebug`) with class-provided sections.                                                                                            |
+| `dashboard.lua`  | Data-driven combat overlay.                                                                                                                                       |
+| `main.lua`       | Loads last. Builds context, dispatches middleware → strategies, applies force-bypass.                                                                             |
 
 ### Immunity model (two layers — don't build per-school tables)
 
@@ -158,16 +164,20 @@ Per-class `schema.lua` defines `_G.Menagerie_SETTINGS_SCHEMA`. One schema drives
 - **File naming**: lowercase single words only — no underscores/hyphens/spaces (e.g. `cat.lua`,
   `cliptracker.lua`). Enforced by the build.
 
-## Slash commands (`/menagerie`)
+## Slash commands
 
-| Command             | Behavior                                                             |
-| ------------------- | -------------------------------------------------------------------- |
-| `/menagerie`        | Toggle settings UI                                                   |
-| `/menagerie burst`  | Force offensive CDs for 3s (fires `is_burst` entries)                |
-| `/menagerie def`    | Force defensive CDs for 3s (fires `is_defensive` entries)            |
-| `/menagerie gap`    | Fire best gap closer (consumed on first success, uses `gap_handler`) |
-| `/menagerie status` | Toggle combat dashboard                                              |
-| `/menagerie help`   | Print command list                                                   |
+| Command      | Behavior                                                             |
+| ------------ | -------------------------------------------------------------------- |
+| `/menagerie` | Toggle settings UI                                                   |
+| `/mlog`      | Toggle structured debug log                                          |
+| `/mdebug`    | Toggle live debug panel                                              |
+| `/mdash`     | Toggle combat dashboard                                              |
+| `/mburst`    | Force offensive CDs for 3s (fires `is_burst` entries)                |
+| `/mdef`      | Force defensive CDs for 3s (fires `is_defensive` entries)            |
+| `/mgap`      | Fire best gap closer (consumed on first success, uses `gap_handler`) |
+| `/mraptor`   | Hunter only: force one manual Raptor queue window                    |
+| `/mticks`    | Druid cat only: toggle energy-tick debug print                       |
+| `/mhelp`     | Print command list                                                   |
 
 ## Debugging
 
@@ -175,11 +185,25 @@ Per-class `schema.lua` defines `_G.Menagerie_SETTINGS_SCHEMA`. One schema drives
   setting checkbox.
 - Debug log (`/mlog`) — structured log frame with copy/clear/resize and hover context.
 - Debug panel (`/mdebug`) — live state panel, enabled by the "Show Debug Panel" setting.
-- Combat dashboard (`/menagerie status`) — live priority/CDs/buffs overlay.
+- Combat dashboard (`/mdash`) — live priority/CDs/buffs overlay.
 - `src/sim/` — simulation harness that regression-checks rotation logic (`pnpm sim:hunter`, etc.).
 - `pnpm lint:lua` — static analysis of `src/aio` via `luacheck` (catches typo'd API names,
   accidental globals, unused/shadowed locals before an in-game reload). Config + the WoW/Action
   global allowlist live in `.luacheckrc`; needs the `luacheck` binary (`brew install luacheck`).
+
+## Reuse checklist for class work
+
+When writing or updating a class, prefer existing shared contracts before adding local machinery:
+
+- Use `register_class(config)` for playstyle selection, context extension, gap handling, and dashboard
+  config.
+- Use `Constants.MIDDLEWARE.*` priorities for middleware order instead of ad hoc numbers.
+- Use `Menagerie_SECTIONS` from `common.lua` for repeated schema sections.
+- Use `NS.Widgets` for small chrome (`BACKDROP_THIN`, buttons, section headers) and
+  `NS.CreateLivePanel` for live diagnostic panels.
+- Read common context fields from `context`; add only class-specific fields in `extend_context`.
+- Use shared immunity helpers and learned `NS.is_spell_immune(...)` instead of per-class immunity
+  trackers or school-specific npcID tables.
 
 ## Releases
 
