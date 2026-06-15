@@ -21,7 +21,6 @@ local Priority = NS.Priority
 local Constants = NS.Constants
 
 local PLAYER_UNIT = "player"
-local TARGET_UNIT = "target"
 
 -- ============================================================================
 -- DIVINE SHIELD (Emergency — highest priority)
@@ -155,26 +154,12 @@ rotation_registry:register_middleware({
 -- ============================================================================
 -- HAMMER OF JUSTICE (Interrupt via stun)
 -- ============================================================================
-rotation_registry:register_middleware({
+NS.register_interrupt_middleware({
     name = "Paladin_HammerOfJustice",
+    spell = A.HammerOfJustice,
+    setting_key = "use_hammer_of_justice",
     priority = 150,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        if not context.settings.use_hammer_of_justice then return false end
-        if not context.has_valid_enemy_target then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
-            if A.HammerOfJustice:IsReady(TARGET_UNIT) then
-                return A.HammerOfJustice:Show(icon), format("[MW] Hammer of Justice - Cast: %.1fs", castLeft)
-            end
-        end
-        return nil
-    end,
+    label = "Hammer of Justice",
 })
 
 -- ============================================================================

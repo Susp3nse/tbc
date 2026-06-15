@@ -102,27 +102,13 @@ rotation_registry:register_middleware({
 -- ============================================================================
 -- KICK (Interrupt)
 -- ============================================================================
-rotation_registry:register_middleware({
+NS.register_interrupt_middleware({
     name = "Rogue_Kick",
+    spell = A.Kick,
+    setting_key = "use_kick",
     priority = 350,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        if not context.settings.use_kick then return false end
-        if not context.has_valid_enemy_target then return false end
-        if context.energy < Constants.ENERGY.KICK then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
-            if A.Kick:IsReady(TARGET_UNIT) then
-                return A.Kick:Show(icon), format("[MW] Kick - Cast: %.1fs", castLeft)
-            end
-        end
-        return nil
-    end,
+    label = "Kick",
+    resource_gate = function(context) return context.energy >= Constants.ENERGY.KICK end,
 })
 
 NS.register_recovery_middleware({

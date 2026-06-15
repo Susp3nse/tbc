@@ -105,26 +105,13 @@ rotation_registry:register_middleware({
 -- ============================================================================
 -- SILENCE (Interrupt — Shadow talent)
 -- ============================================================================
-rotation_registry:register_middleware({
+NS.register_interrupt_middleware({
     name = "Priest_Silence",
+    spell = A.Silence,
+    setting_key = "shadow_use_silence",
     priority = Priority.MIDDLEWARE.DISPEL_CURSE,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        if not context.settings.shadow_use_silence then return false end
-        if not context.has_valid_enemy_target then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
-            if is_spell_available(A.Silence) and A.Silence:IsReady(TARGET_UNIT) then
-                return A.Silence:Show(icon), format("[MW] Silence - Cast: %.1fs", castLeft)
-            end
-        end
-        return nil
-    end,
+    label = "Silence",
+    require_available = true,
 })
 
 -- ============================================================================

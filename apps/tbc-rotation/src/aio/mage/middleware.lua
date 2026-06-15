@@ -22,7 +22,6 @@ local Constants = NS.Constants
 local GetNumGroupMembers = _G.GetNumGroupMembers
 
 local PLAYER_UNIT = "player"
-local TARGET_UNIT = "target"
 
 -- ============================================================================
 -- ICE BLOCK (Emergency — highest priority)
@@ -101,26 +100,12 @@ rotation_registry:register_middleware({
 -- ============================================================================
 -- COUNTERSPELL (Interrupt)
 -- ============================================================================
-rotation_registry:register_middleware({
+NS.register_interrupt_middleware({
     name = "Mage_Counterspell",
+    spell = A.Counterspell,
+    setting_key = "use_counterspell",
     priority = Priority.MIDDLEWARE.DISPEL_CURSE,
-
-    matches = function(context)
-        if not context.in_combat then return false end
-        if not context.settings.use_counterspell then return false end
-        if not context.has_valid_enemy_target then return false end
-        return true
-    end,
-
-    execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
-            if A.Counterspell:IsReady(TARGET_UNIT) then
-                return A.Counterspell:Show(icon), format("[MW] Counterspell - Cast: %.1fs", castLeft)
-            end
-        end
-        return nil
-    end,
+    label = "Counterspell",
 })
 
 NS.register_recovery_middleware({

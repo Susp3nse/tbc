@@ -1262,6 +1262,58 @@ end
 NS.register_trinket_middleware = register_trinket_middleware
 
 -- ============================================================================
+-- INTERRUPT MIDDLEWARE FACTORY
+-- ============================================================================
+-- Emits the canonical "interrupt the current cast" middleware. Warrior/shaman
+-- stay bespoke and opt out by not calling this.
+local function register_interrupt_middleware(opts)
+   opts = opts or {}
+   local A_class = NS.A
+   if not A_class then
+      print("|cFFFF6600[Menagerie Interrupt]|r Factory skipped: NS.A not available")
+      return
+   end
+
+   local name = opts.name or "Interrupt"
+   local spell = opts.spell
+   if not spell then
+      print("|cFFFF6600[Menagerie Interrupt]|r Skipped: no spell for " .. tostring(name))
+      return
+   end
+
+   local setting_key = opts.setting_key
+   local priority = opts.priority or Priority.MIDDLEWARE.DISPEL_CURSE
+   local log_format = "[MW] " .. (opts.label or name) .. " - Cast: %.1fs"
+   local resource_gate = opts.resource_gate
+   local require_available = opts.require_available
+
+   rotation_registry:register_middleware({
+      name = name,
+      priority = priority,
+
+      matches = function(context)
+         if not context.in_combat then return false end
+         if setting_key and not context.settings[setting_key] then return false end
+         if not context.has_valid_enemy_target then return false end
+         if resource_gate and not resource_gate(context) then return false end
+         return true
+      end,
+
+      execute = function(icon, context)
+         local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
+         if castLeft and castLeft > 0 and not notKickAble then
+            if (not require_available or is_spell_available(spell)) and spell:IsReady(TARGET_UNIT) then
+               return spell:Show(icon), format(log_format, castLeft)
+            end
+         end
+         return nil
+      end,
+   })
+end
+
+NS.register_interrupt_middleware = register_interrupt_middleware
+
+-- ============================================================================
 -- MODULE LOADED
 -- ============================================================================
 print("|cFF00FF00[Menagerie Core]|r Module loaded")
