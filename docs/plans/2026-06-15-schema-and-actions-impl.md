@@ -8,6 +8,10 @@
 >
 > Bundled because all four are "apply a pattern that already exists." Net ~330 lines removed across
 > 9 classes. No rotation-behavior change except WS-6 racial migrations (verify each).
+>
+> **Heads-up (2026-06-15):** `ui.lua` was renamed to **`profileui.lua`** (see
+> `2026-06-15-ui-rename-and-widgets-impl.md`). The WS-4 schema-tail auto-append lands in
+> `src/aio/profileui.lua` — the references to `ui.lua` below (incl. `ui.lua:15-21`) now mean that file.
 
 ## Sequencing within this batch
 

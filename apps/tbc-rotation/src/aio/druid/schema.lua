@@ -1,6 +1,6 @@
 -- Druid Settings Schema
 -- Defines _G.Menagerie_SETTINGS_SCHEMA for Druid class
--- Must load before ui.lua, core.lua, and settings.lua
+-- Must load before profileui.lua, core.lua, and settings.lua
 
 local _G = _G
 local A = _G.Action
@@ -16,7 +16,7 @@ A.Data.ProfileEnabled[A.CurrentProfile] = true
 -- SETTINGS SCHEMA (Single Source of Truth)
 -- ============================================================================
 -- All setting metadata lives here. Used by:
---   1. aio/ui.lua: generates A.Data.ProfileUI[2] (framework backing store)
+--   1. aio/profileui.lua: generates A.Data.ProfileUI[2] (framework backing store)
 --   2. aio/settings.lua: renders the custom tabbed Settings UI
 --   3. aio/core.lua: refresh_settings() iterates to build cached_settings
 --

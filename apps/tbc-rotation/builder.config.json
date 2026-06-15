@@ -16,7 +16,7 @@
     { "slot": "shared", "source": "common.lua", "order": 1 },
     { "slot": "shared", "source": "widgets.lua", "order": 1 },
     { "slot": "class", "source": "schema.lua", "order": 2 },
-    { "slot": "shared", "source": "ui.lua", "order": 3 },
+    { "slot": "shared", "source": "profileui.lua", "order": 3 },
     { "slot": "shared", "source": "core.lua", "order": 4 },
     { "slot": "shared", "source": "debug.lua", "order": 5 },
     { "slot": "shared", "source": "livepanel.lua", "order": 6 },

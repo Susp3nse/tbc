@@ -292,7 +292,7 @@ local function load_schema(player_class, file, expects_spec)
    Menagerie_SETTINGS_SCHEMA = nil
    dofile("src/aio/common.lua")
    dofile(file)
-   dofile("src/aio/ui.lua")
+   dofile("src/aio/profileui.lua")
 
    local sections = Menagerie_SETTINGS_SCHEMA[1].sections
    assert_equal(has_section(sections, "Burst Conditions"), true, player_class .. " burst tail")
@@ -1104,7 +1104,7 @@ Menagerie_SETTINGS_SCHEMA = {
    },
 }
 
-dofile("src/aio/ui.lua")
+dofile("src/aio/profileui.lua")
 
 local sections = Menagerie_SETTINGS_SCHEMA[1].sections
 if #sections ~= 4 then
@@ -1140,7 +1140,7 @@ Menagerie_SETTINGS_SCHEMA = {
    },
 }
 
-dofile("src/aio/ui.lua")
+dofile("src/aio/profileui.lua")
 
 local sections = Menagerie_SETTINGS_SCHEMA[1].sections
 if #sections ~= 1 then
