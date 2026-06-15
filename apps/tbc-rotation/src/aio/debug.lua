@@ -28,11 +28,8 @@ local DBG_TOOLTIP_WRAP = 96
 
 local DBG_THEME = NS.Theme
 if not DBG_THEME then return end
-local DBG_BACKDROP = {
-   bgFile = "Interface\\Buttons\\WHITE8X8",
-   edgeFile = "Interface\\Buttons\\WHITE8X8",
-   edgeSize = 1,
-}
+-- Reuse the one canonical thin backdrop from NS.Widgets (loaded at order 1).
+local DBG_BACKDROP = NS.Widgets.BACKDROP_THIN
 NS.DBG_THEME = DBG_THEME
 NS.DBG_BACKDROP = DBG_BACKDROP
 
@@ -112,27 +109,10 @@ local function add_wrapped_tooltip_line(text, r, g, b)
    end
 end
 
+-- Thin wrapper over the shared widget so the (width, height=22, GameFontHighlight)
+-- debug-button signature and the NS.CreateDebugButton export stay byte-stable.
 local function create_debug_button(parent, text, width)
-   local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-   btn:SetSize(width, 22)
-   btn:SetBackdrop(DBG_BACKDROP)
-   btn:SetBackdropColor(DBG_THEME.bg_widget[1], DBG_THEME.bg_widget[2], DBG_THEME.bg_widget[3], 1)
-   btn:SetBackdropBorderColor(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
-
-   local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-   label:SetPoint("CENTER")
-   label:SetText(text)
-   label:SetTextColor(DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3])
-
-   btn:SetScript("OnEnter", function()
-      btn:SetBackdropColor(DBG_THEME.bg_hover[1], DBG_THEME.bg_hover[2], DBG_THEME.bg_hover[3], 1)
-      btn:SetBackdropBorderColor(DBG_THEME.accent[1], DBG_THEME.accent[2], DBG_THEME.accent[3], 1)
-   end)
-   btn:SetScript("OnLeave", function()
-      btn:SetBackdropColor(DBG_THEME.bg_widget[1], DBG_THEME.bg_widget[2], DBG_THEME.bg_widget[3], 1)
-      btn:SetBackdropBorderColor(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
-   end)
-   return btn
+   return NS.Widgets.themed_button(parent, { width = width, text = text, theme = DBG_THEME })
 end
 NS.CreateDebugButton = create_debug_button
 
