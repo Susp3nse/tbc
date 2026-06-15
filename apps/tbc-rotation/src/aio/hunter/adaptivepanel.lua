@@ -4,6 +4,8 @@
 -- recent actually-fired specials. Read-only — does not affect rotation.
 --
 -- Toggle via schema setting "show_adaptive_panel" (Tab 5 "Pet & Diag").
+-- Thin instance of NS.CreateLivePanel — the factory owns the frame, layout,
+-- Export/Clear buttons, refresh loop, and toggle watch; build() emits content.
 
 local _G, format = _G, string.format
 
@@ -16,10 +18,8 @@ if not NS then
     print("|cFFFF0000[Menagerie Hunter Adaptive Panel]|r Core module not loaded!")
     return
 end
--- HunterAdaptive may not be loaded yet (Order 7 unstable sort). Late-bind in Refresh().
+-- HunterAdaptive may not be loaded yet (Order 7 unstable sort). Late-bind in build().
 
-local CreateFrame = _G.CreateFrame
-local UIParent    = _G.UIParent
 local GetTime     = _G.GetTime
 local GetCVar     = _G.GetCVar
 local UnitRangedDamage = _G.UnitRangedDamage
@@ -32,179 +32,9 @@ if not THEME then
 end
 local THEME_STATE = THEME.state
 
-local BACKDROP = {
-    bgFile   = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Buttons\\WHITE8X8",
-    edgeSize = 1,
-}
-
-local Panel = {
-    Frame = nil,
-    IsVisible = false,
-    rows = {},
-    -- pre-built lookup of fire codes for the recent-fires line
-}
-
-local function colored(t, color)
-    t:SetTextColor(color[1], color[2], color[3])
-end
-
-local function panelButton(parent, width, height, text)
-    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    btn:SetSize(width, height)
-    btn:SetBackdrop(BACKDROP)
-    btn:SetBackdropColor(THEME.bg_widget[1], THEME.bg_widget[2], THEME.bg_widget[3], 1)
-    btn:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("CENTER")
-    label:SetText(text)
-    label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-    btn.label = label
-
-    btn:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(THEME.accent[1], THEME.accent[2], THEME.accent[3], 1)
-    end)
-    btn:SetScript("OnLeave", function(self)
-        self:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-    end)
-
-    return btn
-end
-
-function Panel:Create()
-    if self.Frame then return self.Frame end
-
-    local f = CreateFrame("Frame", "HunterAdaptivePanelFrame", UIParent, "BackdropTemplate")
-    f:SetSize(360, 590)
-    f:SetPoint("CENTER", UIParent, "CENTER", -190, 0)
-    f:SetBackdrop(BACKDROP)
-    f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
-    f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
-    f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    f:SetFrameStrata("HIGH")
-    f:Hide()
-
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    f.title:SetPoint("TOPLEFT", 12, -8)
-    f.title:SetText("Adaptive")
-    f.title:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
-
-    local close = CreateFrame("Button", nil, f)
-    close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", -6, -6)
-    local cx = close:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    cx:SetPoint("CENTER")
-    cx:SetText("x")
-    cx:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-    close:SetScript("OnClick", function() f:Hide() end)
-
-    local export = panelButton(f, 60, 20, "Export")
-    export:SetPoint("TOPRIGHT", close, "TOPLEFT", -6, 0)
-    export:SetScript("OnClick", function() Panel:ShowDecisionExport() end)
-
-    local clear = panelButton(f, 48, 20, "Clear")
-    clear:SetPoint("TOPRIGHT", export, "TOPLEFT", -6, 0)
-    clear:SetScript("OnClick", function()
-        local HA = NS.HunterAdaptive
-        if HA and HA.ClearDecisionLog then
-            HA.ClearDecisionLog()
-            Panel:Refresh()
-        end
-    end)
-
-    -- Section helpers
-    local y = -34
-    local function header(text)
-        local band = f:CreateTexture(nil, "ARTWORK")
-        band:SetPoint("TOPLEFT", f, "TOPLEFT", 8, y + 2)
-        band:SetSize(344, 14)
-        band:SetColorTexture(THEME.bg_light[1], THEME.bg_light[2], THEME.bg_light[3], 0.88)
-        local h = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        h:SetPoint("TOPLEFT", 12, y)
-        h:SetText(text)
-        h:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3])
-        y = y - 17
-        return h
-    end
-
-    local function row(label)
-        local lbl = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        lbl:SetPoint("TOPLEFT", 14, y)
-        lbl:SetWidth(88)
-        lbl:SetJustifyH("LEFT")
-        lbl:SetText(label)
-        lbl:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-        local val = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        val:SetPoint("TOPLEFT", 104, y)
-        val:SetWidth(244)
-        val:SetJustifyH("LEFT")
-        val:SetWordWrap(false)
-        val:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-        y = y - 12
-        return val
-    end
-
-    local function spacer(n) y = y - (n or 5) end
-
-    header("INPUTS")
-    self.rows.rap        = row("RAP")
-    self.rows.rapRaw     = row("RAP raw")
-    self.rows.paperDmg   = row("Paper")
-    self.rows.wepDmg     = row("Base dmg")
-    self.rows.crit       = row("Crit")
-    self.rows.rangedSpd  = row("Speed")
-    self.rows.weaponBase = row("Weapon")
-    self.rows.haste      = row("Haste")
-    self.rows.sqwPing    = row("SQW / Ping")
-    self.rows.lat        = row("Menagerie lat")
-    spacer()
-
-    header("API SANITY")
-    self.rows.rangedRaw  = row("Ranged")
-    self.rows.rangedMods = row("Mods")
-    self.rows.auraFirst  = row("Buff")
-    self.rows.auraTrack  = row("Tracked")
-    self.rows.auraNext   = row("Recheck")
-    self.rows.weps       = row("Equip IDs")
-    spacer()
-
-    header("DAMAGE")
-    self.rows.avgShoot   = row("Auto")
-    self.rows.avgSteady  = row("Steady")
-    self.rows.avgMulti   = row("Multi")
-    self.rows.avgArcane  = row("Arcane")
-    self.rows.shootDPS   = row("shootDPS")
-    self.rows.steadyDPS  = row("steadyDPS")
-    spacer()
-
-    header("CAST TIMES")
-    self.rows.steadyCT   = row("steady")
-    self.rows.multiCT    = row("multi")
-    self.rows.arcaneCT   = row("arcane")
-    self.rows.windup     = row("windup")
-    self.rows.catchup    = row("catchup")
-    spacer()
-
-    header("DECISION")
-    self.rows.now        = row("tick")
-    self.rows.optShoot   = row(" Shoot")
-    self.rows.optSteady  = row(" Steady")
-    self.rows.optMulti   = row(" Multi")
-    self.rows.optArcane  = row(" Arcane")
-    spacer()
-
-    header("FIRES")
-    self.rows.fireRing   = row("Last")
-    self.rows.fireRate   = row("Per min")
-    self.rows.decisionLog = row("Log")
-
-    self.Frame = f
-    return f
+if not NS.CreateLivePanel then
+    print("|cFFFF0000[Menagerie Hunter Adaptive Panel]|r Live panel factory not loaded!")
+    return
 end
 
 local function fmt(n, dec)
@@ -213,7 +43,7 @@ local function fmt(n, dec)
     return format("%."..(dec or 0).."f", n)
 end
 
--- Build a colorized status string for an option row
+-- Build a colorized status string for an option row.
 local function optionLine(score, delay, jitterFloor, gated, isChosen)
     if gated then
         return format("%5s  (gated)", "--"), THEME.text_dim
@@ -234,12 +64,22 @@ local function optionLine(score, delay, jitterFloor, gated, isChosen)
     return line, color
 end
 
-function Panel:Refresh()
-    if not self.Frame or not self.Frame:IsShown() then return end
+-- Reused per-frame scratch for the recent-fires line (avoid per-refresh alloc).
+local fireCodes = {}
+
+local function build(out)
     local HA = NS.HunterAdaptive
-    if not HA or not HA.GetState then return end
+    if not HA or not HA.GetState then
+        out:header("Adaptive")
+        out:kv("Status", "waiting for engine", "dim")
+        return
+    end
     local State = HA.GetState()
-    if not State or not State.lastDecision then return end
+    if not State or not State.lastDecision then
+        out:header("Adaptive")
+        out:kv("Status", "waiting for engine", "dim")
+        return
+    end
 
     -- Walk the schema to populate cached_settings (covers default values for keys
     -- the user never toggled). Then ForceRecompute reads fresh stats + uses real settings.
@@ -249,34 +89,53 @@ function Panel:Refresh()
     local d = State.lastDecision
 
     -- INPUTS
-    self.rows.rap:SetText(fmt(State.rap, 0))
+    out:header("INPUTS")
+    out:kv("RAP", fmt(State.rap, 0))
     local rapBase, rapPos, rapNeg = 0, 0, 0
     if UnitRangedAttackPower then
         rapBase, rapPos, rapNeg = UnitRangedAttackPower("player")
     end
-    self.rows.rapRaw:SetText(format("%s +%s %s = %s",
+    out:kv("RAP raw", format("%s +%s %s = %s",
         fmt(rapBase or 0, 0), fmt(rapPos or 0, 0), fmt(rapNeg or 0, 0), fmt(State.rap, 0)))
-    self.rows.paperDmg:SetText(fmt(State.rangedDmgAvg, 1))
-    self.rows.wepDmg:SetText(fmt(State.weaponDmgAvg, 1))
-    self.rows.crit:SetText(format("%.1f%%", State.critPct or 0))
-    self.rows.rangedSpd:SetText(format("%.3fs", State.rangedSpeed or 0))
-    self.rows.weaponBase:SetText(format("%.2fs", State.weaponBaseSpd or 0))
-    self.rows.haste:SetText(format("%.3fx", State.hasteMult or 1))
+    out:kv("Paper", fmt(State.rangedDmgAvg, 1))
+    out:kv("Base dmg", fmt(State.weaponDmgAvg, 1))
+    out:kv("Crit", format("%.1f%%", State.critPct or 0))
+    out:kv("Speed", format("%.3fs", State.rangedSpeed or 0))
+    out:kv("Weapon", format("%.2fs", State.weaponBaseSpd or 0))
+    out:kv("Haste", format("%.3fx", State.hasteMult or 1))
 
     local sqwMs = tonumber(GetCVar and GetCVar("SpellQueueWindow")) or 0
     local pingMs = math.floor(((A.GetPing and A.GetPing() or 0) * 1000) + 0.5)
-    self.rows.sqwPing:SetText(format("%dms / %dms", sqwMs, pingMs))
-    self.rows.lat:SetText(format("%.3fs", (A.GetLatency and A.GetLatency() or 0)))
+    out:kv("SQW / Ping", format("%dms / %dms", sqwMs, pingMs))
+    out:kv("Menagerie lat", format("%.3fs", (A.GetLatency and A.GetLatency() or 0)))
+    out:spacer()
 
     -- API SANITY
+    out:header("API SANITY")
     local rawSpeed, lowDmg, hiDmg, physicalBonusPos, physicalBonusNeg, percent
     if UnitRangedDamage then
         rawSpeed, lowDmg, hiDmg, physicalBonusPos, physicalBonusNeg, percent = UnitRangedDamage("player")
     end
-    self.rows.rangedRaw:SetText(format("speed %s low %s high %s",
+    out:kv("Ranged", format("speed %s low %s high %s",
         fmt(rawSpeed, 3), fmt(lowDmg, 1), fmt(hiDmg, 1)))
-    self.rows.rangedMods:SetText(format("pos %s neg %s pct %s",
+    out:kv("Mods", format("pos %s neg %s pct %s",
         fmt(physicalBonusPos or 0, 1), fmt(physicalBonusNeg or 0, 1), fmt(percent or 1, 3)))
+
+    local auraDebug = HA.GetAuraDebug and HA.GetAuraDebug()
+    if auraDebug then
+        out:kv("Buff", auraDebug.firstLine or "--")
+        out:kv("Tracked", auraDebug.trackedLine or "--")
+        local nextIn = auraDebug.nextRecomputeIn or 0
+        out:kv("Recheck", format("%s in %.1fs (%d buffs)",
+            auraDebug.recomputeDue and "due" or "scheduled",
+            math.max(0, nextIn),
+            auraDebug.buffCount or 0),
+            auraDebug.recomputeDue and THEME_STATE.warn or THEME_STATE.good)
+    else
+        out:kv("Buff", "--")
+        out:kv("Tracked", "--")
+        out:kv("Recheck", "--", "dim")
+    end
 
     -- Equipped weapon item IDs (MH=16, OH=17, Ranged=18). Used to verify the
     -- Infinity Blade (30312) gate on the Mind-Control-break middleware.
@@ -284,121 +143,100 @@ function Panel:Refresh()
     local mh  = (getID and getID("player", 16)) or 0
     local oh  = (getID and getID("player", 17)) or 0
     local rng = (getID and getID("player", 18)) or 0
-    self.rows.weps:SetText(format("MH:%d OH:%d Rng:%d%s",
-        mh, oh, rng, (mh == 30312 or oh == 30312) and "  BLADE!" or ""))
-    colored(self.rows.weps, (mh == 30312 or oh == 30312) and THEME_STATE.good or THEME.text)
+    out:kv("Equip IDs", format("MH:%d OH:%d Rng:%d%s",
+        mh, oh, rng, (mh == 30312 or oh == 30312) and "  BLADE!" or ""),
+        (mh == 30312 or oh == 30312) and THEME_STATE.good or THEME.text)
+    out:spacer()
 
-    local auraDebug = HA.GetAuraDebug and HA.GetAuraDebug()
-    if auraDebug then
-        self.rows.auraFirst:SetText(auraDebug.firstLine or "--")
-        self.rows.auraTrack:SetText(auraDebug.trackedLine or "--")
-        local nextIn = auraDebug.nextRecomputeIn or 0
-        self.rows.auraNext:SetText(format("%s in %.1fs (%d buffs)",
-            auraDebug.recomputeDue and "due" or "scheduled",
-            math.max(0, nextIn),
-            auraDebug.buffCount or 0))
-        colored(self.rows.auraNext, auraDebug.recomputeDue and THEME_STATE.warn or THEME_STATE.good)
-    else
-        self.rows.auraFirst:SetText("--")
-        self.rows.auraTrack:SetText("--")
-        self.rows.auraNext:SetText("--")
-        colored(self.rows.auraNext, THEME.text_dim)
-    end
-
-    -- DERIVED
-    self.rows.avgShoot:SetText(fmt(State.avgShootDmg, 0))
-    self.rows.avgSteady:SetText(fmt(State.avgSteadyDmg, 0))
-    self.rows.avgMulti:SetText(fmt(State.avgMultiDmg, 0))
-    self.rows.avgArcane:SetText(fmt(State.avgArcaneDmg, 0))
-    self.rows.shootDPS:SetText(fmt(State.shootDPS, 0))
-    self.rows.steadyDPS:SetText(fmt(State.steadyDPS, 0))
+    -- DAMAGE
+    out:header("DAMAGE")
+    out:kv("Auto", fmt(State.avgShootDmg, 0))
+    out:kv("Steady", fmt(State.avgSteadyDmg, 0))
+    out:kv("Multi", fmt(State.avgMultiDmg, 0))
+    out:kv("Arcane", fmt(State.avgArcaneDmg, 0))
+    out:kv("shootDPS", fmt(State.shootDPS, 0))
+    out:kv("steadyDPS", fmt(State.steadyDPS, 0))
+    out:spacer()
 
     -- CAST TIMES
-    self.rows.steadyCT:SetText(format("%.3fs", State.steadyCastTime or 0))
-    self.rows.multiCT:SetText(format("%.3fs", State.multiCastTime or 0))
-    self.rows.arcaneCT:SetText(format("%.3fs", State.arcaneCastTime or 0))
-    self.rows.windup:SetText(format("%.3fs", State.rangedWindup or 0))
-    self.rows.catchup:SetText(State.useMultiForCatchup and "true" or "false")
-    if State.useMultiForCatchup then
-        colored(self.rows.catchup, THEME.text)
-    else
-        colored(self.rows.catchup, THEME_STATE.warn)
-    end
+    out:header("CAST TIMES")
+    out:kv("steady", format("%.3fs", State.steadyCastTime or 0))
+    out:kv("multi", format("%.3fs", State.multiCastTime or 0))
+    out:kv("arcane", format("%.3fs", State.arcaneCastTime or 0))
+    out:kv("windup", format("%.3fs", State.rangedWindup or 0))
+    out:kv("catchup", State.useMultiForCatchup and "true" or "false",
+        State.useMultiForCatchup and THEME.text or THEME_STATE.warn)
+    out:spacer()
 
-    -- LIVE DECISION
+    -- DECISION
+    out:header("DECISION")
     local jitter = 0.075
     local timerMode = tostring(d.shootTimerMode or "?")
     local timerState = tostring(d.shootTimerState or "?")
     timerMode = timerMode:gsub("inhouse", "ih")
     timerState = timerState:gsub("known:", "k:")
     timerState = timerState:gsub("action_fallback", "af")
-    self.rows.now:SetText(format("g%.2f s%.2f %s/%s -> %s",
+    out:kv("tick", format("g%.2f s%.2f %s/%s -> %s",
         d.gcdRemaining or 0, d.shootRemaining or 0,
         timerMode, timerState,
         (d.chosenOpt or "?"):upper()))
 
-    local function paint(rowKey, score, delay, gated, optName)
-        local txt, color = optionLine(score, delay, jitter, gated, d.chosenOpt == optName)
-        self.rows[rowKey]:SetText(txt)
-        colored(self.rows[rowKey], color)
-    end
-    paint("optShoot",  d.rShoot,  d.shootGCDDelay,  false,        "shoot")
-    paint("optSteady", d.rSteady, d.steadyShootDelay, d.steadyClipGated, "steady")
-    paint("optMulti",  d.rMulti,  d.multiShootDelay,  d.multiGated or d.multiClipGated or not d.expensiveManaOk, "multi")
-    paint("optArcane", d.rArcane, d.arcaneShootDelay, d.arcaneGated or d.arcaneClipGated, "arcane")
+    local shootTxt, shootCol = optionLine(d.rShoot, d.shootGCDDelay, jitter, false, d.chosenOpt == "shoot")
+    out:kv(" Shoot", shootTxt, shootCol)
+    local steadyTxt, steadyCol = optionLine(d.rSteady, d.steadyShootDelay, jitter, d.steadyClipGated, d.chosenOpt == "steady")
+    out:kv(" Steady", steadyTxt, steadyCol)
+    local multiTxt, multiCol = optionLine(d.rMulti, d.multiShootDelay, jitter,
+        d.multiGated or d.multiClipGated or not d.expensiveManaOk, d.chosenOpt == "multi")
+    out:kv(" Multi", multiTxt, multiCol)
+    local arcaneTxt, arcaneCol = optionLine(d.rArcane, d.arcaneShootDelay, jitter,
+        d.arcaneGated or d.arcaneClipGated, d.chosenOpt == "arcane")
+    out:kv(" Arcane", arcaneTxt, arcaneCol)
+    out:spacer()
 
-    -- RECENT FIRES
-    local codes = {}
+    -- FIRES
+    out:header("FIRES")
+    local n = 0
     for _, e in ipairs(State.fireHistory or {}) do
-        codes[#codes + 1] = e.code or "?"
+        n = n + 1
+        fireCodes[n] = e.code or "?"
     end
-    self.rows.fireRing:SetText(table.concat(codes, " "))
+    for i = #fireCodes, n + 1, -1 do
+        fireCodes[i] = nil
+    end
+    out:kv("Last", table.concat(fireCodes, " "))
 
     local now = GetTime()
     local elapsed = math.max(1, now - (State.fireCombatStart or now))
     local mins = elapsed / 60
     local fc = State.fireCounts or {}
-    self.rows.fireRate:SetText(format("S%.0f M%.0f A%.0f K%.0f St%.0f",
+    out:kv("Per min", format("S%.0f M%.0f A%.0f K%.0f St%.0f",
         (fc.steady or 0) / mins, (fc.multi or 0) / mins, (fc.arcane or 0) / mins,
         (fc.kc or 0) / mins, (fc.sting or 0) / mins))
-    self.rows.decisionLog:SetText(format("%d rows", #(State.decisionLog or {})))
+    out:kv("Log", format("%d rows", #(State.decisionLog or {})))
 end
 
-function Panel:ShowDecisionExport()
-    local HA = NS.HunterAdaptive
-    local text = HA and HA.GetDecisionCSV and HA.GetDecisionCSV() or "-- Adaptive decision log unavailable --"
-    NS.ShowCopyWindow("Adaptive Decisions", text)
-end
+local panel = NS.CreateLivePanel({
+    title        = "Adaptive",
+    setting_key  = "show_adaptive_panel",
+    width        = 360,
+    left_pad     = 12,
+    label_width  = 88,
+    value_x      = 104,
+    min_height   = 560,
+    section_bands = true,
+    anchor       = { "CENTER", "CENTER", -190, 0 },
+    build        = build,
+    export       = function()
+        local HA = NS.HunterAdaptive
+        return HA and HA.GetDecisionCSV and HA.GetDecisionCSV() or "-- Adaptive decision log unavailable --"
+    end,
+    export_title = "Adaptive Decisions",
+    on_clear     = function()
+        local HA = NS.HunterAdaptive
+        if HA and HA.ClearDecisionLog then HA.ClearDecisionLog() end
+    end,
+})
 
-function Panel:Show()
-    self:Create()
-    self.Frame:Show()
-    self.IsVisible = true
-    self:Refresh()
-end
-
-function Panel:Hide()
-    if self.Frame then self.Frame:Hide() end
-    self.IsVisible = false
-end
-
-NS.HunterAdaptivePanel = Panel
-
--- Toggle watcher + refresh ticker
-local lastToggle = nil
-local watch = CreateFrame("Frame")
-watch.elapsed = 0
-watch:SetScript("OnUpdate", function(self, e)
-    self.elapsed = self.elapsed + e
-    if self.elapsed >= 0.2 then
-        self.elapsed = 0
-        local show = NS.cached_settings and NS.cached_settings.show_adaptive_panel or false
-        if show ~= lastToggle then
-            lastToggle = show
-            if show then Panel:Show() else Panel:Hide() end
-        end
-        if show then Panel:Refresh() end
-    end
-end)
+NS.HunterAdaptivePanel = panel
 
 print("|cFF00FF00[Menagerie Hunter]|r Adaptive panel loaded")
