@@ -283,7 +283,7 @@ rotation_registry:register_middleware({
     execute = function(icon, context)
         -- Try Prayer of Fortitude first if in a group
         local in_group = (GetNumGroupMembers() or 0) > 0
-        if in_group and is_spell_available(A.PrayerOfFortitude) and A.PrayerOfFortitude:IsReady(PLAYER_UNIT) then
+        if in_group and is_spell_available(A.PrayerOfFortitude) and NS.has_item(17029) and A.PrayerOfFortitude:IsReady(PLAYER_UNIT) then
             return A.PrayerOfFortitude:Show(icon), "[MW] Prayer of Fortitude"
         end
         if A.PowerWordFortitude:IsReady(PLAYER_UNIT) then
@@ -310,7 +310,7 @@ rotation_registry:register_middleware({
 
     execute = function(icon, context)
         local in_group = (GetNumGroupMembers() or 0) > 0
-        if in_group and is_spell_available(A.PrayerOfSpirit) and A.PrayerOfSpirit:IsReady(PLAYER_UNIT) then
+        if in_group and is_spell_available(A.PrayerOfSpirit) and NS.has_item(17028) and A.PrayerOfSpirit:IsReady(PLAYER_UNIT) then
             return A.PrayerOfSpirit:Show(icon), "[MW] Prayer of Spirit"
         end
         if is_spell_available(A.DivineSpirit) and A.DivineSpirit:IsReady(PLAYER_UNIT) then
@@ -338,7 +338,7 @@ rotation_registry:register_middleware({
 
     execute = function(icon, context)
         local in_group = (GetNumGroupMembers() or 0) > 0
-        if in_group and is_spell_available(A.PrayerOfShadowProtection) and A.PrayerOfShadowProtection:IsReady(PLAYER_UNIT) then
+        if in_group and is_spell_available(A.PrayerOfShadowProtection) and NS.has_item(17028) and A.PrayerOfShadowProtection:IsReady(PLAYER_UNIT) then
             return A.PrayerOfShadowProtection:Show(icon), "[MW] Prayer of Shadow Protection"
         end
         if A.ShadowProtection:IsReady(PLAYER_UNIT) then

@@ -668,6 +668,142 @@ end
 NS.predict_effective_deficit = predict_effective_deficit
 
 -- ============================================================================
+-- GROUP / HEALING SCANNERS
+-- ============================================================================
+local PARTY_UNITS = { "player", "party1", "party2", "party3", "party4" }
+local RAID_UNITS = {}
+for i = 1, 40 do RAID_UNITS[i] = "raid" .. i end
+
+local EMPTY_SCAN_OPTIONS = {}
+local core_healing_targets = {}
+for i = 1, 40 do core_healing_targets[i] = {} end
+
+local function unit_has_aggro(unit_id)
+   local threat = _G.UnitThreatSituation(unit_id)
+   return threat and threat >= 2
+end
+
+local function is_in_raid()
+   return _G.IsInRaid and _G.IsInRaid() or false
+end
+
+local function is_in_party()
+   if is_in_raid() then return false end
+   return _G.IsInGroup and _G.IsInGroup() or false
+end
+
+local function unit_passes_range(unit, options)
+   if _G.UnitIsUnit(unit, PLAYER_UNIT) then return true end
+   if options.range_spell then
+      local spell_range = _G.IsSpellInRange(options.range_spell, unit)
+      if spell_range == 1 then return true end
+      if spell_range == 0 then return false end
+   end
+   if options.range_yd then
+      local max_range = Unit(unit):GetRange()
+      return max_range and max_range <= options.range_yd
+   end
+   local _, unit_in_range = _G.UnitInRange(unit)
+   return unit_in_range == true
+end
+
+local function healing_hp_asc(a, b)
+   if not a or not a.effective_hp then return false end
+   if not b or not b.effective_hp then return true end
+   return a.effective_hp < b.effective_hp
+end
+
+local function scan_group(out, options)
+   options = options or EMPTY_SCAN_OPTIONS
+   local count = 0
+   local in_raid = is_in_raid()
+   local units_to_scan = in_raid and RAID_UNITS or PARTY_UNITS
+   local max_units = in_raid and 40 or 5
+
+   for i = 1, max_units do
+      local unit = units_to_scan[i]
+      if unit
+         and (options.include_player ~= false or not _G.UnitIsUnit(unit, PLAYER_UNIT))
+         and _G.UnitExists(unit)
+         and not _G.UnitIsDead(unit)
+         and _G.UnitIsConnected(unit)
+         and _G.UnitCanAssist(PLAYER_UNIT, unit)
+         and unit_passes_range(unit, options)
+         and (not options.predicate or options.predicate(unit, options.context))
+      then
+         count = count + 1
+         local entry = out[count]
+         if not entry then
+            entry = {}
+            out[count] = entry
+         end
+         entry.unit = unit
+      end
+   end
+
+   return count
+end
+
+local function scan_healing_targets(context, options)
+   options = options or EMPTY_SCAN_OPTIONS
+   options.context = context
+   local out = options.out or core_healing_targets
+   local count = scan_group(out, options)
+
+   for i = 1, count do
+      local entry = out[i]
+      local unit = entry.unit
+      local max_hp = _G.UnitHealthMax(unit) or 0
+      local hp = _G.UnitHealth(unit) or 0
+      entry.hp = max_hp > 0 and hp / max_hp * 100 or 0
+      entry.is_player = _G.UnitIsUnit(unit, PLAYER_UNIT)
+      entry.has_aggro = unit_has_aggro(unit)
+      entry.deficit = max_hp - hp
+      entry.incoming_dps = Unit(unit):GetDMG() or 0
+
+      local eff_deficit = predict_effective_deficit(unit, options.cast_time or 1.5)
+      entry.effective_hp = max_hp > 0 and (100 - (eff_deficit / max_hp) * 100) or entry.hp
+
+      local role = _G.UnitGroupRolesAssigned and _G.UnitGroupRolesAssigned(unit)
+      entry.is_tank = entry.has_aggro or role == "TANK"
+
+      if options.decorate_entry then
+         options.decorate_entry(entry, unit, context)
+      end
+   end
+
+   for i = count + 1, #out do
+      if out[i] then
+         out[i].unit = nil
+         out[i].effective_hp = 999
+      end
+   end
+
+   if count > 1 then tsort(out, healing_hp_asc) end
+   options.context = nil
+   return out, count
+end
+
+local function get_lowest_hp_target(threshold)
+   threshold = threshold or 100
+   local entries, count = scan_healing_targets(nil, EMPTY_SCAN_OPTIONS)
+   for i = 1, count do
+      local entry = entries[i]
+      if entry and entry.effective_hp < threshold then return entry.unit end
+   end
+   return nil
+end
+
+NS.PARTY_UNITS = PARTY_UNITS
+NS.RAID_UNITS = RAID_UNITS
+NS.unit_has_aggro = unit_has_aggro
+NS.is_in_raid = is_in_raid
+NS.is_in_party = is_in_party
+NS.scan_group = scan_group
+NS.scan_healing_targets = scan_healing_targets
+NS.get_lowest_hp_target = get_lowest_hp_target
+
+-- ============================================================================
 -- DEBUFF/BUFF HELPERS
 -- ============================================================================
 local function is_debuff_active(spell, target, source)
@@ -689,6 +825,192 @@ end
 NS.is_debuff_active = is_debuff_active
 NS.get_debuff_state = get_debuff_state
 NS.is_buff_active = is_buff_active
+
+local function read_aura_state(spell, unit, kind, source)
+   if not _G.UnitExists(unit) then return 0, 0 end
+   if kind == "buff" then
+      return Unit(unit):HasBuffsStacks(spell.ID, source) or 0,
+             Unit(unit):HasBuffs(spell.ID, source) or 0
+   end
+   return Unit(unit):HasDeBuffsStacks(spell.ID, source) or 0,
+          Unit(unit):HasDeBuffs(spell.ID, source) or 0
+end
+
+-- exists AND remaining <= window. kind: "debuff"(default) | "buff"; source: "player" for mine-only.
+function NS.about_to_expire(spell, unit, window, kind, source)
+   local _, remaining = read_aura_state(spell, unit, kind or "debuff", source)
+   return remaining > 0 and remaining <= (window or 0)
+end
+
+-- stacks < n; absent aura counts as 0.
+function NS.below_stacks(spell, unit, n, kind, source)
+   local stacks = read_aura_state(spell, unit, kind or "debuff", source)
+   return stacks < n
+end
+
+-- missing OR understacked OR expiring. opts is optional and is read synchronously only.
+function NS.needs_refresh(spell, unit, opts)
+   local kind = (opts and opts.kind) or "debuff"
+   local aura_unit = (opts and opts.unit) or unit or (kind == "buff" and PLAYER_UNIT or TARGET_UNIT)
+   local stacks, remaining = read_aura_state(spell, aura_unit, kind, opts and opts.source)
+   if stacks == 0 then return true end
+   if opts and opts.min_stacks and stacks < opts.min_stacks then return true end
+   return remaining <= ((opts and opts.window) or 0)
+end
+
+function NS.timer_needs_refresh(active, remaining, window)
+   return not active or (remaining or 0) < (window or 0)
+end
+
+function NS.resource_capped(context, kind, margin)
+   local value
+   if kind == "mana" then
+      value = context.mana_pct
+   else
+      value = context[kind]
+   end
+   if not value then return false end
+   return value >= 100 - (margin or 0)
+end
+
+function NS.combo_points_full(context)
+   return (context.cp or 0) >= 5
+end
+
+function NS.execute_phase(context, pct)
+   return (context.target_hp or 100) < (pct or 20)
+end
+
+function NS.proc_up(spell, unit)
+   return is_buff_active(spell, unit or PLAYER_UNIT)
+end
+
+-- Bag count of a known reagent/consumable item. Allocation-free.
+function NS.item_count(item_id)
+   return _G.GetItemCount(item_id) or 0
+end
+
+function NS.has_item(item_id, min_count)
+   return (_G.GetItemCount(item_id) or 0) >= (min_count or 1)
+end
+
+-- Charge-spells ONLY (not reagent buffs; GetSpellCount reports charges, not reagent counts).
+function NS.spell_charges(spell)
+   return _G.GetSpellCount(spell.ID) or 0
+end
+
+function NS.has_charges(spell, min_count)
+   return (_G.GetSpellCount(spell.ID) or 0) >= (min_count or 1)
+end
+
+-- base spell ID -> reagent item ID. Group buffs consume a reagent; single-target versions don't.
+local REAGENT_ITEM = {
+   -- [<GiftOfTheWild base IDs>]      = 17021, -- Wild Quillvine (no GotW action exists today; reserved)
+   -- [<ArcaneBrilliance base IDs>]   = 17020, -- Arcane Powder
+   -- [<PrayerOfFortitude base IDs>]  = 17029, -- Holy Candle
+   -- [<PrayerOfSpirit base IDs>]     = 17028, -- Sacred Candle
+   -- [<PrayerOfShadowProt base IDs>] = 17028, -- Sacred Candle
+}
+NS.REAGENT_ITEM = REAGENT_ITEM
+
+local function resolve_maintain_unit(cfg, context)
+   if cfg.unit then return cfg.unit end
+   if cfg.kind == "buff" then return PLAYER_UNIT end
+   return (context and context.target) or TARGET_UNIT
+end
+
+local function cached_aura_needs_refresh(cfg, state, window)
+   local remaining = cfg.remaining_field and state and state[cfg.remaining_field] or 0
+   local stacks
+   if cfg.stacks_field then
+      stacks = state and state[cfg.stacks_field] or 0
+   else
+      stacks = remaining > 0 and 1 or 0
+   end
+
+   if stacks == 0 then return true end
+   if cfg.min_stacks and stacks < cfg.min_stacks then return true end
+   return remaining <= (window or 0)
+end
+
+local function get_cached_aura_state(cfg, state, fallback_unit)
+   if cfg.stacks_field or cfg.remaining_field then
+      local remaining = cfg.remaining_field and state and state[cfg.remaining_field] or 0
+      local stacks
+      if cfg.stacks_field then
+         stacks = state and state[cfg.stacks_field] or 0
+      else
+         stacks = remaining > 0 and 1 or 0
+      end
+      return stacks, remaining
+   end
+
+   return read_aura_state(cfg.track_spell, fallback_unit, cfg.kind, cfg.source)
+end
+
+function NS.maintain_aura(config)
+   if not config then error("maintain_aura requires config") end
+   if not config.name then error("maintain_aura requires name") end
+   if not config.spell then error("maintain_aura requires spell") end
+   if config.window == nil and not config.window_setting_key then
+      error("maintain_aura requires window or window_setting_key")
+   end
+
+   local cfg = config
+   cfg.kind = cfg.kind or "debuff"
+   cfg.track_spell = cfg.track_spell or cfg.spell
+   local reagent_item = cfg.reagent_item or REAGENT_ITEM[cfg.spell.ID]
+   local opts = {}
+   local use_cached_state = cfg.stacks_field or cfg.remaining_field
+   local spell_target = cfg.spell_target or cfg.unit or (cfg.kind == "buff" and PLAYER_UNIT or TARGET_UNIT)
+   local checked_spell = cfg.spell
+   if cfg.check_spell == false then checked_spell = nil end
+
+   return {
+      name = cfg.name,
+      spell = checked_spell,
+      spell_target = spell_target,
+      setting_key = cfg.setting_key,
+      requires_combat = cfg.requires_combat,
+      requires_enemy = cfg.requires_enemy,
+      requires_in_range = cfg.requires_in_range,
+      requires_stealth = cfg.requires_stealth,
+      requires_behind = cfg.requires_behind,
+      min_cp = cfg.min_cp,
+      is_gcd_gated = cfg.is_gcd_gated,
+      is_burst = cfg.is_burst,
+      is_defensive = cfg.is_defensive,
+
+      matches = function(context, state)
+         if cfg.extra_guard and not cfg.extra_guard(context, state) then return false end
+         if reagent_item and not NS.has_item(reagent_item) then return false end
+
+         local window = cfg.window
+         if cfg.window_setting_key and context.settings and context.settings[cfg.window_setting_key] ~= nil then
+            window = context.settings[cfg.window_setting_key]
+         end
+
+         if use_cached_state then
+            return cached_aura_needs_refresh(cfg, state, window)
+         end
+
+         opts.kind = cfg.kind
+         opts.window = window
+         opts.min_stacks = cfg.min_stacks
+         opts.source = cfg.source
+         opts.unit = resolve_maintain_unit(cfg, context)
+         return NS.needs_refresh(cfg.track_spell, opts.unit, opts)
+      end,
+
+      execute = cfg.execute or function(icon, context, state)
+         local unit = resolve_maintain_unit(cfg, context)
+         local stacks, remaining = get_cached_aura_state(cfg, state, unit)
+         local prefix = cfg.log_prefix or "[AURA]"
+         return try_cast(cfg.spell, icon, unit,
+            format("%s %s - Stacks: %d, Duration: %.1fs", prefix, cfg.name, stacks, remaining))
+      end,
+   }
+end
 
 -- ============================================================================
 -- SWING TIMER UTILITIES

@@ -52,10 +52,10 @@ local function get_affliction_state(context)
     if context._affliction_valid then return affliction_state end
     context._affliction_valid = true
 
-    affliction_state.corruption_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.CORRUPTION) or 0
-    affliction_state.ua_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.UNSTABLE_AFF) or 0
+    affliction_state.corruption_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.CORRUPTION, "player", true) or 0
+    affliction_state.ua_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.UNSTABLE_AFF, "player", true) or 0
     affliction_state.siphon_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.SIPHON_LIFE) or 0
-    affliction_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE) or 0
+    affliction_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE, "player", true) or 0
     affliction_state.curse_duration = get_curse_duration(context)
     affliction_state.isb_active = (Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.ISB) or 0) > 0
 
@@ -119,39 +119,35 @@ local Aff_MaintainCurse = {
 }
 
 -- [3] Maintain Unstable Affliction — refresh when dot falls off
-local Aff_MaintainUA = {
+local Aff_MaintainUA = NS.maintain_aura({
+    name = "MaintainUA",
+    log_prefix = "[AFF]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.UnstableAffliction,
+    kind = "debuff",
+    source = "player",
+    window = 3,
+    remaining_field = "ua_duration",
     setting_key = "aff_use_ua",
-
-    matches = function(context, state)
-        if context.is_moving then return false end
-        return state.ua_duration < 3  -- 1.5s cast time, start early
+    extra_guard = function(context)
+        return not context.is_moving
     end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.UnstableAffliction, icon, TARGET_UNIT,
-            format("[AFF] Unstable Affliction - Dur: %.1fs", state.ua_duration))
-    end,
-}
+})
 
 -- [4] Maintain Corruption — refresh when dot falls off (instant cast)
-local Aff_MaintainCorruption = {
+local Aff_MaintainCorruption = NS.maintain_aura({
+    name = "MaintainCorruption",
+    log_prefix = "[AFF]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.Corruption,
+    kind = "debuff",
+    source = "player",
+    window = 1.5,
+    remaining_field = "corruption_duration",
     setting_key = "aff_use_corruption",
-
-    matches = function(context, state)
-        return state.corruption_duration < 1.5
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Corruption, icon, TARGET_UNIT,
-            format("[AFF] Corruption - Dur: %.1fs", state.corruption_duration))
-    end,
-}
+})
 
 -- [5] Maintain Siphon Life — only when ISB debuff active on target
 local Aff_MaintainSiphonLife = {
@@ -173,22 +169,21 @@ local Aff_MaintainSiphonLife = {
 }
 
 -- [6] Maintain Immolate — optional, reapply when dot falls off
-local Aff_MaintainImmolate = {
+local Aff_MaintainImmolate = NS.maintain_aura({
+    name = "MaintainImmolate",
+    log_prefix = "[AFF]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.Immolate,
+    kind = "debuff",
+    source = "player",
+    window = 3,
+    remaining_field = "immolate_duration",
     setting_key = "aff_use_immolate",
-
-    matches = function(context, state)
-        if context.is_moving then return false end
-        return state.immolate_duration < 3  -- 2.0s cast (1.5s w/ Bane)
+    extra_guard = function(context)
+        return not context.is_moving
     end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Immolate, icon, TARGET_UNIT,
-            format("[AFF] Immolate - Dur: %.1fs", state.immolate_duration))
-    end,
-}
+})
 
 -- [7] Drain Soul Execute — target below HP threshold
 local Aff_DrainSoul = {

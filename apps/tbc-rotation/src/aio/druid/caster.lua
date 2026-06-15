@@ -320,7 +320,7 @@ do
 	-- 24752
 	local MOTW_GOTW_BUFF_IDS = { 1126, 5232, 6756, 5234, 8907, 9884, 9885, 26990, 21849, 21850, 26991 }
 
-	local function create_self_buff_strategy(spell, name, buff_ids, settings_key, caster_only)
+		local function create_self_buff_strategy(spell, name, buff_ids, settings_key, caster_only, reagent_item)
 		local function missing_buff()
 			if buff_ids then
 				return (Unit(PLAYER_UNIT):HasBuffs(buff_ids, nil, true) or 0) == 0
@@ -340,11 +340,14 @@ do
 				if caster_only and context.stance ~= Constants.STANCE.CASTER then
 					return false
 				end
-				if not spell:IsReady(PLAYER_UNIT) then
-					return false
-				end
-				return missing_buff()
-			end,
+					if not spell:IsReady(PLAYER_UNIT) then
+						return false
+					end
+					if reagent_item and not NS.has_item(reagent_item) then
+						return false
+					end
+					return missing_buff()
+				end,
 			should_suggest = function(context)
 				if settings_key and not context.settings[settings_key] then
 					return false
@@ -355,11 +358,14 @@ do
 				if caster_only and context.stance ~= Constants.STANCE.CASTER then
 					return false
 				end
-				if not spell:IsReady(PLAYER_UNIT) then
-					return false
-				end
-				return missing_buff()
-			end,
+					if not spell:IsReady(PLAYER_UNIT) then
+						return false
+					end
+					if reagent_item and not NS.has_item(reagent_item) then
+						return false
+					end
+					return missing_buff()
+				end,
 			execute = function(icon, context)
 				local result = safe_self_cast(spell, icon)
 				if result then

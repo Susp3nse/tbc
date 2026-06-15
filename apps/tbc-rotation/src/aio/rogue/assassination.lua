@@ -107,17 +107,20 @@ local Assassination_StealthOpener = {
 }
 
 -- [2] Maintain Slice and Dice — SnD not active or below refresh threshold
-local Assassination_MaintainSnD = {
+local Assassination_MaintainSnD = NS.maintain_aura({
+    name = "MaintainSnD",
+    log_prefix = "[ASSASSINATION]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
-
-    matches = function(context, state)
-        if context.cp < 1 then return false end
-        local refresh = context.settings.assassination_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-        return not state.snd_active or state.snd_duration < refresh
+    spell = A.SliceAndDice,
+    kind = "buff",
+    window = Constants.ROGUE.SND_MIN_DURATION,
+    window_setting_key = "assassination_snd_refresh",
+    remaining_field = "snd_duration",
+    extra_guard = function(context)
+        return context.cp >= 1
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.SLICE_AND_DICE and A.SliceAndDice:IsReady(PLAYER_UNIT) then
             return A.SliceAndDice:Show(icon),
@@ -126,7 +129,7 @@ local Assassination_MaintainSnD = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [3] Cold Blood — off-GCD, pair with next finisher
 local Assassination_ColdBlood = {
@@ -180,23 +183,26 @@ local Assassination_ExposeArmor = {
 }
 
 -- [7] Rupture — at 4-5 CP, not active, TTD > threshold
-local Assassination_Rupture = {
+local Assassination_Rupture = NS.maintain_aura({
+    name = "Rupture",
+    log_prefix = "[ASSASSINATION]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
     setting_key = "assassination_use_rupture",
-
-    matches = function(context, state)
+    spell = A.Rupture,
+    kind = "debuff",
+    window = 2,
+    window_setting_key = "assassination_rupture_refresh",
+    remaining_field = "rupture_duration",
+    extra_guard = function(context, state)
         if state.pooling then return false end
         local min_cp = context.settings.assassination_min_cp_finisher or 4
         if context.cp < min_cp then return false end
-        local refresh = context.settings.assassination_rupture_refresh or 2
-        if state.rupture_active and state.rupture_duration >= refresh then return false end
         local min_ttd = context.settings.assassination_rupture_min_ttd or 12
         if context.ttd < min_ttd then return false end
         return true
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.RUPTURE and A.Rupture:IsReady(TARGET_UNIT) then
             return A.Rupture:Show(icon),
@@ -205,7 +211,7 @@ local Assassination_Rupture = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [8] Envenom — at 4-5 CP when Deadly Poison stacks >= threshold
 local Assassination_Envenom = {
@@ -256,25 +262,30 @@ local Assassination_Eviscerate = {
 
 -- [10] Shiv Refresh — Deadly Poison < 2s remaining on target
 -- Bypasses pooling gate: DP refresh is higher priority than pooling for the next finisher
-local Assassination_ShivRefresh = {
+local Assassination_DeadlyPoisonAura = { ID = Constants.DEBUFF_ID.DEADLY_POISON }
+local Assassination_ShivRefresh = NS.maintain_aura({
+    name = "ShivRefresh",
+    log_prefix = "[ASSASSINATION]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
     setting_key = "use_shiv",
-
-    matches = function(context, state)
+    spell = A.Shiv,
+    track_spell = Assassination_DeadlyPoisonAura,
+    kind = "debuff",
+    window = Constants.ROGUE.DP_REFRESH_THRESHOLD,
+    remaining_field = "deadly_poison_duration",
+    extra_guard = function(context, state)
         -- Do NOT check state.pooling here — DP refresh must happen even while pooling
-        if state.deadly_poison_duration <= 0 then return false end
-        return state.deadly_poison_duration < Constants.ROGUE.DP_REFRESH_THRESHOLD
+        return state.deadly_poison_duration > 0
     end,
-
     execute = function(icon, context, state)
         if A.Shiv:IsReady(TARGET_UNIT) then
             return A.Shiv:Show(icon), "[ASSASSINATION] Shiv - Refresh Deadly Poison"
         end
         return nil
     end,
-}
+})
 
 -- [11] Mutilate — primary builder (requires behind target, daggers MH+OH)
 local Assassination_Mutilate = {

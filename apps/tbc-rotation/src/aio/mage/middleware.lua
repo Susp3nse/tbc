@@ -295,7 +295,7 @@ rotation_registry:register_middleware({
     execute = function(icon, context)
         -- Try Arcane Brilliance first if in a group
         local in_group = (GetNumGroupMembers() or 0) > 0
-        if in_group and A.SelfArcaneBrilliance:IsReady(PLAYER_UNIT) then
+        if in_group and NS.has_item(17020) and A.SelfArcaneBrilliance:IsReady(PLAYER_UNIT) then
             return A.SelfArcaneBrilliance:Show(icon), "[MW] Arcane Brilliance"
         end
         if A.SelfArcaneIntellect:IsReady(PLAYER_UNIT) then

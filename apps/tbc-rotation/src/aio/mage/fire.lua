@@ -23,7 +23,6 @@ end
 
 local A = NS.A
 local Constants = NS.Constants
-local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
 local named = NS.named
@@ -31,26 +30,6 @@ local create_racial_strategy = NS.create_racial_strategy
 local ttd_too_short = NS.ttd_too_short
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
-local format = string.format
-
--- ============================================================================
--- FIRE STATE (context_builder)
--- ============================================================================
--- Pre-allocated state table — no inline {} in combat
-local fire_state = {
-    scorch_stacks = 0,
-    scorch_duration = 0,
-}
-
-local function get_fire_state(context)
-    if context._fire_valid then return fire_state end
-    context._fire_valid = true
-
-    fire_state.scorch_stacks = Unit(TARGET_UNIT):HasDeBuffsStacks(Constants.DEBUFF_ID.IMPROVED_SCORCH) or 0
-    fire_state.scorch_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMPROVED_SCORCH) or 0
-
-    return fire_state
-end
 
 -- ============================================================================
 -- STRATEGIES
@@ -58,23 +37,22 @@ end
 do
 
 -- [1] Maintain Improved Scorch debuff
-local Fire_MaintainScorch = {
+local Fire_MaintainScorch = NS.maintain_aura({
+    name = "MaintainScorch",
+    log_prefix = "[FIRE]",
+    spell = A.Scorch,
+    kind = "debuff",
+    source = "player",
+    min_stacks = Constants.SCORCH.MAX_STACKS,
+    window = Constants.SCORCH.DEFAULT_REFRESH,
+    window_setting_key = "fire_scorch_refresh",
+    setting_key = "fire_maintain_scorch",
     requires_combat = true,
     requires_enemy = true,
-    spell = A.Scorch,
-    setting_key = "fire_maintain_scorch",
-
-    matches = function(context, state)
-        if context.is_moving then return false end
-        local refresh = context.settings.fire_scorch_refresh or Constants.SCORCH.DEFAULT_REFRESH
-        return state.scorch_stacks < Constants.SCORCH.MAX_STACKS or state.scorch_duration < refresh
+    extra_guard = function(context)
+        return not context.is_moving
     end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Scorch, icon, TARGET_UNIT,
-            format("[FIRE] Scorch - Stacks: %d, Duration: %.1fs", state.scorch_stacks, state.scorch_duration))
-    end,
-}
+})
 
 -- [2] Combustion (off-GCD)
 local Fire_Combustion = {
@@ -260,8 +238,6 @@ rotation_registry:register("fire", {
     named("AoE",             Fire_AoE),
     named("MovementSpell",   Fire_MovementSpell),
     named("PrimarySpell",    Fire_PrimarySpell),
-}, {
-    context_builder = get_fire_state,
 })
 
 end -- scope block

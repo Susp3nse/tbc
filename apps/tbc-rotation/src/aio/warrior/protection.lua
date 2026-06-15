@@ -475,27 +475,31 @@ local Prot_Devastate = {
 }
 
 -- [5] Sunder Armor (if Devastate not available, build/maintain stacks)
-local Prot_SunderArmor = {
+local Prot_SunderAura = { ID = Constants.DEBUFF_ID.SUNDER_ARMOR }
+local Prot_SunderArmor = NS.maintain_aura({
+    name = "SunderArmor",
+    log_prefix = "[PROT]",
     requires_combat = true,
     requires_enemy = true,
-
-    matches = function(context, state)
+    spell = A.SunderArmor,
+    track_spell = Prot_SunderAura,
+    kind = "debuff",
+    min_stacks = Constants.SUNDER_MAX_STACKS,
+    window = Constants.SUNDER_REFRESH_WINDOW,
+    stacks_field = "sunder_stacks",
+    remaining_field = "sunder_duration",
+    check_spell = false,
+    extra_guard = function(context, state)
         -- Only use if Devastate is not available (not talented or not learned)
         if is_spell_available(A.Devastate) then return false end
-        -- Maintain up to 5 stacks, refresh at low duration
-        if state.sunder_stacks >= Constants.SUNDER_MAX_STACKS
-            and state.sunder_duration > Constants.SUNDER_REFRESH_WINDOW then
-            return false
-        end
         -- Sunder Armor requires Defensive Stance
         return A.SunderArmor:IsReady(TARGET_UNIT)
     end,
-
     execute = function(icon, context, state)
         return try_cast(A.SunderArmor, icon, TARGET_UNIT,
             format("[PROT] Sunder Armor - Stacks: %d, Duration: %.1fs", state.sunder_stacks, state.sunder_duration))
     end,
-}
+})
 
 -- [6] Thunder Clap maintenance (TBC: castable in Defensive Stance — no stance dance)
 local Prot_ThunderClap = {

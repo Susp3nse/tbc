@@ -35,7 +35,6 @@ local REJUVENATION_BUFF_IDS = NS.REJUVENATION_BUFF_IDS
 local REGROWTH_BUFF_IDS = NS.REGROWTH_BUFF_IDS
 
 -- Lua optimizations
-local tsort = table.sort
 local select = select
 local tostring = tostring
 
@@ -131,17 +130,13 @@ end
 -- PARTY/RAID HEALING SYSTEM
 -- ============================================================================
 
-local PARTY_UNITS = {"player", "party1", "party2", "party3", "party4"}
-local RAID_UNITS = {}
-for i = 1, 40 do RAID_UNITS[i] = "raid" .. i end
+local PARTY_UNITS = NS.PARTY_UNITS
+local RAID_UNITS = NS.RAID_UNITS
 
 local healing_targets = {}
 local healing_targets_count = 0
 
-local function unit_has_aggro(unit_id)
-   local threat = _G.UnitThreatSituation(unit_id)
-   return threat and threat >= 2
-end
+local unit_has_aggro = NS.unit_has_aggro
 
 local function health_percent(unit)
    local max_hp = _G.UnitHealthMax(unit) or 0
@@ -149,81 +144,29 @@ local function health_percent(unit)
    return _G.UnitHealth(unit) / max_hp * 100
 end
 
-local function is_in_raid()
-   return _G.IsInRaid and _G.IsInRaid() or false
-end
+local is_in_raid = NS.is_in_raid
+local is_in_party = NS.is_in_party
 
-local function is_in_party()
-   if is_in_raid() then return false end
-   return _G.IsInGroup and _G.IsInGroup() or false
-end
-
-local function scan_healing_targets()
-   healing_targets_count = 0
-
+local function decorate_druid_heal_entry(entry, unit)
    local in_raid = is_in_raid()
    local in_group = in_raid or is_in_party()
-   local units_to_scan = in_raid and RAID_UNITS or PARTY_UNITS
-   local max_units = in_raid and 40 or 5
+   entry.is_player = is_player_unit(unit)
+   entry.has_rejuv = has_any_rejuv(unit)
+   entry.has_regrowth = has_any_regrowth(unit)
+   local role = _G.UnitGroupRolesAssigned and _G.UnitGroupRolesAssigned(unit)
+   local player_has_aggro = _G.UnitIsUnit(unit, PLAYER_UNIT)
+   entry.is_tank = in_group and ((role == "TANK") or (entry.has_aggro and not player_has_aggro))
+end
 
-   for i = 1, max_units do
-      local unit = units_to_scan[i]
-      if unit and _G.UnitExists(unit) and not _G.UnitIsDead(unit) and _G.UnitIsConnected(unit) and _G.UnitCanAssist("player", unit) then
-         local in_range
-         if _G.UnitIsUnit(unit, "player") then
-            in_range = true
-         else
-            local spell_range = _G.IsSpellInRange("Rejuvenation", unit)
-            if spell_range == 1 then
-               in_range = true
-            elseif spell_range == 0 then
-               in_range = false
-            else
-               local _, unit_in_range = _G.UnitInRange(unit)
-               in_range = (unit_in_range == true)
-            end
-         end
+local healing_scan_options = {
+   range_spell = "Rejuvenation",
+   out = healing_targets,
+   decorate_entry = decorate_druid_heal_entry,
+}
 
-         if in_range then
-            healing_targets_count = healing_targets_count + 1
-            local idx = healing_targets_count
-
-            if not healing_targets[idx] then
-               healing_targets[idx] = {}
-            end
-
-            local entry = healing_targets[idx]
-            entry.unit = unit
-            local max_hp = _G.UnitHealthMax(unit) or 0
-            entry.hp = health_percent(unit)
-            entry.is_player = is_player_unit(unit)
-            entry.has_aggro = unit_has_aggro(unit)
-            entry.has_rejuv = has_any_rejuv(unit)
-            entry.has_regrowth = has_any_regrowth(unit)
-
-            -- Effective HP accounts for incoming heals, HoTs, absorbs, and damage
-            local eff_deficit = predict_effective_deficit(unit, 1.5)
-            entry.effective_hp = max_hp > 0 and (100 - (eff_deficit / max_hp) * 100) or entry.hp
-
-            local role = _G.UnitGroupRolesAssigned and _G.UnitGroupRolesAssigned(unit)
-            local player_has_aggro = _G.UnitIsUnit(unit, PLAYER_UNIT)
-            entry.is_tank = in_group and ((role == "TANK") or (entry.has_aggro and not player_has_aggro))
-         end
-      end
-   end
-
-   for i = healing_targets_count + 1, #healing_targets do
-      healing_targets[i] = nil
-   end
-
-   if healing_targets_count > 1 then
-      tsort(healing_targets, function(a, b)
-         if not a or not a.effective_hp then return false end
-         if not b or not b.effective_hp then return true end
-         return a.effective_hp < b.effective_hp
-      end)
-   end
-
+local function scan_healing_targets()
+   local _, count = NS.scan_healing_targets(nil, healing_scan_options)
+   healing_targets_count = count
    return healing_targets, healing_targets_count
 end
 

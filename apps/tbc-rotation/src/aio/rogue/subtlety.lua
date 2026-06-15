@@ -116,17 +116,20 @@ local Subtlety_StealthOpener = {
 }
 
 -- [2] Maintain Slice and Dice — SnD not active or below refresh threshold
-local Subtlety_MaintainSnD = {
+local Subtlety_MaintainSnD = NS.maintain_aura({
+    name = "MaintainSnD",
+    log_prefix = "[SUBTLETY]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
-
-    matches = function(context, state)
-        if context.cp < 1 then return false end
-        local refresh = context.settings.subtlety_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-        return not state.snd_active or state.snd_duration < refresh
+    spell = A.SliceAndDice,
+    kind = "buff",
+    window = Constants.ROGUE.SND_MIN_DURATION,
+    window_setting_key = "subtlety_snd_refresh",
+    remaining_field = "snd_duration",
+    extra_guard = function(context)
+        return context.cp >= 1
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.SLICE_AND_DICE and A.SliceAndDice:IsReady(PLAYER_UNIT) then
             return A.SliceAndDice:Show(icon),
@@ -135,7 +138,7 @@ local Subtlety_MaintainSnD = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [3] Shadowstep — on GCD, use on CD for +20% damage buff
 local Subtlety_Shadowstep = {
@@ -224,22 +227,25 @@ local Subtlety_ExposeArmor = {
 }
 
 -- [9] Rupture — at 5 CP, not active, TTD > threshold
-local Subtlety_Rupture = {
+local Subtlety_Rupture = NS.maintain_aura({
+    name = "Rupture",
+    log_prefix = "[SUBTLETY]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
     setting_key = "subtlety_use_rupture",
     min_cp = 5,
-
-    matches = function(context, state)
+    spell = A.Rupture,
+    kind = "debuff",
+    window = 2,
+    window_setting_key = "subtlety_rupture_refresh",
+    remaining_field = "rupture_duration",
+    extra_guard = function(context, state)
         if state.pooling then return false end
-        local refresh = context.settings.subtlety_rupture_refresh or 2
-        if state.rupture_active and state.rupture_duration >= refresh then return false end
         local min_ttd = context.settings.subtlety_rupture_min_ttd or 12
         if context.ttd < min_ttd then return false end
         return true
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.RUPTURE and A.Rupture:IsReady(TARGET_UNIT) then
             return A.Rupture:Show(icon),
@@ -248,7 +254,7 @@ local Subtlety_Rupture = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [10] Eviscerate — at min_cp+ CP dump
 local Subtlety_Eviscerate = {

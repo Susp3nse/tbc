@@ -7,7 +7,7 @@
     "build:engine": "corepack pnpm --filter @menagerie/tmw-profile-builder build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint:lua": "luacheck src/aio",
-    "test": "tsx test/guardrails.test.ts",
+    "test": "tsx test/guardrails.test.ts && tsx test/lua-behavior.test.ts",
     "build": "corepack pnpm run build:engine && tsx build.ts",
     "build:sync": "corepack pnpm run build:engine && tsx build.ts --sync",
     "build:all": "corepack pnpm run build:engine && tsx build.ts --all",

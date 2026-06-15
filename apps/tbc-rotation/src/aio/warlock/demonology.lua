@@ -55,8 +55,8 @@ local function get_demo_state(context)
     demo_state.pet_exists = context.pet_active
     demo_state.pet_hp = context.pet_hp
     demo_state.has_sacrifice = context.has_ds_any
-    demo_state.corruption_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.CORRUPTION) or 0
-    demo_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE) or 0
+    demo_state.corruption_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.CORRUPTION, "player", true) or 0
+    demo_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE, "player", true) or 0
     demo_state.curse_duration = get_curse_duration(context)
 
     return demo_state
@@ -166,39 +166,35 @@ local Demo_MaintainCurse = {
 }
 
 -- [4] Maintain Corruption — if enabled (Felguard build usually)
-local Demo_MaintainCorruption = {
+local Demo_MaintainCorruption = NS.maintain_aura({
+    name = "MaintainCorruption",
+    log_prefix = "[DEMO]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.Corruption,
+    kind = "debuff",
+    source = "player",
+    window = 1.5,
+    remaining_field = "corruption_duration",
     setting_key = "demo_use_corruption",
-
-    matches = function(context, state)
-        return state.corruption_duration < 1.5
-    end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Corruption, icon, TARGET_UNIT,
-            format("[DEMO] Corruption - Dur: %.1fs", state.corruption_duration))
-    end,
-}
+})
 
 -- [5] Maintain Immolate — if enabled
-local Demo_MaintainImmolate = {
+local Demo_MaintainImmolate = NS.maintain_aura({
+    name = "MaintainImmolate",
+    log_prefix = "[DEMO]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.Immolate,
+    kind = "debuff",
+    source = "player",
+    window = 3,
+    remaining_field = "immolate_duration",
     setting_key = "demo_use_immolate",
-
-    matches = function(context, state)
-        if context.is_moving then return false end
-        return state.immolate_duration < 3
+    extra_guard = function(context)
+        return not context.is_moving
     end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Immolate, icon, TARGET_UNIT,
-            format("[DEMO] Immolate - Dur: %.1fs", state.immolate_duration))
-    end,
-}
+})
 
 -- [6] AoE — Seed of Corruption when enough enemies
 local Demo_AoE = {

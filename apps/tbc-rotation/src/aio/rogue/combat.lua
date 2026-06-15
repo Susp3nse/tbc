@@ -103,17 +103,20 @@ local Combat_StealthOpener = {
 }
 
 -- [2] Maintain Slice and Dice — SnD not active or below refresh threshold
-local Combat_MaintainSnD = {
+local Combat_MaintainSnD = NS.maintain_aura({
+    name = "MaintainSnD",
+    log_prefix = "[COMBAT]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
-
-    matches = function(context, state)
-        if context.cp < 1 then return false end
-        local refresh = context.settings.combat_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-        return not state.snd_active or state.snd_duration < refresh
+    spell = A.SliceAndDice,
+    kind = "buff",
+    window = Constants.ROGUE.SND_MIN_DURATION,
+    window_setting_key = "combat_snd_refresh",
+    remaining_field = "snd_duration",
+    extra_guard = function(context)
+        return context.cp >= 1
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.SLICE_AND_DICE and A.SliceAndDice:IsReady(PLAYER_UNIT) then
             return A.SliceAndDice:Show(icon),
@@ -122,7 +125,7 @@ local Combat_MaintainSnD = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [3] Blade Flurry — off-GCD, on CD
 local Combat_BladeFlurry = {
@@ -193,26 +196,27 @@ local Combat_ExposeArmor = {
 }
 
 -- [8] Rupture — at 5 CP, not active, TTD > threshold, skip during BF multi-target
-local Combat_Rupture = {
+local Combat_Rupture = NS.maintain_aura({
+    name = "Rupture",
+    log_prefix = "[COMBAT]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
     setting_key = "combat_use_rupture",
-
-    matches = function(context, state)
+    spell = A.Rupture,
+    kind = "debuff",
+    window = 2,
+    window_setting_key = "combat_rupture_refresh",
+    remaining_field = "rupture_duration",
+    extra_guard = function(context, state)
         if state.pooling then return false end
         if context.cp < 5 then return false end
-        if state.rupture_active then
-            local refresh = context.settings.combat_rupture_refresh or 2
-            if state.rupture_duration >= refresh then return false end
-        end
         local min_ttd = context.settings.combat_rupture_min_ttd or 12
         if context.ttd < min_ttd then return false end
         -- Skip Rupture during Blade Flurry if multiple enemies (Eviscerate cleaves better)
         if state.blade_flurry_active and context.enemy_count >= 2 then return false end
         return true
     end,
-
     execute = function(icon, context, state)
         if context.energy >= Constants.ENERGY.RUPTURE and A.Rupture:IsReady(TARGET_UNIT) then
             return A.Rupture:Show(icon),
@@ -221,7 +225,7 @@ local Combat_Rupture = {
         state.pooling = true
         return nil
     end,
-}
+})
 
 -- [9] Eviscerate — at min_cp+ CP dump
 local Combat_Eviscerate = {
@@ -246,26 +250,30 @@ local Combat_Eviscerate = {
 
 -- [10] Shiv Refresh — Deadly Poison < 2s remaining on target
 -- Bypasses pooling gate: DP refresh is higher priority than pooling for the next finisher
-local Combat_ShivRefresh = {
+local Combat_DeadlyPoisonAura = { ID = Constants.DEBUFF_ID.DEADLY_POISON }
+local Combat_ShivRefresh = NS.maintain_aura({
+    name = "ShivRefresh",
+    log_prefix = "[COMBAT]",
     requires_combat = true,
     requires_enemy = true,
     requires_stealth = false,
     setting_key = "use_shiv",
-
-    matches = function(context, state)
+    spell = A.Shiv,
+    track_spell = Combat_DeadlyPoisonAura,
+    kind = "debuff",
+    window = Constants.ROGUE.DP_REFRESH_THRESHOLD,
+    extra_guard = function(context, state)
         -- Do NOT check state.pooling here — DP refresh must happen even while pooling
         local dp_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.DEADLY_POISON) or 0
-        if dp_duration <= 0 then return false end
-        return dp_duration < Constants.ROGUE.DP_REFRESH_THRESHOLD
+        return dp_duration > 0
     end,
-
     execute = function(icon, context, state)
         if A.Shiv:IsReady(TARGET_UNIT) then
             return A.Shiv:Show(icon), "[COMBAT] Shiv - Refresh Deadly Poison"
         end
         return nil
     end,
-}
+})
 
 -- [11] Sinister Strike — primary builder
 local Combat_SinisterStrike = {

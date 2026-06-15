@@ -272,7 +272,7 @@ rotation_registry:register_class({
         ctx.has_soul_link = (Unit("player"):HasBuffs(Constants.BUFF_ID.SOUL_LINK) or 0) > 0
 
         -- Soul shards
-        ctx.soul_shards = _G.GetItemCount(6265) or 0
+        ctx.soul_shards = NS.item_count(6265)
 
         -- Enemy count
         ctx.enemy_count = MultiUnits:GetByRangeInCombat(30) or 0

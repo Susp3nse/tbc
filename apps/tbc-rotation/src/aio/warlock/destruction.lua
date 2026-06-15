@@ -52,7 +52,7 @@ local function get_destro_state(context)
     if context._destro_valid then return destro_state end
     context._destro_valid = true
 
-    destro_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE) or 0
+    destro_state.immolate_duration = Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.IMMOLATE, "player", true) or 0
     destro_state.curse_duration = get_curse_duration(context)
     destro_state.backlash_active = context.has_backlash
     destro_state.isb_active = (Unit(TARGET_UNIT):HasDeBuffs(Constants.DEBUFF_ID.ISB) or 0) > 0
@@ -89,24 +89,21 @@ local Destro_Backlash = {
 }
 
 -- [2] Maintain Immolate — ALWAYS top priority for fire build (Incinerate needs it for +25%)
-local Destro_MaintainImmolate = {
+local Destro_MaintainImmolate = NS.maintain_aura({
+    name = "MaintainImmolate",
+    log_prefix = "[DESTRO]",
     requires_combat = true,
     requires_enemy = true,
     spell = A.Immolate,
+    kind = "debuff",
+    source = "player",
+    window = 3,
+    remaining_field = "immolate_duration",
     setting_key = "destro_use_immolate",
-
-    matches = function(context, state)
-        -- Only maintain Immolate for fire build (shadow build doesn't need it)
-        if not state.is_fire_build then return false end
-        if context.is_moving then return false end
-        return state.immolate_duration < 3  -- 2.0s cast (1.5s w/ Bane)
+    extra_guard = function(context, state)
+        return state.is_fire_build and not context.is_moving
     end,
-
-    execute = function(icon, context, state)
-        return try_cast(A.Immolate, icon, TARGET_UNIT,
-            format("[DESTRO] Immolate - Dur: %.1fs", state.immolate_duration))
-    end,
-}
+})
 
 -- [3] Conflagrate — instant, use on CD, CONSUMES Immolate
 -- Only fire if Immolate IS currently on target (Conflagrate requires it)

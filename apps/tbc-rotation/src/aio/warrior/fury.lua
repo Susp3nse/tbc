@@ -260,11 +260,21 @@ local Fury_Execute = {
 }
 
 -- [6] Sunder Armor maintenance (if configured)
-local Fury_SunderMaintain = {
+local Fury_SunderAura = { ID = Constants.DEBUFF_ID.SUNDER_ARMOR }
+local Fury_SunderMaintain = NS.maintain_aura({
+    name = "SunderMaintain",
+    log_prefix = "[FURY]",
     requires_combat = true,
     requires_enemy = true,
-
-    matches = function(context, state)
+    spell = A.SunderArmor,
+    track_spell = Fury_SunderAura,
+    kind = "debuff",
+    min_stacks = Constants.SUNDER_MAX_STACKS,
+    window = Constants.SUNDER_REFRESH_WINDOW,
+    stacks_field = "sunder_stacks",
+    remaining_field = "sunder_duration",
+    check_spell = false,
+    extra_guard = function(context, state)
         local mode = context.settings.sunder_armor_mode or "none"
         if mode == "none" then return false end
 
@@ -281,7 +291,6 @@ local Fury_SunderMaintain = {
         if is_spell_available(A.Devastate) and A.Devastate:IsReady(TARGET_UNIT) then return true end
         return A.SunderArmor:IsReady(TARGET_UNIT)
     end,
-
     execute = function(icon, context, state)
         if is_spell_available(A.Devastate) and A.Devastate:IsReady(TARGET_UNIT) then
             return try_cast(A.Devastate, icon, TARGET_UNIT,
@@ -290,7 +299,7 @@ local Fury_SunderMaintain = {
         return try_cast(A.SunderArmor, icon, TARGET_UNIT,
             format("[FURY] Sunder Armor - Stacks: %d", state.sunder_stacks))
     end,
-}
+})
 
 -- [7] Thunder Clap maintenance (Battle/Defensive Stance)
 local Fury_ThunderClap = {
