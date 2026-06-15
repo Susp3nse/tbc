@@ -55,38 +55,22 @@ if not THEME then
     return
 end
 
-local BACKDROP_THIN = {
-    bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Buttons\\WHITE8X8",
-    edgeSize = 1,
-}
+-- Reuse the one canonical thin backdrop from NS.Widgets (loaded at order 1).
+local BACKDROP_THIN = NS.Widgets.BACKDROP_THIN
 
 local FRAME_WIDTH = 360
 local LOG_TEXT_WIDTH = 302
 
+-- Thin wrapper over the shared widget; keeps the cliptracker's
+-- (width, height, text) signature and its smaller font byte-stable.
 local function create_theme_button(parent, width, height, text)
-    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    btn:SetSize(width, height)
-    btn:SetBackdrop(BACKDROP_THIN)
-    btn:SetBackdropColor(THEME.bg_widget[1], THEME.bg_widget[2], THEME.bg_widget[3], 1)
-    btn:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("CENTER")
-    label:SetText(text)
-    label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-    btn.label = label
-
-    btn:SetScript("OnEnter", function(self)
-        self:SetBackdropColor(THEME.bg_hover[1], THEME.bg_hover[2], THEME.bg_hover[3], 1)
-        self:SetBackdropBorderColor(THEME.accent[1], THEME.accent[2], THEME.accent[3], 1)
-    end)
-    btn:SetScript("OnLeave", function(self)
-        self:SetBackdropColor(THEME.bg_widget[1], THEME.bg_widget[2], THEME.bg_widget[3], 1)
-        self:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-    end)
-
-    return btn
+    return NS.Widgets.themed_button(parent, {
+        width = width,
+        height = height,
+        text = text,
+        font = "GameFontHighlightSmall",
+        theme = THEME,
+    })
 end
 
 -- ============================================================================
