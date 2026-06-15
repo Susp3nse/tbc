@@ -71,6 +71,29 @@ local function resolve_forced(entry, context, default_target)
    return forced, burst_blocked
 end
 
+-- Attach a formatted context snapshot to a debug-log entry. Strategy path: the
+-- caller already has the playstyle's format_context_log + state in scope, so it
+-- passes them in directly. `e` may be nil (debug_log returns nil when throttled).
+local function attach_ctx(e, log_context, format_context_log, context, state)
+   if e and log_context and format_context_log then
+      e.ctx = format_context_log(context, state)
+   end
+end
+
+-- Middleware path: middleware runs above playstyle selection, so there is no
+-- single playstyle/state in scope. Resolve the active playstyle's formatter and
+-- state here, then attach. Mirrors attach_ctx for the middleware call sites.
+local function attach_mw_ctx(registry, e, log_context, context)
+   if not (e and log_context) then return end
+   local cc = registry.class_config
+   local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
+   local config = playstyle and registry.playstyle_config[playstyle]
+   local format_context_log = config and config.format_context_log
+   if format_context_log then
+      e.ctx = format_context_log(context, registry:get_playstyle_state(playstyle, context))
+   end
+end
+
 --- Executes middleware. Returns: result, log_message (optional)
 function rotation_registry:execute_middleware(icon, context)
    local debug_mode = context.settings and context.settings.debug_mode
@@ -98,41 +121,16 @@ function rotation_registry:execute_middleware(icon, context)
                   if forced and not clean_msg:find("[FORCED]", 1, true) then
                      clean_msg = "[FORCED] " .. clean_msg
                   end
-                  local e = debug_log("MW", "ACT", forced, "%s", clean_msg)
-                  if e and log_context then
-                     local cc = self.class_config
-                     local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
-                     local config = playstyle and self.playstyle_config[playstyle]
-                     local format_context_log = config and config.format_context_log
-                     if format_context_log then
-                        e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
-                     end
-                  end
+                  attach_mw_ctx(self, debug_log("MW", "ACT", forced, "%s", clean_msg), log_context, context)
                elseif debug_system and debug_log then
-                  local e = debug_log("MW", "EXEC", forced, "%s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or "")
-                  if e and log_context then
-                     local cc = self.class_config
-                     local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
-                     local config = playstyle and self.playstyle_config[playstyle]
-                     local format_context_log = config and config.format_context_log
-                     if format_context_log then
-                        e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
-                     end
-                  end
+                  attach_mw_ctx(self, debug_log("MW", "EXEC", forced, "%s (P%d)%s",
+                     mw.name, mw.priority, forced and " [FORCED]" or ""), log_context, context)
                end
                set_last_action(mw.name, "MW", NS.last_action_target_unit or mw.spell_target or "player")
                return result
             elseif debug_system and debug_log then
-               local e = debug_log("MW", "NOOP", forced, "%s (P%d)%s", mw.name, mw.priority, forced and " [FORCED]" or "")
-               if e and log_context then
-                  local cc = self.class_config
-                  local playstyle = cc and cc.get_active_playstyle and cc.get_active_playstyle(context)
-                  local config = playstyle and self.playstyle_config[playstyle]
-                  local format_context_log = config and config.format_context_log
-                  if format_context_log then
-                     e.ctx = format_context_log(context, self:get_playstyle_state(playstyle, context))
-                  end
-               end
+               attach_mw_ctx(self, debug_log("MW", "NOOP", forced, "%s (P%d)%s",
+                  mw.name, mw.priority, forced and " [FORCED]" or ""), log_context, context)
             end
          end
       end
@@ -176,17 +174,17 @@ function rotation_registry:execute_strategies(playstyle, icon, context)
 
             if result then
                if debug_mode and log_msg and debug_log then
-                  local e = debug_log(src, "ACT", forced, "%s%s", forced and "[FORCED] " or "", log_msg)
-                  if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
+                  attach_ctx(debug_log(src, "ACT", forced, "%s%s", forced and "[FORCED] " or "", log_msg),
+                     log_context, format_context_log, context, state)
                elseif debug_system and debug_log then
-                  local e = debug_log(src, "EXEC", forced, "%s%s", strategy.name, forced and " [FORCED]" or "")
-                  if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
+                  attach_ctx(debug_log(src, "EXEC", forced, "%s%s", strategy.name, forced and " [FORCED]" or ""),
+                     log_context, format_context_log, context, state)
                end
                set_last_action(strategy.name, playstyle, NS.last_action_target_unit or strategy.spell_target or TARGET_UNIT)
                return result
             elseif debug_system and debug_log then
-               local e = debug_log(src, "NOOP", forced, "%s%s", strategy.name, forced and " [FORCED]" or "")
-               if e and log_context and format_context_log then e.ctx = format_context_log(context, state) end
+               attach_ctx(debug_log(src, "NOOP", forced, "%s%s", strategy.name, forced and " [FORCED]" or ""),
+                  log_context, format_context_log, context, state)
             end
          end
       end
