@@ -350,7 +350,7 @@ rotation_registry:register_middleware({
 -- ============================================================================
 rotation_registry:register_middleware({
     name = "Shaman_CurePoison",
-    priority = 350,
+    priority = Priority.MIDDLEWARE.DISPEL_CURSE,
 
     matches = function(context)
         if not context.settings.use_cure_poison then return false end
@@ -373,7 +373,7 @@ rotation_registry:register_middleware({
 -- ============================================================================
 rotation_registry:register_middleware({
     name = "Shaman_CureDisease",
-    priority = 340,
+    priority = Priority.MIDDLEWARE.DISPEL_POISON,
 
     matches = function(context)
         if not context.settings.use_cure_disease then return false end
@@ -490,8 +490,6 @@ local FEAR_CASTER_IDS = {
     [22960] = true,  -- Ashtongue Primalist (BT) — Wyvern Sting (sleep)
 }
 
-local GetTotemInfo = _G.GetTotemInfo
-
 rotation_registry:register_middleware({
     name = "Shaman_AutoTremor",
     priority = 260,  -- above shield maintain (250), below recovery (300)
@@ -505,8 +503,7 @@ rotation_registry:register_middleware({
         local npc_id = select(6, Unit(TARGET_UNIT):InfoGUID())
         if not npc_id or not FEAR_CASTER_IDS[tonumber(npc_id)] then return false end
         -- Fear caster targeted — check if Tremor is already active in earth slot
-        local have, name = GetTotemInfo(2)
-        if have and name and name:find("Tremor") and context.totem_earth_remaining > 5 then
+        if NS.tremor_active_in_earth_slot() and context.totem_earth_remaining > 5 then
             return false  -- tremor already active with good duration
         end
         return true

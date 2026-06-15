@@ -33,7 +33,7 @@ CDs: Elemental Mastery `16166`, Nature's Swiftness `16188`, Shamanistic Rage `30
 - **enhancement**: **SwingResync (top — a bad swing sync preempts everything)** → ShamanisticRage → Racial → TotemManagement → **WindfuryTwist → FireNovaTotemTwist (both time-sensitive, must precede damage spells)** → AoE → Stormstrike → Shock → FireElemental. The twist strategies are the heart of enhancement: they re-imbue/re-cast on precise timing windows, so they sit above Stormstrike/Shock.
 - **restoration**: NaturesSwiftness (emergency) → NSHealingWave (instant via NS proc) → EarthShieldMaintain → ManaTide → TotemManagement → Racial → ChainHeal → LesserHealingWave → HealingWave. Spell rank is chosen by HP deficit / mana efficiency (see framework healing downranking).
 
-**Totem management** is shared across specs via `TotemManagement` strategies plus middleware — totems are tracked per element slot with remaining-time, so the rotation only recasts when a slot is empty or expiring.
+**Totem management** is shared across specs via `NS.make_totem_management` plus middleware — totems are tracked per element slot with remaining-time and identity flags, so the rotation only recasts when a slot is empty or expiring and avoids overwriting Tremor / Fire Elemental / twist-managed slots.
 
 Middleware (priority high→low): Interrupt (500, `FORM_RESHIFT` — TBC's _only_ shaman interrupt, so it's top) → CurePoison (350) → CureDisease (340) → Healthstone/HealingPotion (RECOVERY_ITEMS 300/295) → ManaPotion (280) → DarkRune (275) → AutoTremor (260) → ShieldMaintain (250) → Purge (200) → WeaponImbues (`SELF_BUFF_OOC` 140).
 
@@ -47,7 +47,7 @@ Per-playstyle cache flags `_ele_valid` / `_enh_valid` / `_resto_valid` reset to 
 
 ## Gotchas
 
-- **Shared 6s shock cooldown** — Earth/Flame/Frost Shock all share one CD; the rotation must weave a single shock per window, not stack them.
+- **Shared 6s shock cooldown** — Earth/Flame/Frost Shock all share one server-side WoW cooldown; the rotation chooses which shock to recommend in that window but does not need to model a separate local shock cooldown.
 - **R1 Earth Shock for interrupts** — use `A.EarthShockR1` (`8042`) for the interrupt-only path; max-rank Earth Shock wastes mana on a kick.
 - **Fire totem slot is contested** — Searing/Magma/Fire Nova/Totem of Wrath/Flametongue all occupy the fire slot. The `fire_elemental_active` guard prevents clobbering a player-cast Fire Elemental.
 - **Enhancement twisting is timing-critical** — WindfuryTwist / FireNovaTotemTwist depend on swing-timer alignment; `SwingResync` exists to fix a desynced swing and is intentionally the highest enhancement priority.

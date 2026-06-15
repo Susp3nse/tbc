@@ -218,7 +218,12 @@ local function ttd_too_short(context)
    return min_ttd > 0 and context.ttd and context.ttd > 0 and context.ttd < min_ttd
 end
 
+local function ttd_below(context, seconds)
+   return seconds and seconds > 0 and context.ttd and context.ttd > 0 and context.ttd < seconds
+end
+
 NS.ttd_too_short = ttd_too_short
+NS.ttd_below = ttd_below
 
 -- ============================================================================
 -- IMMUNITY SPELL IDS (from LibAuraTypes.lua TBC section)
@@ -882,6 +887,26 @@ end
 
 function NS.timer_needs_refresh(active, remaining, window)
    return not active or (remaining or 0) < (window or 0)
+end
+
+function NS.try_aoe_fire_totem(icon, context)
+   local class_actions = NS.A
+   if not class_actions or not class_actions.FireNovaTotem or not class_actions.MagmaTotem then return nil end
+   if context.fire_elemental_active then return nil end
+   local constants = NS.Constants
+   if not NS.timer_needs_refresh(context.totem_fire_active, context.totem_fire_remaining,
+      constants and constants.TOTEM_REFRESH_THRESHOLD or 10) then
+      return nil
+   end
+
+   local prefix = ((context.settings.playstyle or "elemental") == "enhancement") and "[ENH]" or "[ELE]"
+   if class_actions.FireNovaTotem:IsReady(PLAYER_UNIT) then
+      return try_cast(class_actions.FireNovaTotem, icon, PLAYER_UNIT, prefix .. " Fire Nova Totem (AoE)")
+   end
+   if class_actions.MagmaTotem:IsReady(PLAYER_UNIT) then
+      return try_cast(class_actions.MagmaTotem, icon, PLAYER_UNIT, prefix .. " Magma Totem (AoE)")
+   end
+   return nil
 end
 
 function NS.resource_capped(context, kind, margin)

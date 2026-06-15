@@ -26,97 +26,30 @@ local Constants = NS.Constants
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
 local try_cast = NS.try_cast
+local try_heal_cast_fmt = NS.try_heal_cast_fmt
 local named = NS.named
 local create_racial_strategy = NS.create_racial_strategy
-local resolve_totem_spell = NS.resolve_totem_spell
-local timer_needs_refresh = NS.timer_needs_refresh
+local scan_healing_targets = NS.scan_healing_targets
 local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local format = string.format
-local GetTotemInfo = _G.GetTotemInfo
 
 -- ============================================================================
--- PARTY/RAID HEALING TARGET SCAN
+-- PARTY/RAID HEALING TARGETS
 -- ============================================================================
-local PARTY_UNITS = { "player", "party1", "party2", "party3", "party4" }
-local RAID_UNITS = {}
-for i = 1, 40 do RAID_UNITS[i] = "raid" .. i end
+-- Pre-allocated scan options (no {} in combat). range_spell gates by Chain Heal reach.
+local RESTO_SCAN_OPTIONS = { range_spell = "Chain Heal" }
 
--- Pre-allocated healing target table (pre-populate entries to avoid {} in combat)
-local MAX_HEALING_TARGETS = 40
-local healing_targets = {}
-for i = 1, MAX_HEALING_TARGETS do
-    healing_targets[i] = { unit = nil, hp = 100, is_player = false }
-end
-local healing_targets_count = 0
-
-local function is_in_raid()
-    return _G.IsInRaid and _G.IsInRaid() or false
-end
-
---- Scan party/raid for healing targets, sorted by HP ascending (most injured first)
-local function scan_healing_targets()
-    healing_targets_count = 0
-
-    local in_raid = is_in_raid()
-    local units_to_scan = in_raid and RAID_UNITS or PARTY_UNITS
-    local max_units = in_raid and 40 or 5
-
-    for i = 1, max_units do
-        local unit = units_to_scan[i]
-        if unit and _G.UnitExists(unit) and not _G.UnitIsDead(unit) and _G.UnitIsConnected(unit) and _G.UnitCanAssist("player", unit) then
-            local in_range
-            if _G.UnitIsUnit(unit, "player") then
-                in_range = true
-            else
-                local spell_range = _G.IsSpellInRange("Chain Heal", unit)
-                if spell_range == 1 then
-                    in_range = true
-                elseif spell_range == 0 then
-                    in_range = false
-                else
-                    local _, unit_in_range = _G.UnitInRange(unit)
-                    in_range = (unit_in_range == true)
-                end
-            end
-
-            if in_range then
-                healing_targets_count = healing_targets_count + 1
-                local idx = healing_targets_count
-                local entry = healing_targets[idx]
-                entry.unit = unit
-                entry.hp = _G.UnitHealth(unit) / _G.UnitHealthMax(unit) * 100
-                entry.is_player = _G.UnitIsUnit(unit, "player")
-            end
-        end
-    end
-
-    -- Sort by HP ascending (most injured first)
-    -- Only sort the populated portion; comparator pre-allocated at module level
-    if healing_targets_count > 1 then
-        -- Manual insertion sort on small array (avoids table.sort closure allocation)
-        for i = 2, healing_targets_count do
-            local val = healing_targets[i]
-            local val_hp = val.hp
-            local j = i - 1
-            while j >= 1 and healing_targets[j].hp > val_hp do
-                healing_targets[j + 1] = healing_targets[j]
-                j = j - 1
-            end
-            healing_targets[j + 1] = val
-        end
-    end
-end
-
---- Get the most injured healing target below a threshold
---- @param threshold number HP% threshold
+--- Get the most injured healing target below a threshold from cached scan state.
+--- @param state table Restoration state returned by get_resto_state
+--- @param threshold number effective HP% threshold
 --- @return string|nil unit The unit ID, or nil if none below threshold
---- @return number hp The unit's HP%, or 100
-local function get_lowest_target(threshold)
-    scan_healing_targets()
-    if healing_targets_count > 0 then
-        local entry = healing_targets[1]
-        if entry and entry.hp < threshold then
-            return entry.unit, entry.hp
+--- @return number hp The unit's effective HP%, or 100
+local function get_lowest_target(state, threshold)
+    local entries, count = state.heal_entries, state.heal_count
+    if entries and count > 0 then
+        local entry = entries[1]
+        if entry and entry.unit and entry.effective_hp < threshold then
+            return entry.unit, entry.effective_hp
         end
     end
     return nil, 100
@@ -131,6 +64,8 @@ local resto_state = {
     earth_shield_duration = 0,
     natures_swiftness_active = false,
     mana_tide_cd = 0,
+    heal_entries = nil,
+    heal_count = 0,
 }
 
 local FOCUS_UNIT = "focus"
@@ -138,6 +73,9 @@ local FOCUS_UNIT = "focus"
 local function get_resto_state(context)
     if context._resto_valid then return resto_state end
     context._resto_valid = true
+
+    resto_state.heal_entries, resto_state.heal_count =
+        scan_healing_targets(context, RESTO_SCAN_OPTIONS)
 
     -- Earth Shield tracked on focus target (typically tank)
     if _G.UnitExists(FOCUS_UNIT) then
@@ -148,7 +86,7 @@ local function get_resto_state(context)
         resto_state.earth_shield_duration = 0
     end
 
-    resto_state.natures_swiftness_active = context.has_natures_swiftness
+    resto_state.natures_swiftness_active = (Unit(PLAYER_UNIT):HasBuffs(Constants.BUFF_ID.NATURES_SWIFTNESS) or 0) > 0
     resto_state.mana_tide_cd = A.ManaTideTotem:GetCooldown() or 0
 
     return resto_state
@@ -177,7 +115,7 @@ local Resto_NaturesSwiftnessEmergency = {
         end
 
         -- Check lowest party/raid member
-        local unit = get_lowest_target(threshold)
+        local unit = get_lowest_target(state, threshold)
         if unit then return true end
 
         return false
@@ -209,19 +147,17 @@ local Resto_NSHealingWave = {
         if _G.UnitExists(FOCUS_UNIT) and not _G.UnitIsDead(FOCUS_UNIT) then
             local focus_hp = _G.UnitHealth(FOCUS_UNIT) / _G.UnitHealthMax(FOCUS_UNIT) * 100
             if focus_hp < threshold then
-                if A.HealingWave:IsReady(FOCUS_UNIT) then
-                    return A.HealingWave:Show(icon), format("[RESTO] NS + Healing Wave (focus) - HP: %.0f%%", focus_hp)
-                end
+                local result, log_msg = try_heal_cast_fmt(A.HealingWave, icon, FOCUS_UNIT, "[RESTO]", "NS + Healing Wave",
+                    "(focus) - HP: %.0f%%", focus_hp)
+                if result then return result, log_msg end
             end
         end
 
         -- Lowest party member
-        local unit, hp = get_lowest_target(threshold)
-        if unit and A.HealingWave:IsReady(unit) then
-            return A.HealingWave:Show(icon), format("[RESTO] NS + Healing Wave (%s) - HP: %.0f%%", unit, hp)
-        end
-
-        return nil
+        local unit, hp = get_lowest_target(state, threshold)
+        if not unit then return nil end
+        return try_heal_cast_fmt(A.HealingWave, icon, unit, "[RESTO]", "NS + Healing Wave",
+            "(%s) - HP: %.0f%%", unit, hp)
     end,
 }
 
@@ -241,11 +177,8 @@ local Resto_EarthShieldMaintain = {
     end,
 
     execute = function(icon, context, state)
-        if A.EarthShield:IsReady(FOCUS_UNIT) then
-            return A.EarthShield:Show(icon),
-                format("[RESTO] Earth Shield (focus) - Charges: %d", state.earth_shield_charges)
-        end
-        return nil
+        return try_heal_cast_fmt(A.EarthShield, icon, FOCUS_UNIT, "[RESTO]", "Earth Shield",
+            "(focus) - Charges: %d", state.earth_shield_charges)
     end,
 }
 
@@ -270,93 +203,14 @@ local Resto_ManaTide = {
 }
 
 -- [4] Totem Management — maintain spec totems
-local Resto_TotemManagement = {
-    requires_combat = true,
-
-    matches = function(context, state)
-        if context.is_moving then return false end
-        local s = context.settings
-        local threshold = Constants.TOTEM_REFRESH_THRESHOLD
-        local totem_ok = NS.totem_allowed
-        if not context.fire_elemental_active and (s.resto_fire_totem or "searing") ~= "none" and totem_ok(s.totem_fire_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_fire_active, context.totem_fire_remaining, threshold) then return true end
-        end
-        local earth_setting = s.resto_earth_totem or "strength_of_earth"
-        if earth_setting ~= "none" and totem_ok(s.totem_earth_condition, context.in_group) then
-            local skip_earth = false
-            if s.use_auto_tremor and context.totem_earth_active then
-                local have, name = GetTotemInfo(2)
-                if have and name and name:find("Tremor") then skip_earth = true end
-            end
-            if not skip_earth then
-                if timer_needs_refresh(context.totem_earth_active, context.totem_earth_remaining, threshold) then return true end
-            end
-        end
-        if (s.resto_water_totem or "mana_spring") ~= "none" and totem_ok(s.totem_water_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_water_active, context.totem_water_remaining, threshold) then return true end
-        end
-        if (s.resto_air_totem or "wrath_of_air") ~= "none" and totem_ok(s.totem_air_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_air_active, context.totem_air_remaining, threshold) then return true end
-        end
-        return false
-    end,
-
-    execute = function(icon, context, state)
-        local s = context.settings
-        local threshold = Constants.TOTEM_REFRESH_THRESHOLD
-        local totem_ok = NS.totem_allowed
-
-        -- Fire totem (skip if "none", Fire Elemental active, or group-only while solo)
-        if not context.fire_elemental_active and (s.resto_fire_totem or "searing") ~= "none" and totem_ok(s.totem_fire_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_fire_active, context.totem_fire_remaining, threshold) then
-                local spell = resolve_totem_spell(s.resto_fire_totem or "searing", NS.FIRE_TOTEM_SPELLS)
-                if spell and spell:IsReady(PLAYER_UNIT) then
-                    return spell:Show(icon), "[RESTO] Fire Totem"
-                end
-            end
-        end
-
-        -- Earth totem (skip if "none", Tremor active, or group-only while solo)
-        local earth_setting = s.resto_earth_totem or "strength_of_earth"
-        if earth_setting ~= "none" and totem_ok(s.totem_earth_condition, context.in_group) then
-            local skip_earth = false
-            if s.use_auto_tremor and context.totem_earth_active then
-                local have, name = GetTotemInfo(2)
-                if have and name and name:find("Tremor") then skip_earth = true end
-            end
-            if not skip_earth then
-                if timer_needs_refresh(context.totem_earth_active, context.totem_earth_remaining, threshold) then
-                    local spell = resolve_totem_spell(earth_setting, NS.EARTH_TOTEM_SPELLS)
-                    if spell and spell:IsReady(PLAYER_UNIT) then
-                        return spell:Show(icon), "[RESTO] Earth Totem"
-                    end
-                end
-            end
-        end
-
-        -- Water totem (skip if "none" or group-only while solo)
-        if (s.resto_water_totem or "mana_spring") ~= "none" and totem_ok(s.totem_water_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_water_active, context.totem_water_remaining, threshold) then
-                local spell = resolve_totem_spell(s.resto_water_totem or "mana_spring", NS.WATER_TOTEM_SPELLS)
-                if spell and spell:IsReady(PLAYER_UNIT) then
-                    return spell:Show(icon), "[RESTO] Water Totem"
-                end
-            end
-        end
-
-        -- Air totem (skip if "none" or group-only while solo)
-        if (s.resto_air_totem or "wrath_of_air") ~= "none" and totem_ok(s.totem_air_condition, context.in_group) then
-            if timer_needs_refresh(context.totem_air_active, context.totem_air_remaining, threshold) then
-                local spell = resolve_totem_spell(s.resto_air_totem or "wrath_of_air", NS.AIR_TOTEM_SPELLS)
-                if spell and spell:IsReady(PLAYER_UNIT) then
-                    return spell:Show(icon), "[RESTO] Air Totem"
-                end
-            end
-        end
-
-        return nil
-    end,
-}
+local Resto_TotemManagement = NS.make_totem_management({
+    prefix = "[RESTO]",
+    respect_is_moving = true,
+    fire = { key = "resto_fire_totem", default = "searing", condition = "totem_fire_condition", lookup = NS.FIRE_TOTEM_SPELLS },
+    earth = { key = "resto_earth_totem", default = "strength_of_earth", condition = "totem_earth_condition", lookup = NS.EARTH_TOTEM_SPELLS },
+    water = { key = "resto_water_totem", default = "mana_spring", condition = "totem_water_condition", lookup = NS.WATER_TOTEM_SPELLS },
+    air = { key = "resto_air_totem", default = "wrath_of_air", condition = "totem_air_condition", lookup = NS.AIR_TOTEM_SPELLS },
+})
 
 -- [5] Racial (off-GCD)
 local RESTO_RACIAL_SPELLS = {
@@ -374,18 +228,17 @@ local Resto_ChainHeal = {
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary ~= "chain_heal" then return false end
         -- Only heal if someone needs it (below 90% HP)
-        local unit = get_lowest_target(90)
+        local unit = get_lowest_target(state, 90)
         if not unit then return false end
         return true
     end,
 
     execute = function(icon, context, state)
         -- Target the most injured unit — Chain Heal bounces handle the rest
-        local unit, hp = get_lowest_target(90)
-        if unit and A.ChainHeal:IsReady(unit) then
-            return A.ChainHeal:Show(icon), format("[RESTO] Chain Heal (%s) - HP: %.0f%%", unit, hp)
-        end
-        return nil
+        local unit, hp = get_lowest_target(state, 90)
+        if not unit then return nil end
+        return try_heal_cast_fmt(A.ChainHeal, icon, unit, "[RESTO]", "Chain Heal",
+            "(%s) - HP: %.0f%%", unit, hp)
     end,
 }
 
@@ -398,11 +251,11 @@ local Resto_LesserHealingWave = {
         -- Used as primary heal or when someone is low and needs fast heal
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary == "lesser_healing_wave" then
-            local unit = get_lowest_target(90)
+            local unit = get_lowest_target(state, 90)
             if unit then return true end
         else
             -- As emergency: heal if someone below 50%
-            local unit = get_lowest_target(50)
+            local unit = get_lowest_target(state, 50)
             if unit then return true end
         end
         return false
@@ -411,11 +264,10 @@ local Resto_LesserHealingWave = {
     execute = function(icon, context, state)
         local primary = context.settings.resto_primary_heal or "chain_heal"
         local threshold = (primary == "lesser_healing_wave") and 90 or 50
-        local unit, hp = get_lowest_target(threshold)
-        if unit and A.LesserHealingWave:IsReady(unit) then
-            return A.LesserHealingWave:Show(icon), format("[RESTO] Lesser HW (%s) - HP: %.0f%%", unit, hp)
-        end
-        return nil
+        local unit, hp = get_lowest_target(state, threshold)
+        if not unit then return nil end
+        return try_heal_cast_fmt(A.LesserHealingWave, icon, unit, "[RESTO]", "Lesser HW",
+            "(%s) - HP: %.0f%%", unit, hp)
     end,
 }
 
@@ -427,11 +279,11 @@ local Resto_HealingWave = {
         if context.is_moving then return false end
         local primary = context.settings.resto_primary_heal or "chain_heal"
         if primary == "healing_wave" then
-            local unit = get_lowest_target(90)
+            local unit = get_lowest_target(state, 90)
             if unit then return true end
         else
             -- As fallback: heal if someone below 70%
-            local unit = get_lowest_target(70)
+            local unit = get_lowest_target(state, 70)
             if unit then return true end
         end
         return false
@@ -440,11 +292,10 @@ local Resto_HealingWave = {
     execute = function(icon, context, state)
         local primary = context.settings.resto_primary_heal or "chain_heal"
         local threshold = (primary == "healing_wave") and 90 or 70
-        local unit, hp = get_lowest_target(threshold)
-        if unit and A.HealingWave:IsReady(unit) then
-            return A.HealingWave:Show(icon), format("[RESTO] Healing Wave (%s) - HP: %.0f%%", unit, hp)
-        end
-        return nil
+        local unit, hp = get_lowest_target(state, threshold)
+        if not unit then return nil end
+        return try_heal_cast_fmt(A.HealingWave, icon, unit, "[RESTO]", "Healing Wave",
+            "(%s) - HP: %.0f%%", unit, hp)
     end,
 }
 

@@ -118,6 +118,9 @@ NS.register_consumable_actions(A)
 local Player = NS.Player
 local Unit = NS.Unit
 local rotation_registry = NS.rotation_registry
+local try_cast = NS.try_cast
+local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
+local TARGET_UNIT = NS.TARGET_UNIT or "target"
 
 -- Framework helpers
 local MultiUnits = A.MultiUnits
@@ -175,17 +178,26 @@ NS.Constants = Constants
 local totem_state = {
     fire_active = false,
     fire_remaining = 0,
+    fire_start = 0,
+    fire_is_fire_elemental = false,
+    fire_is_fire_nova = false,
     earth_active = false,
     earth_remaining = 0,
+    earth_start = 0,
+    earth_is_tremor = false,
     water_active = false,
     water_remaining = 0,
+    water_start = 0,
     air_active = false,
     air_remaining = 0,
+    air_start = 0,
+    air_is_windfury = false,
 }
 
 -- Pre-computed field name keys (avoid string concat in combat hot path)
 local SLOT_ACTIVE_KEYS = { "fire_active", "earth_active", "water_active", "air_active" }
 local SLOT_REMAINING_KEYS = { "fire_remaining", "earth_remaining", "water_remaining", "air_remaining" }
+local SLOT_START_KEYS = { "fire_start", "earth_start", "water_start", "air_start" }
 
 local function refresh_totem_state()
     local now = GetTime()
@@ -194,11 +206,21 @@ local function refresh_totem_state()
         local active = have and name ~= "" and name ~= nil
         totem_state[SLOT_ACTIVE_KEYS[slot]] = active
         totem_state[SLOT_REMAINING_KEYS[slot]] = active and ((start + dur) - now) or 0
+        totem_state[SLOT_START_KEYS[slot]] = active and start or 0
+        if slot == Constants.TOTEM_SLOT.FIRE then
+            totem_state.fire_is_fire_elemental = active and name:find("Fire Elemental") ~= nil
+            totem_state.fire_is_fire_nova = active and name:find("Fire Nova") ~= nil
+        elseif slot == Constants.TOTEM_SLOT.EARTH then
+            totem_state.earth_is_tremor = active and name:find("Tremor") ~= nil
+        elseif slot == Constants.TOTEM_SLOT.AIR then
+            totem_state.air_is_windfury = active and name:find("Windfury") ~= nil
+        end
     end
 end
 
 NS.totem_state = totem_state
 NS.refresh_totem_state = refresh_totem_state
+NS.tremor_active_in_earth_slot = function() return totem_state.earth_is_tremor end
 
 -- Totem spell lookup tables (setting value → spell reference)
 -- Built after A is defined; used by totem management strategies
@@ -256,6 +278,99 @@ local function totem_allowed(condition, in_group)
 end
 NS.totem_allowed = totem_allowed
 
+local function totem_slot_needs_refresh(context, slot_opt, slot_active, slot_remaining, is_earth)
+    local s = context.settings
+    local setting = s[slot_opt.key] or slot_opt.default
+    if setting == "none" then return false end
+    if not totem_allowed(s[slot_opt.condition], context.in_group) then return false end
+    if is_earth and s.use_auto_tremor and context.totem_earth_active
+        and NS.tremor_active_in_earth_slot() then
+        return false
+    end
+    return NS.timer_needs_refresh(slot_active, slot_remaining, Constants.TOTEM_REFRESH_THRESHOLD)
+end
+
+local function drop_totem_slot(icon, context, slot_opt, slot_active, slot_remaining, log_msg, is_earth)
+    if not totem_slot_needs_refresh(context, slot_opt, slot_active, slot_remaining, is_earth) then
+        return nil
+    end
+    local spell = resolve_totem_spell(context.settings[slot_opt.key] or slot_opt.default, slot_opt.lookup)
+    if spell and spell:IsReady(PLAYER_UNIT) then
+        return spell:Show(icon), log_msg
+    end
+    return nil
+end
+
+function NS.make_totem_management(opts)
+    local prefix = opts.prefix
+    local fire_log = prefix .. " Fire Totem"
+    local earth_log = prefix .. " Earth Totem"
+    local water_log = prefix .. " Water Totem"
+    local air_log = prefix .. " Air Totem"
+
+    return {
+        requires_combat = true,
+
+        matches = function(context, state)
+            if opts.respect_is_moving and context.is_moving then return false end
+            local s = context.settings
+            if (not opts.skip_fire or not opts.skip_fire(s, context)) and not context.fire_elemental_active
+                and totem_slot_needs_refresh(context, opts.fire, context.totem_fire_active, context.totem_fire_remaining, false) then
+                return true
+            end
+            if totem_slot_needs_refresh(context, opts.earth, context.totem_earth_active, context.totem_earth_remaining, true) then
+                return true
+            end
+            if totem_slot_needs_refresh(context, opts.water, context.totem_water_active, context.totem_water_remaining, false) then
+                return true
+            end
+            if (not opts.skip_air or not opts.skip_air(s, context))
+                and totem_slot_needs_refresh(context, opts.air, context.totem_air_active, context.totem_air_remaining, false) then
+                return true
+            end
+            return false
+        end,
+
+        execute = function(icon, context, state)
+            if opts.respect_is_moving and context.is_moving then return nil end
+            local s = context.settings
+            local result, log_msg
+            if (not opts.skip_fire or not opts.skip_fire(s, context)) and not context.fire_elemental_active then
+                result, log_msg = drop_totem_slot(icon, context, opts.fire, context.totem_fire_active, context.totem_fire_remaining, fire_log, false)
+                if result then return result, log_msg end
+            end
+            result, log_msg = drop_totem_slot(icon, context, opts.earth, context.totem_earth_active, context.totem_earth_remaining, earth_log, true)
+            if result then return result, log_msg end
+            result, log_msg = drop_totem_slot(icon, context, opts.water, context.totem_water_active, context.totem_water_remaining, water_log, false)
+            if result then return result, log_msg end
+            if not opts.skip_air or not opts.skip_air(s, context) then
+                result, log_msg = drop_totem_slot(icon, context, opts.air, context.totem_air_active, context.totem_air_remaining, air_log, false)
+                if result then return result, log_msg end
+            end
+            return nil
+        end,
+    }
+end
+
+function NS.make_fire_elemental(prefix, setting_key)
+    return {
+        requires_combat = true,
+        is_burst = true,
+        spell = A.FireElementalTotem,
+        spell_target = PLAYER_UNIT,
+        setting_key = setting_key,
+
+        matches = function(context, state)
+            if NS.ttd_too_short(context) then return false end
+            return true
+        end,
+
+        execute = function(icon, context, state)
+            return try_cast(A.FireElementalTotem, icon, PLAYER_UNIT, prefix .. " Fire Elemental Totem")
+        end,
+    }
+end
+
 -- ============================================================================
 -- CLASS REGISTRATION
 -- ============================================================================
@@ -298,50 +413,48 @@ rotation_registry:register_class({
     },
 
     extend_context = function(ctx)
+        local pu = Unit(PLAYER_UNIT)
+        local tu = Unit(TARGET_UNIT)
         local moving = Player:IsMoving()
         ctx.is_moving = moving ~= nil and moving ~= false and moving ~= 0
         ctx.is_mounted = Player:IsMounted()
-        ctx.combat_time = Unit("player"):CombatTime() or 0
         ctx.in_group = IsInGroup() or IsInRaid() or false
 
         -- Shield state
-        ctx.has_water_shield = (Unit("player"):HasBuffs(Constants.BUFF_ID.WATER_SHIELD) or 0) > 0
-        ctx.water_shield_charges = Unit("player"):HasBuffsStacks(Constants.BUFF_ID.WATER_SHIELD) or 0
-        ctx.has_lightning_shield = (Unit("player"):HasBuffs(Constants.BUFF_ID.LIGHTNING_SHIELD) or 0) > 0
+        ctx.has_water_shield = (pu:HasBuffs(Constants.BUFF_ID.WATER_SHIELD) or 0) > 0
+        ctx.water_shield_charges = pu:HasBuffsStacks(Constants.BUFF_ID.WATER_SHIELD) or 0
+        ctx.has_lightning_shield = (pu:HasBuffs(Constants.BUFF_ID.LIGHTNING_SHIELD) or 0) > 0
 
         -- Proc/buff state
-        ctx.has_clearcasting = (Unit("player"):HasBuffs(Constants.BUFF_ID.ELEMENTAL_FOCUS) or 0) > 0
-        ctx.clearcasting_charges = Unit("player"):HasBuffsStacks(Constants.BUFF_ID.ELEMENTAL_FOCUS) or 0
-        ctx.has_elemental_mastery = (Unit("player"):HasBuffs(Constants.BUFF_ID.ELEMENTAL_MASTERY) or 0) > 0
-        ctx.has_natures_swiftness = (Unit("player"):HasBuffs(Constants.BUFF_ID.NATURES_SWIFTNESS) or 0) > 0
-        ctx.shamanistic_rage_active = (Unit("player"):HasBuffs(Constants.BUFF_ID.SHAMANISTIC_RAGE) or 0) > 0
+        ctx.has_clearcasting = (pu:HasBuffs(Constants.BUFF_ID.ELEMENTAL_FOCUS) or 0) > 0
+        ctx.clearcasting_charges = pu:HasBuffsStacks(Constants.BUFF_ID.ELEMENTAL_FOCUS) or 0
+        ctx.has_elemental_mastery = (pu:HasBuffs(Constants.BUFF_ID.ELEMENTAL_MASTERY) or 0) > 0
+        ctx.shamanistic_rage_active = (pu:HasBuffs(Constants.BUFF_ID.SHAMANISTIC_RAGE) or 0) > 0
 
         -- Target state
-        ctx.flame_shock_duration = Unit("target"):HasDeBuffs(Constants.DEBUFF_ID.FLAME_SHOCK) or 0
-        ctx.stormstrike_debuff = Unit("target"):HasDeBuffs(Constants.DEBUFF_ID.STORMSTRIKE) or 0
-        ctx.stormstrike_charges = Unit("target"):HasDeBuffsStacks(Constants.DEBUFF_ID.STORMSTRIKE) or 0
+        ctx.flame_shock_duration = tu:HasDeBuffs(Constants.DEBUFF_ID.FLAME_SHOCK) or 0
 
         -- Multi-target
-        ctx.enemy_count = MultiUnits:GetByRangeInCombat(30) or 1
+        local aoe_t = NS.cached_settings and NS.cached_settings.aoe_threshold
+        ctx.enemy_count = (aoe_t and aoe_t > 0 and MultiUnits:GetByRangeInCombat(30)) or 1
 
         -- Totem state (refreshed per frame)
         refresh_totem_state()
         ctx.totem_fire_active = totem_state.fire_active
         ctx.totem_fire_remaining = totem_state.fire_remaining
+        ctx.totem_fire_start = totem_state.fire_start
+        ctx.totem_fire_is_fire_nova = totem_state.fire_is_fire_nova
         ctx.totem_earth_active = totem_state.earth_active
         ctx.totem_earth_remaining = totem_state.earth_remaining
         ctx.totem_water_active = totem_state.water_active
         ctx.totem_water_remaining = totem_state.water_remaining
         ctx.totem_air_active = totem_state.air_active
         ctx.totem_air_remaining = totem_state.air_remaining
+        ctx.totem_air_start = totem_state.air_start
+        ctx.totem_air_is_windfury = totem_state.air_is_windfury
 
         -- Fire Elemental protection: don't let rotation overwrite manually cast Fire Elemental
-        if ctx.totem_fire_active then
-            local _, fire_name = GetTotemInfo(1)
-            ctx.fire_elemental_active = fire_name and fire_name:find("Fire Elemental") ~= nil
-        else
-            ctx.fire_elemental_active = false
-        end
+        ctx.fire_elemental_active = ctx.totem_fire_active and totem_state.fire_is_fire_elemental
 
         -- Cache invalidation flags for per-playstyle context_builders
         ctx._ele_valid = false
