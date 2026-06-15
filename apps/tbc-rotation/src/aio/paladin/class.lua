@@ -87,7 +87,7 @@ Action[A.PlayerClass] = {
 
     -- Utility
     Cleanse          = Create({ Type = "Spell", ID = 4987, Click = { unit = "player", type = "spell", spell = 4987 } }),
-    RighteousDefense = Create({ Type = "Spell", ID = 31789 }),                           -- Taunt (targets friendly)
+    RighteousDefense = Create({ Type = "Spell", ID = 31789, Click = { unit = "targettarget" } }), -- Taunt: targets the friendly being attacked (targettarget)
     RighteousFury    = Create({ Type = "Spell", ID = 25780, Click = { unit = "player", type = "spell", spell = 25780 } }),
 
     -- Cooldowns
@@ -226,11 +226,16 @@ local HL_COEFFICIENT = 0.7143
 local FOL_COEFFICIENT = 0.4286
 local HEALING_LIGHT_MULT = 1.12
 
+-- Healing-reduction debuffs (the "Mortal Wound" -50% healing effect). These MUST
+-- be numeric spell IDs: Unit:HasDeBuffs matches by ID, so the old name strings
+-- ("Mortal Strike", ...) silently matched nothing and the FoL->HL upgrade under
+-- healing reduction never fired. IDs below are the common PvE/PvP sources; add
+-- more (Aimed Shot / creature Mortal Cleave ranks) here if needed.
 local HEALING_REDUCTION_DEBUFFS = {
-    "Mortal Strike",
-    "Aimed Shot",
-    "Wound Poison",
-    "Mortal Cleave",
+    -- Mortal Strike (Warrior) ranks 1-6
+    12294, 21551, 21552, 21553, 25248, 30330,
+    -- Wound Poison (Rogue) ranks 1-5
+    13218, 13222, 13223, 13224, 27188,
 }
 
 NS.HOLY_LIGHT_RANKS = HOLY_LIGHT_RANKS
@@ -305,7 +310,7 @@ rotation_registry:register_class({
         local moving = Player:IsMoving()
         ctx.is_moving = moving ~= nil and moving ~= false and moving ~= 0
         ctx.is_mounted = Player:IsMounted()
-        ctx.combat_time = Unit("player"):CombatTime() or 0
+        -- combat_time is already set by create_context (main.lua) before this runs.
 
         -- Seal tracking
         ctx.seal_blood_active = (Unit("player"):HasBuffs(SEAL_BLOOD_BUFF_ID) or 0) > 0

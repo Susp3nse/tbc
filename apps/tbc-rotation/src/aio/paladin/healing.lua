@@ -24,8 +24,11 @@ end
 
 local Unit = NS.Unit
 local HEALING_REDUCTION_DEBUFFS = NS.HEALING_REDUCTION_DEBUFFS
-local is_in_raid = NS.is_in_raid
-local is_in_party = NS.is_in_party
+-- Capture core's generic scanner NOW, before we publish our own wrapper below.
+-- The wrapper used to call NS.scan_healing_targets, but our export at the bottom
+-- overwrote that field with the wrapper itself — so it recursed into itself and
+-- stack-overflowed on the first in-combat scan. Hold a direct reference instead.
+local core_scan_healing_targets = NS.scan_healing_targets
 
 -- ============================================================================
 -- PARTY/RAID HEALING SYSTEM
@@ -66,74 +69,17 @@ local healing_scan_options = {
 }
 
 local function scan_healing_targets()
-    local _, count = NS.scan_healing_targets(nil, healing_scan_options)
+    local _, count = core_scan_healing_targets(nil, healing_scan_options)
     healing_targets_count = count
     return healing_targets, healing_targets_count
-end
-
-local function get_tank_target()
-    scan_healing_targets()
-
-    for i = 1, healing_targets_count do
-        local entry = healing_targets[i]
-        if entry and entry.is_tank then
-            return entry
-        end
-    end
-
-    return nil
-end
-
-local function get_lowest_hp_target(threshold)
-    threshold = threshold or 100
-    scan_healing_targets()
-
-    for i = 1, healing_targets_count do
-        local entry = healing_targets[i]
-        if entry and entry.effective_hp < threshold then
-            return entry
-        end
-    end
-
-    return nil
-end
-
-local function all_members_above_hp(threshold)
-    scan_healing_targets()
-
-    for i = 1, healing_targets_count do
-        local entry = healing_targets[i]
-        if entry and entry.effective_hp < threshold then
-            return false
-        end
-    end
-
-    return true
-end
-
-local function get_cleanse_target()
-    scan_healing_targets()
-
-    for i = 1, healing_targets_count do
-        local entry = healing_targets[i]
-        if entry and entry.needs_cleanse then
-            return entry
-        end
-    end
-
-    return nil
 end
 
 -- ============================================================================
 -- EXPORTS
 -- ============================================================================
-NS.scan_healing_targets = scan_healing_targets
-NS.get_tank_target = get_tank_target
-NS.get_lowest_hp_target = get_lowest_hp_target
-NS.all_members_above_hp = all_members_above_hp
-NS.get_cleanse_target = get_cleanse_target
-NS.is_in_raid = is_in_raid
-NS.is_in_party = is_in_party
+-- Publish under a class-namespaced key so we never clobber core's shared
+-- NS.scan_healing_targets (other classes / recovery middleware rely on it).
+NS.scan_paladin_healing_targets = scan_healing_targets
 
 -- ============================================================================
 -- MODULE LOADED

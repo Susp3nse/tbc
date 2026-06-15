@@ -96,6 +96,13 @@ local function get_ret_state(context)
     -- Twist decision: enabled by setting AND not low mana
     ret_state.should_twist = context.settings.ret_seal_twist and not ret_state.low_mana
 
+    -- Twist-suppression predicate: true when a GCD spender must NOT fire because
+    -- Command is prepped or the swing is imminent (would clip the twist). Computed
+    -- once here so the blocking strategies (CS/HoW/Exorcism/Consec/HolyWrath) share
+    -- one definition instead of re-deriving it five times.
+    ret_state.twist_active = ret_state.should_twist
+        and (ret_state.seal_command_active or ret_state.in_twist_window)
+
     -- Creature type check for Exorcism
     local ctype = UnitCreatureType(TARGET_UNIT)
     ret_state.target_undead_or_demon = (ctype == "Undead" or ctype == "Demon")
@@ -316,7 +323,7 @@ local Ret_CrusaderStrike = {
         -- twisting into Blood, and the prep is wasted. CS fires freely while Blood is the
         -- resident seal (the start/middle of the swing) — which is "CS at the start of an
         -- auto-attack" and when it's most useful anyway.
-        if state.should_twist and (state.seal_command_active or state.in_twist_window) then
+        if state.twist_active then
             return false
         end
         return true
@@ -406,7 +413,7 @@ local Ret_HammerOfWrath = {
         -- Skip when mana is critical — strip to SoB+CS+Judge only (wowsims)
         if state.low_mana then return false end
         -- Don't clip a prepped Command twist (or the twist window)
-        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
+        if state.twist_active then return false end
         return true
     end,
 
@@ -427,9 +434,13 @@ local Ret_Exorcism = {
         if not state.target_undead_or_demon then return false end
         if not state.can_exorcism then return false end
         -- Don't clip a prepped Command twist (or the twist window)
-        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
-        -- Need enough time before next swing for the 1.5s cast
-        if state.should_twist and state.time_to_swing > 0 and state.time_to_swing < 2.0 then return false end
+        if state.twist_active then return false end
+        -- Need enough time before the next swing to finish the 1.5s cast without
+        -- clipping the prep->twist lead. Derive the floor from the configured twist
+        -- window + GCD (+0.5s for Exorcism's cast beyond one GCD) instead of a fixed
+        -- 2.0s, which was too small once ret_twist_window is raised for latency.
+        local exo_lead = state.twist_window + state.spell_gcd + 0.5
+        if state.should_twist and state.time_to_swing > 0 and state.time_to_swing < exo_lead then return false end
         return true
     end,
 
@@ -452,7 +463,7 @@ local Ret_Consecration = {
         local aoe_thresh = context.settings.ret_aoe_threshold or 0
         if aoe_thresh > 0 and context.enemy_count < aoe_thresh then return false end
         -- Don't clip a prepped Command twist (or the twist window)
-        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
+        if state.twist_active then return false end
         return true
     end,
 
@@ -473,7 +484,7 @@ local Ret_HolyWrath = {
         if context.enemy_count < 3 then return false end
         if context.mana_pct < 40 then return false end
         -- Don't clip a prepped Command twist (or the twist window)
-        if state.should_twist and (state.seal_command_active or state.in_twist_window) then return false end
+        if state.twist_active then return false end
         return true
     end,
 

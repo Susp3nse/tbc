@@ -32,7 +32,7 @@ local HAMMER_OF_JUSTICE_SPELL_IDS = { 853, 5588, 5589, 10308 }
 -- ============================================================================
 rotation_registry:register_middleware({
     name = "Paladin_DivineShield",
-    priority = Priority.MIDDLEWARE.FORM_RESHIFT,
+    priority = Priority.MIDDLEWARE.EMERGENCY_DEFENSIVE,
     is_defensive = true,
 
     matches = function(context)

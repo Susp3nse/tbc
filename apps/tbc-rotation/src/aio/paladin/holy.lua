@@ -22,7 +22,7 @@ if not NS.rotation_registry then
     return
 end
 
-if not NS.scan_healing_targets then
+if not NS.scan_paladin_healing_targets then
     print("|cFFFF0000[Menagerie Holy]|r Healing module not loaded!")
     return
 end
@@ -38,7 +38,7 @@ local PLAYER_UNIT = NS.PLAYER_UNIT or "player"
 local TARGET_UNIT = NS.TARGET_UNIT or "target"
 local format = string.format
 
-local scan_healing_targets = NS.scan_healing_targets
+local scan_healing_targets = NS.scan_paladin_healing_targets
 local HOLY_LIGHT_RANKS = NS.HOLY_LIGHT_RANKS
 local FLASH_OF_LIGHT_RANKS = NS.FLASH_OF_LIGHT_RANKS
 local HL_COEFFICIENT = NS.HL_COEFFICIENT
@@ -49,11 +49,22 @@ local IsSpellKnown = _G.IsSpellKnown
 local get_spell_mana_cost = NS.get_spell_mana_cost
 local Player = NS.Player
 
--- Rank-safe heal cast: bypasses IsReady (which fails for non-max ranks)
--- Does NOT call HE.SetTarget — the framework's HE auto-targeting (OnUpdate)
--- handles target injection into the icon macro separately.
--- Calling SetTarget here overwrites the ranked macro with max-rank.
+-- Pre-allocated Click table for ranked heals (no table creation in combat).
+local ranked_heal_click = { unit = "player" }
+
+-- Rank-safe heal cast for downranked FoL/HL.
+-- Mirrors core's safe_heal_cast targeting (HE.SetTarget + Click) so the heal
+-- lands on the SCANNED unit — without it the icon macro falls back to its
+-- [@mouseover][@focus][@target][@player] chain and ignores our target choice.
+-- SetTarget does NOT force max-rank: the rank is fixed by the Action's isRank
+-- field (druid downranks through safe_heal_cast the same way). We keep the
+-- IsReady bypass here because select_rank() already validated castability
+-- (trained + enough mana) before we get here.
 local function ranked_heal_cast(ability, icon, target_unit, log_message)
+    local HE = A.HealingEngine
+    if HE and HE.SetTarget then HE.SetTarget(target_unit) end
+    ranked_heal_click.unit = target_unit
+    ability.Click = ranked_heal_click
     local result = ability:Show(icon)
     if result then return result, log_message end
     return nil
@@ -298,8 +309,13 @@ local Holy_DivineFavor = {
     setting_key = "holy_use_divine_favor",
 
     matches = function(context, state)
-        -- Use on CD whenever someone needs healing (crit refund = mana sustain)
+        -- Use on CD when someone actually needs a heal (crit refund = mana sustain).
+        -- state.lowest is always non-nil (player is always in the scan), so gate on a
+        -- real deficit — otherwise Divine Favor pops on CD at full raid HP and the
+        -- guaranteed crit is wasted on a proactive full-HP heal.
         if not state.lowest then return false end
+        local floor = context.settings.holy_divine_favor_hp or 95
+        if state.lowest.hp >= floor then return false end
         return true
     end,
 
