@@ -477,8 +477,8 @@ local Arms_HeroicStrike = {
         if would_starve_core_arms(context, state, 15) then return false end
         -- Smart rage hold: don't dump into HS when an interrupt may be needed soon
         if context.settings.use_interrupt then
-            local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-            if castLeft and castLeft > 0 and not notKickAble then
+            local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+            if castLeft then
                 -- Hold enough rage for Pummel (10 rage)
                 if (context.rage - 15) < RAGE_COST_PUMMEL then return false end
             end

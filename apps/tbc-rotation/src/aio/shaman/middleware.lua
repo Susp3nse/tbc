@@ -106,12 +106,15 @@ local function find_priority_caster(now)
         for unitID in pairs(plates) do
             local unit = Unit(unitID)
             if unit:GetRange() <= 20 then
-                local castLeft, _, spellID, spellName, notKickAble = unit:IsCastingRemains()
-                if castLeft and castLeft > 0 and not notKickAble and spellID and PRIORITY_INTERRUPT_SPELLS[spellID] then
-                    if castLeft > best_remaining then
-                        best_guid = UnitGUID(unitID)
-                        best_remaining = castLeft
-                        best_spell_name = spellName
+                local castLeft = NS.target_is_interruptible(unitID)
+                if castLeft then
+                    local _, _, spellID, spellName = unit:IsCastingRemains()
+                    if spellID and PRIORITY_INTERRUPT_SPELLS[spellID] then
+                        if castLeft > best_remaining then
+                            best_guid = UnitGUID(unitID)
+                            best_remaining = castLeft
+                            best_spell_name = spellName
+                        end
                     end
                 end
             end
@@ -199,8 +202,8 @@ rotation_registry:register_middleware({
 
         -- 2. Fallback: interrupt any kickable cast on current target
         if not context.has_valid_enemy_target then return false end
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if castLeft then
             return true
         end
 
@@ -214,8 +217,8 @@ rotation_registry:register_middleware({
         if phase == "seeking" then
             if UnitGUID(TARGET_UNIT) == interrupt_state.target_guid then
                 -- Landed on the caster — try to interrupt
-                local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-                if castLeft and castLeft > 0 and not notKickAble then
+                local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+                if castLeft then
                     local spell = context.settings.interrupt_rank1 and A.EarthShockR1 or A.EarthShock
                     if spell:IsReady(TARGET_UNIT) then
                         interrupt_state.phase = "returning"
@@ -238,8 +241,8 @@ rotation_registry:register_middleware({
         end
 
         -- IDLE: standard interrupt on current target
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble then
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if castLeft then
             local spell = context.settings.interrupt_rank1 and A.EarthShockR1 or A.EarthShock
             if spell:IsReady(TARGET_UNIT) then
                 return spell:Show(icon), format("[MW] Earth Shock Interrupt - Cast: %.1fs", castLeft)

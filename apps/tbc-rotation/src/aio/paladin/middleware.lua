@@ -21,6 +21,11 @@ local Priority = NS.Priority
 local Constants = NS.Constants
 
 local PLAYER_UNIT = "player"
+local TARGET_UNIT = "target"
+
+-- Hammer of Justice ranks 1-4 (TBC). The learned-immune tracker keys on the
+-- actual cast spellID, and useMaxRank can cast any learned rank.
+local HAMMER_OF_JUSTICE_SPELL_IDS = { 853, 5588, 5589, 10308 }
 
 -- ============================================================================
 -- DIVINE SHIELD (Emergency — highest priority)
@@ -154,12 +159,25 @@ rotation_registry:register_middleware({
 -- ============================================================================
 -- HAMMER OF JUSTICE (Interrupt via stun)
 -- ============================================================================
-NS.register_interrupt_middleware({
+rotation_registry:register_middleware({
     name = "Paladin_HammerOfJustice",
-    spell = A.HammerOfJustice,
-    setting_key = "use_hammer_of_justice",
     priority = 150,
-    label = "Hammer of Justice",
+
+    matches = function(context)
+        if not context.in_combat then return false end
+        if not context.settings.use_hammer_of_justice then return false end
+        if not context.has_valid_enemy_target then return false end
+        if NS.is_spell_immune(TARGET_UNIT, HAMMER_OF_JUSTICE_SPELL_IDS) then return false end
+        return true
+    end,
+
+    execute = function(icon, context)
+        local cast_left = Unit(TARGET_UNIT):IsCastingRemains()
+        if cast_left and cast_left > 0 and A.HammerOfJustice:IsReady(TARGET_UNIT) then
+            return A.HammerOfJustice:Show(icon), format("[MW] Hammer of Justice (stun-interrupt) - Cast: %.1fs", cast_left)
+        end
+        return nil
+    end,
 })
 
 -- ============================================================================

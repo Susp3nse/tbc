@@ -826,9 +826,8 @@ do
       setting_key = "use_bash_interrupt",
       spell = A.Bash,
       matches = function(context)
-         local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-         if not castLeft or castLeft <= 0 then return false end
-         if notKickAble then return false end
+         local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+         if not castLeft then return false end
          -- Need enough cast time remaining to land the GCD
          if castLeft < 0.5 then return false end
          if not context.has_clearcasting then
@@ -838,7 +837,7 @@ do
          return true
       end,
       execute = function(icon, context)
-         local castLeft = Unit(TARGET_UNIT):IsCastingRemains()
+         local castLeft = NS.target_is_interruptible(TARGET_UNIT)
          return try_cast_fmt(A.Bash, icon, TARGET_UNIT, "[P5]", "Bash", "Interrupt - Cast: %.1fs, Rage: %d", castLeft or 0, context.rage)
       end,
    }

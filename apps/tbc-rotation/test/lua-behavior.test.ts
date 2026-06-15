@@ -680,6 +680,158 @@ io.write("PASS: maintain_aura factory contract\n")
 }
 
 {
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+local cast_left = nil
+local not_kickable = false
+
+function unit:IsCastingRemains()
+   return cast_left, nil, nil, nil, not_kickable
+end
+
+local function assert_equal(actual, expected, label)
+   if actual ~= expected then
+      error(label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
+   end
+end
+
+assert_equal(NS.target_is_interruptible("target"), nil, "missing cast is not interruptible")
+cast_left = 1.2
+not_kickable = false
+assert_equal(NS.target_is_interruptible("target"), 1.2, "kickable cast returns remaining time")
+not_kickable = true
+assert_equal(NS.target_is_interruptible("target"), nil, "notKickAble cast is suppressed")
+
+local shown = 0
+local kick = {
+   IsReady = function(_, unit_id)
+      assert_equal(unit_id, "focus", "factory uses configured unit for readiness")
+      return true
+   end,
+   Show = function()
+      shown = shown + 1
+      return "kick"
+   end,
+}
+
+NS.A = Action
+NS.register_interrupt_middleware({
+   name = "TestInterrupt",
+   spell = kick,
+   unit = "focus",
+})
+
+local strategy = NS.rotation_registry.middleware[1]
+local context = {
+   in_combat = true,
+   has_valid_enemy_target = true,
+   settings = {},
+}
+
+not_kickable = true
+local result = strategy.execute({}, context)
+assert_equal(result, nil, "factory suppresses notKickAble casts")
+assert_equal(shown, 0, "factory does not show suppressed notKickAble cast")
+
+not_kickable = false
+result = strategy.execute({}, context)
+assert_equal(result, "kick", "factory fires for kickable casts")
+assert_equal(shown, 1, "factory shows kickable cast")
+
+io.write("PASS: interrupt helper and factory contract\n")
+`,
+  );
+
+  assert.match(output, /PASS: interrupt helper and factory contract/);
+}
+
+{
+  const output = runLua(
+    loadCore +
+      String.raw`
+local NS = Menagerie
+local registered = nil
+local cast_left = 1.4
+local not_kickable = true
+local immune = false
+local ready_unit = nil
+local shown = 0
+
+function unit:IsCastingRemains()
+   return cast_left, nil, nil, nil, not_kickable
+end
+
+NS.is_spell_immune = function(unit_id, spell_ids)
+   if unit_id ~= "target" then error("expected target immunity unit, got " .. tostring(unit_id)) end
+   local expected = { 853, 5588, 5589, 10308 }
+   for i = 1, #expected do
+      if spell_ids[i] ~= expected[i] then
+         error("HoJ immunity spell id " .. i .. " expected " .. expected[i] .. ", got " .. tostring(spell_ids[i]))
+      end
+   end
+   return immune
+end
+
+Action.PlayerClass = "PALADIN"
+Action.MultiUnits = {}
+NS.A = {
+   HammerOfJustice = {
+      IsReady = function(_, unit_id)
+         ready_unit = unit_id
+         return true
+      end,
+      Show = function()
+         shown = shown + 1
+         return "hoj"
+      end,
+   },
+}
+
+NS.rotation_registry.register_middleware = function(_, entry)
+   if entry.name == "Paladin_HammerOfJustice" then
+      registered = entry
+   end
+end
+
+dofile("src/aio/paladin/middleware.lua")
+
+if not registered then error("expected Paladin_HammerOfJustice middleware") end
+
+local context = {
+   in_combat = true,
+   has_valid_enemy_target = true,
+   settings = { use_hammer_of_justice = true },
+}
+
+if not registered.matches(context) then error("HoJ should match a valid non-immune target") end
+local result, log_msg = registered.execute({}, context)
+if result ~= "hoj" then error("HoJ should fire on a non-kickable cast, got " .. tostring(result)) end
+if ready_unit ~= "target" then error("HoJ readiness should check target, got " .. tostring(ready_unit)) end
+if not string.find(log_msg, "stun%-interrupt") then error("HoJ log should identify stun-interrupt path") end
+if shown ~= 1 then error("HoJ should show once, got " .. tostring(shown)) end
+
+not_kickable = false
+result = registered.execute({}, context)
+if result ~= "hoj" then error("HoJ should still fire on a kickable cast, got " .. tostring(result)) end
+if shown ~= 2 then error("HoJ should show for kickable and non-kickable casts, got " .. tostring(shown)) end
+
+immune = true
+if registered.matches(context) then error("HoJ should be suppressed by learned stun immunity") end
+
+context.settings.use_hammer_of_justice = false
+immune = false
+if registered.matches(context) then error("HoJ should respect use_hammer_of_justice setting") end
+
+io.write("PASS: Paladin HoJ stun-interrupt middleware\n")
+`,
+  );
+
+  assert.match(output, /PASS: Paladin HoJ stun-interrupt middleware/);
+}
+
+{
   const output = runLua(String.raw`
 function print() end
 

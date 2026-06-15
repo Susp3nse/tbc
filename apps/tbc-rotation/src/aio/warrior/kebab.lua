@@ -327,8 +327,8 @@ local Kebab_HeroicStrike = {
         if context.rage < threshold then return false end
         if would_starve_core_kebab(context, state, 15) then return false end
         if context.settings.use_interrupt then
-            local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-            if castLeft and castLeft > 0 and not notKickAble then
+            local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+            if castLeft then
                 if (context.rage - 15) < RAGE_COST_PUMMEL then return false end
             end
         end

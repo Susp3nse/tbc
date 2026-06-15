@@ -1627,6 +1627,15 @@ NS.register_trinket_middleware = register_trinket_middleware
 -- ============================================================================
 -- INTERRUPT MIDDLEWARE FACTORY
 -- ============================================================================
+-- Returns remaining cast time when `unit` is casting a kickable spell.
+function NS.target_is_interruptible(unit)
+   local cast_left, _, _, _, not_kickable = Unit(unit):IsCastingRemains()
+   if cast_left and cast_left > 0 and not not_kickable then
+      return cast_left
+   end
+   return nil
+end
+
 -- Emits the canonical "interrupt the current cast" middleware. Warrior/shaman
 -- stay bespoke and opt out by not calling this.
 local function register_interrupt_middleware(opts)
@@ -1649,6 +1658,7 @@ local function register_interrupt_middleware(opts)
    local log_format = "[MW] " .. (opts.label or name) .. " - Cast: %.1fs"
    local resource_gate = opts.resource_gate
    local require_available = opts.require_available
+   local unit = opts.unit or TARGET_UNIT
 
    rotation_registry:register_middleware({
       name = name,
@@ -1663,10 +1673,10 @@ local function register_interrupt_middleware(opts)
       end,
 
       execute = function(icon, context)
-         local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-         if castLeft and castLeft > 0 and not notKickAble then
-            if (not require_available or is_spell_available(spell)) and spell:IsReady(TARGET_UNIT) then
-               return spell:Show(icon), format(log_format, castLeft)
+         local cast_left = NS.target_is_interruptible(unit)
+         if cast_left then
+            if (not require_available or is_spell_available(spell)) and spell:IsReady(unit) then
+               return spell:Show(icon), format(log_format, cast_left)
             end
          end
          return nil

@@ -154,19 +154,19 @@ strategies[#strategies + 1] = named("Interrupt", {
 
     matches = function(context)
         if not context.has_valid_enemy_target then return false end
-        local castLeft = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft <= GetGCD() + GetLatency() then return false end
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if not castLeft or castLeft <= GetGCD() + GetLatency() then return false end
         return true
     end,
 
     execute = function(icon, context)
-        local _, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
 
-        if not notKickAble and A.SilencingShot:IsReadyByPassCastGCD(TARGET_UNIT, nil, nil, true) and A.SilencingShot:IsInRange() then
+        if castLeft and A.SilencingShot:IsReadyByPassCastGCD(TARGET_UNIT, nil, nil, true) and A.SilencingShot:IsInRange() then
             return A.SilencingShot:Show(icon), "[INT] Silencing Shot"
         end
 
-        if A.ScatterShot:IsReadyByPassCastGCD(TARGET_UNIT, nil, nil, true) and A.ScatterShot:IsInRange() and not CheckCCImmune(TARGET_UNIT) then
+        if castLeft and A.ScatterShot:IsReadyByPassCastGCD(TARGET_UNIT, nil, nil, true) and A.ScatterShot:IsInRange() and not CheckCCImmune(TARGET_UNIT) then
             return A.ScatterShot:Show(icon), "[INT] Scatter Shot"
         end
 

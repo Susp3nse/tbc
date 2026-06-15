@@ -110,8 +110,8 @@ rotation_registry:register_middleware({
 
         -- 2. Target casting a kickable spell — hold rage for Pummel
         if not should_dequeue and context.has_valid_enemy_target then
-            local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-            if castLeft and castLeft > 0 and not notKickAble then
+            local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+            if castLeft then
                 local hs_cost = 15
                 local pummel_cost = 10
                 if context.rage < (hs_cost + pummel_cost) then
@@ -318,9 +318,10 @@ local function pvp_find_reflectable_caster(now)
         for unitID in pairs(plates) do
             if unitID and UnitExists(unitID) and not UnitIsDead(unitID) and UnitIsPlayer(unitID) then
                 local unit = Unit(unitID)
-                local castLeft, _, _, spellName, notKickAble, isChannel = unit:IsCastingRemains()
-                if castLeft and castLeft > 0 and castLeft < 2.0 and not notKickAble and not isChannel then
-                    if spellName and PVP_REFLECTABLE_SPELLS[spellName] then
+                local castLeft = NS.target_is_interruptible(unitID)
+                if castLeft and castLeft < 2.0 then
+                    local _, _, _, spellName, _, isChannel = unit:IsCastingRemains()
+                    if not isChannel and spellName and PVP_REFLECTABLE_SPELLS[spellName] then
                         local targetOfUnit = unitID .. "target"
                         if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
                             found, best_cast_left, best_spell_name = true, castLeft, spellName
@@ -349,16 +350,19 @@ local function pve_find_reflectable_caster(has_target, now)
 
     -- Check target first (most common case)
     if has_target then
-        local castLeft, _, _, spellName, notKickAble, isChannel = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0 and not notKickAble and not isChannel then
-            local targetOfTarget = TARGET_UNIT .. "target"
-            if UnitExists(targetOfTarget) and UnitIsUnit(targetOfTarget, PLAYER_UNIT) then
-                reflect_scan_cache.key = "pve"
-                reflect_scan_cache.time = now
-                reflect_scan_cache.found = true
-                reflect_scan_cache.cast_left = castLeft
-                reflect_scan_cache.spell_name = spellName
-                return true, castLeft, spellName
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if castLeft then
+            local _, _, _, spellName, _, isChannel = Unit(TARGET_UNIT):IsCastingRemains()
+            if not isChannel then
+                local targetOfTarget = TARGET_UNIT .. "target"
+                if UnitExists(targetOfTarget) and UnitIsUnit(targetOfTarget, PLAYER_UNIT) then
+                    reflect_scan_cache.key = "pve"
+                    reflect_scan_cache.time = now
+                    reflect_scan_cache.found = true
+                    reflect_scan_cache.cast_left = castLeft
+                    reflect_scan_cache.spell_name = spellName
+                    return true, castLeft, spellName
+                end
             end
         end
     end
@@ -369,12 +373,15 @@ local function pve_find_reflectable_caster(has_target, now)
         for unitID in pairs(plates) do
             if unitID and UnitExists(unitID) and not UnitIsDead(unitID) then
                 local unit = Unit(unitID)
-                local castLeft, _, _, spellName, notKickAble, isChannel = unit:IsCastingRemains()
-                if castLeft and castLeft > 0 and not notKickAble and not isChannel then
-                    local targetOfUnit = unitID .. "target"
-                    if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
-                        found, best_cast_left, best_spell_name = true, castLeft, spellName
-                        break
+                local castLeft = NS.target_is_interruptible(unitID)
+                if castLeft then
+                    local _, _, _, spellName, _, isChannel = unit:IsCastingRemains()
+                    if not isChannel then
+                        local targetOfUnit = unitID .. "target"
+                        if UnitExists(targetOfUnit) and UnitIsUnit(targetOfUnit, PLAYER_UNIT) then
+                            found, best_cast_left, best_spell_name = true, castLeft, spellName
+                            break
+                        end
                     end
                 end
             end
@@ -463,8 +470,8 @@ rotation_registry:register_middleware({
     end,
 
     execute = function(icon, context)
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if not castLeft or castLeft <= 0 then return nil end
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if not castLeft then return nil end
 
         local is_pvp_mode = context.is_pvp and context.settings.pvp_enabled
 
@@ -476,11 +483,9 @@ rotation_registry:register_middleware({
             kick_allowed = Unit(TARGET_UNIT):CanInterrupt(true, nil, 15, 67)
         end
 
-        -- PvP: Check kick immunity before committing.
-        -- When the target is immune to kicks in PvP, skip to the CC fallbacks below.
-        if kick_allowed and not (is_pvp_mode and notKickAble) then
-            if notKickAble then return nil end
-
+        -- Kickability is already gated by target_is_interruptible; PvP still
+        -- checks physical interrupt aura immunity before committing.
+        if kick_allowed then
             -- PvP: Verify target isn't immune to physical interrupts
             if is_pvp_mode and not A.Pummel:AbsentImun(TARGET_UNIT, Constants.PVP.AuraForInterrupt) then
                 return nil
@@ -993,8 +998,8 @@ rotation_registry:register_middleware({
 
     execute = function(icon, context)
         -- Use War Stomp as an interrupt when target is casting and other kicks unavailable
-        local castLeft, _, _, _, notKickAble = Unit(TARGET_UNIT):IsCastingRemains()
-        if castLeft and castLeft > 0.5 and not notKickAble then
+        local castLeft = NS.target_is_interruptible(TARGET_UNIT)
+        if castLeft and castLeft > 0.5 then
             -- Only if Pummel is on CD and we're in melee range
             local pummel_cd = A.Pummel:GetCooldown() or 0
             if pummel_cd > 0 and context.in_melee_range and A.WarStomp:IsReady(PLAYER_UNIT) then
