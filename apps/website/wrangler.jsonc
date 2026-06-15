@@ -3,6 +3,9 @@
   // Assets-only Worker (no `main`): Cloudflare serves ./dist directly.
   "name": "menagerie-website",
   "compatibility_date": "2026-06-15",
+  "observability": {
+    "enabled": false,
+  },
   "assets": {
     // Relative to this config file → apps/website/dist
     "directory": "./dist",
