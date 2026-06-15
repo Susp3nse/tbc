@@ -1,0 +1,15 @@
+---
+/** CodexEntry — a feature block: gold glyph + title + slotted prose. */
+interface Props {
+  glyph: string;
+  title: string;
+}
+
+const { glyph, title } = Astro.props;
+---
+
+<div class="entry">
+  <div class="glyph">{glyph}</div>
+  <h3>{title}</h3>
+  <p><slot /></p>
+</div>

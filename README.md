@@ -68,8 +68,24 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 ## Supported Classes
 
-All nine TBC classes: **Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior**.
-Each lives under `apps/tbc-rotation/src/aio/<class>/` and registers its own specs/forms. See the
+All nine TBC classes have a complete rotation. A simulation harness — used for tuning and
+validating rotation output — currently exists for Hunter, with more planned.
+
+| Class   | Rotation | Sim Harness |
+|---------|:--------:|:-----------:|
+| Druid   |    ✅    |      —      |
+| Hunter  |    ✅    |      ✅     |
+| Mage    |    ✅    |      —      |
+| Paladin |    ✅    |      —      |
+| Priest  |    ✅    |      —      |
+| Rogue   |    ✅    |      —      |
+| Shaman  |    ✅    |      —      |
+| Warlock |    ✅    |      —      |
+| Warrior |    ✅    |      —      |
+
+> ✅ implemented · — not yet
+
+Each class lives under `apps/tbc-rotation/src/aio/<class>/` and registers its own specs/forms. See the
 [class pages](https://menagerie.dev) for per-spec coverage.
 
 ## Credits

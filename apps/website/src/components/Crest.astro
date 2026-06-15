@@ -1,0 +1,25 @@
+---
+/**
+ * Crest — one class tile in the Bestiary grid.
+ * `sigil` defaults to the class initial; swap for an SVG glyph later without
+ * touching callers.
+ */
+import { url } from '../config';
+
+interface Props {
+  slug: string;
+  name: string;
+  /** CSS color token name, e.g. 'hunter' → var(--hunter) */
+  color: string;
+  blurb: string;
+  sigil?: string;
+}
+
+const { slug, name, color, blurb, sigil = name.charAt(0) } = Astro.props;
+---
+
+<a class="crest" href={url(`/classes/${slug}`)} style={`--c: var(--${color});`}>
+  <div class="sigil">{sigil}</div>
+  <h3>{name}</h3>
+  <p>{blurb}</p>
+</a>

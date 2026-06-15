@@ -1,4 +1,8 @@
 ---
+import '@fontsource-variable/inter';
+import '@fontsource/cinzel/500.css';
+import '@fontsource/cinzel/600.css';
+import '@fontsource/cinzel/700.css';
 import '../styles/global.css';
 import { config, url } from '../config';
 
@@ -28,10 +32,11 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
   <meta name="keywords" content="WoW, TBC, rotation, addon, druid, hunter, mage, paladin, priest, rogue, shaman, warlock, warrior, TellMeWhen, classic" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href={canonicalUrl.href} />
-  <meta name="theme-color" content="#e08a3c" />
+  <meta name="theme-color" content="#0a0b12" />
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
+  <link rel="icon" type="image/png" sizes="32x32" href={url('/favicon-32.png')} />
+  <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -52,7 +57,10 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
 <body>
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a href={url('/')} class="nav-logo">Menagerie</a>
+      <a href={url('/')} class="nav-logo">
+        <img src={url('/logo.png')} alt="" class="nav-logo-mark" width="33" height="34" />
+        <span>Menag<span class="glint">e</span>rie</span>
+      </a>
       <button class:list={["nav-classes-btn", { active: isClassPage }]} aria-expanded="false">Classes</button>
       <div class="nav-links">
         <a href={url('/guides/installation')} class:list={["nav-link", { active: isActive('/guides/installation') }]}>Install</a>
@@ -89,12 +97,17 @@ const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
   </main>
 
   <footer class="footer">
+    <img src={url('/logo.png')} alt="Menagerie" class="footer-logo-mark" width="69" height="72" />
+    <a href={url('/')} class="footer-wordmark">Menag<span class="glint">e</span>rie</a>
     <div class="footer-links">
       <a href={config.downloadUrl}>Download</a>
-      <a href={config.github} target="_blank">GitHub</a>
+      <a href={url('/guides/installation')}>Installation</a>
+      <a href={url('/changelog')}>Changelog</a>
+      <a href={url('/faq')}>FAQ</a>
+      <a href={config.github} target="_blank">GitHub &#8599;</a>
     </div>
-    <p>Menagerie &mdash; WoW TBC rotation addon</p>
-    <p class="footer-credit">Forked from Flux AIO &mdash; see <a href={`${config.github}/blob/main/NOTICE`} target="_blank">NOTICE</a></p>
+    <p class="footer-meta">Menagerie &mdash; a bestiary of WoW TBC rotations for all nine classes.</p>
+    <p class="footer-credit">Forked from Flux AIO &middot; <a href={`${config.github}/blob/main/NOTICE`} target="_blank">Credits &amp; NOTICE</a></p>
   </footer>
 
   <script is:inline>

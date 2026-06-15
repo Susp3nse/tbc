@@ -1,100 +1,124 @@
 ---
 import Base from '../layouts/Base.astro';
+import Crest from '../components/Crest.astro';
+import CodexEntry from '../components/CodexEntry.astro';
+import Rule from '../components/Rule.astro';
 import { config, url } from '../config';
+
+const bestiary = [
+  { slug: 'druid', name: 'Druid', color: 'druid', blurb: 'Cat, Bear, Moonkin, Tree — powershifting and form-aware to the claw.' },
+  { slug: 'hunter', name: 'Hunter', color: 'hunter', blurb: 'Shot weaving, clip tracking, and a pet that knows when to strike.' },
+  { slug: 'mage', name: 'Mage', color: 'mage', blurb: 'Fire, Frost, Arcane — burn phases and scorch debuffs, conserved on cue.' },
+  { slug: 'paladin', name: 'Paladin', color: 'paladin', blurb: 'Seal twisting, off-GCD Judgements, and healing that reads the party.' },
+  { slug: 'priest', name: 'Priest', color: 'priest', blurb: 'Shadow, Smite, Holy, Discipline — DoTs woven with shielded prevention.' },
+  { slug: 'rogue', name: 'Rogue', color: 'rogue', blurb: 'Combo points, poisons, stealth openers, and energy pooled to the edge.' },
+  { slug: 'shaman', name: 'Shaman', color: 'shaman', blurb: 'Totem twisting, shock rotations, and smart party healing on tap.' },
+  { slug: 'warlock', name: 'Warlock', color: 'warlock', blurb: 'DoTs, curses, Life Tap, and a demon kept on a short leash.' },
+  { slug: 'warrior', name: 'Warrior', color: 'warrior', blurb: 'Stance-aware rage, Heroic Strike queuing, and Sunder kept stacked.' },
+];
 ---
 
 <Base title="Home">
-  <div class="hero">
-    <h1>Menagerie</h1>
-    <p class="tagline">Intelligent WoW TBC rotation automation for all 9 classes.</p>
-    <div class="btn-group">
-      <a href={config.downloadUrl} class="btn btn-primary">Download Latest</a>
-      <a href={url('/guides/installation')} class="btn btn-secondary">Installation Guide</a>
+  <header class="hero">
+    <div class="ring"><div class="ring-spin"></div></div>
+    <div class="hero-content">
+      <div class="eyebrow">A Bestiary of Rotations</div>
+      <h1>MENAGERIE</h1>
+      <p class="tagline">Nine classes. <em>One intelligence.</em></p>
+      <div class="btn-group">
+        <a href={config.downloadUrl} class="btn btn-primary">&#8595; Download Latest</a>
+        <a href={url('/guides/installation')} class="btn btn-secondary">Installation Guide</a>
+      </div>
+      <div class="statline"><b>9</b> classes &nbsp;&middot;&nbsp; <b>25</b> specs &nbsp;&middot;&nbsp; priority-driven</div>
     </div>
-  </div>
+  </header>
 
-  <div class="container">
+  <Rule />
 
-    <section class="section">
-      <h2>Supported Classes</h2>
-      <p class="section-sub">Full rotation logic, configurable settings, and intelligent decision-making.</p>
-      <div class="card-grid">
-        <a href={url('/classes/druid')} class="card" style="--class-color: var(--druid);">
-          <h3 class="c-druid">Druid</h3>
-          <p>5 playstyles: Cat DPS, Bear Tank, Balance Moonkin, Resto Tree, and Caster recovery. Powershifting, smart healing, and form-aware automation.</p>
-        </a>
-        <a href={url('/classes/hunter')} class="card" style="--class-color: var(--hunter);">
-          <h3 class="c-hunter">Hunter</h3>
-          <p>Ranged DPS with auto-shot clip tracking, shot weaving, pet management, sting priority, and mana-aware aspect switching.</p>
-        </a>
-        <a href={url('/classes/mage')} class="card" style="--class-color: var(--mage);">
-          <h3 class="c-mage">Mage</h3>
-          <p>Fire, Frost, and Arcane. Burn/conserve phases, scorch debuff tracking, cooldown stacking, and mana recovery automation.</p>
-        </a>
-        <a href={url('/classes/paladin')} class="card" style="--class-color: var(--paladin);">
-          <h3 class="c-paladin">Paladin</h3>
-          <p>Retribution, Protection, and Holy. Seal twisting, off-GCD Judgements, Forbearance tracking, and intelligent party healing.</p>
-        </a>
-        <a href={url('/classes/priest')} class="card" style="--class-color: var(--priest);">
-          <h3 class="c-priest">Priest</h3>
-          <p>Shadow, Smite, Holy, and Discipline. DoT management, Holy Fire weaving, smart party healing, and shield-based prevention.</p>
-        </a>
-        <a href={url('/classes/rogue')} class="card" style="--class-color: var(--rogue);">
-          <h3 class="c-rogue">Rogue</h3>
-          <p>Combat, Assassination, and Subtlety. Combo point management, poison tracking, stealth openers, and energy pooling.</p>
-        </a>
-        <a href={url('/classes/shaman')} class="card" style="--class-color: var(--shaman);">
-          <h3 class="c-shaman">Shaman</h3>
-          <p>Elemental, Enhancement, and Restoration. Totem management, totem twisting, shock rotation, and smart party healing.</p>
-        </a>
-        <a href={url('/classes/warlock')} class="card" style="--class-color: var(--warlock);">
-          <h3 class="c-warlock">Warlock</h3>
-          <p>Affliction, Demonology, and Destruction. DoT management, curse system, Life Tap automation, and pet handling.</p>
-        </a>
-        <a href={url('/classes/warrior')} class="card" style="--class-color: var(--warrior);">
-          <h3 class="c-warrior">Warrior</h3>
-          <p>Arms, Fury, and Protection. Heroic Strike queuing, stance-aware rotation, Sunder Armor maintenance, and rage management.</p>
-        </a>
+  <section class="band" id="bestiary">
+    <div class="section-head">
+      <span class="kicker">The Bestiary</span>
+      <h2>Nine specimens, each its own intelligence</h2>
+      <p>Every class is fully tamed — complete rotation logic, configurable per spec. Choose your creature.</p>
+    </div>
+    <div class="crest-grid">
+      {bestiary.map((c) => <Crest slug={c.slug} name={c.name} color={c.color} blurb={c.blurb} />)}
+    </div>
+  </section>
+
+  <Rule />
+
+  <section class="band">
+    <div class="section-head">
+      <span class="kicker">Inscribed Behaviors</span>
+      <h2>What every specimen knows</h2>
+    </div>
+    <div class="entries">
+      <CodexEntry glyph="✦" title="Smart Rotations">
+        A priority-based strategy system that adapts to your form, resources, target state, and group composition in real time — not a fixed macro.
+      </CodexEntry>
+      <CodexEntry glyph="❖" title="Form-Aware">
+        Respects your current form in combat — no unwanted shifting. A suggestion icon appears only when a form change would actually help.
+      </CodexEntry>
+      <CodexEntry glyph="◈" title="Resource Management">
+        Energy pooling, rage gating, mana-conservation tiers, and powershift optimization with Wolfshead detection. It spends when it counts.
+      </CodexEntry>
+      <CodexEntry glyph="✶" title="Consumable Automation">
+        Healthstones, healing and mana potions, and Dark Runes fire at configurable thresholds — form-aware and reagent-safe.
+      </CodexEntry>
+    </div>
+  </section>
+
+  <Rule />
+
+  <section class="band">
+    <div class="proof">
+      <div>
+        <span class="kicker">In the Field</span>
+        <h2>Watch it think, frame by frame</h2>
+        <p>The context object is rebuilt every frame — player state, target, positioning, settings — and the highest-priority action lights up. Recovery, cooldowns, and self-buffs run on a middleware layer beneath your rotation.</p>
+        <p style="color: var(--vellum-faint); font-size: 0.82rem;">A live readout of the engine choosing your next action.</p>
       </div>
-    </section>
-
-    <section class="section">
-      <h2>Key Features</h2>
-      <div class="card-grid">
-        <div class="card">
-          <h3>Smart Rotations</h3>
-          <p>Priority-based strategy system that adapts to your current form, resources, target state, and group composition in real time.</p>
+      <div class="hud">
+        <div class="hud-bar">
+          <span class="dot"></span>
+          <span>menagerie &middot; druid / feral</span>
+          <span class="build">build #482</span>
         </div>
-        <div class="card">
-          <h3>Configurable Settings</h3>
-          <p>Per-spec settings UI with sliders and toggles. Customize thresholds, enable/disable abilities, and tune the rotation to your playstyle.</p>
+        <div class="hud-row active">
+          <span class="lhs"><span class="pip">&#9654;</span> Mangle</span>
+          <span class="tag">cast &middot; primary</span>
         </div>
-        <div class="card">
-          <h3>Form-Aware</h3>
-          <p>Respects your current form during combat. No unwanted form-shifting. A suggestion icon shows when a form change would be beneficial.</p>
+        <div class="hud-row">
+          <span class="lhs"><span class="pip">&#8635;</span> Savage Roar</span>
+          <span class="tag">12.4s left</span>
         </div>
-        <div class="card">
-          <h3>Resource Management</h3>
-          <p>Intelligent energy pooling, rage gating, mana conservation tiers, and powershift optimization with Wolfshead Helm detection.</p>
+        <div class="hud-row">
+          <span class="lhs"><span class="pip">&#8987;</span> Pool Energy</span>
+          <span class="meter"><i style="width: 64%;"></i></span>
         </div>
-        <div class="card">
-          <h3>Consumable Automation</h3>
-          <p>Auto-uses Healthstones, healing potions, mana potions, and Dark Runes at configurable thresholds. Form-aware casting for Druid.</p>
+        <div class="hud-row">
+          <span class="lhs"><span class="pip">&#10010;</span> Healthstone</span>
+          <span class="tag">&le; 35% hp</span>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section class="section">
-      <h2>How It Works</h2>
-      <p class="section-sub">Built on the GGL Action framework with a modular strategy registry architecture.</p>
-      <ul class="features">
-        <li>Middleware layer handles recovery items, cooldowns, self-buffs, and dispels across all specs</li>
-        <li>Playstyle strategies execute in priority order based on your current form and combat state</li>
-        <li>Context object rebuilt every frame with player state, target info, positioning, and settings</li>
-        <li>Schema-driven settings &mdash; one schema generates the UI, backing store, and cached runtime access</li>
-        <li>Spell rank selection for Classic/TBC downranking based on HP deficit and mana efficiency</li>
-      </ul>
-    </section>
+  <Rule />
 
-  </div>
+  <section class="band">
+    <div style="max-width: 760px; margin: 0 auto; text-align: center;">
+      <span class="kicker">Beneath the Ink</span>
+      <h2 style="font-size: clamp(1.5rem, 4vw, 2.1rem); border: none; padding: 0; margin-bottom: 1rem;">A modular strategy registry</h2>
+      <p style="color: var(--vellum-dim); font-size: 1rem;">Built on the GGL Action framework. A middleware layer handles recovery, cooldowns, self-buffs, and dispels across every spec; playstyle strategies execute in priority order; and one schema generates the settings UI, backing store, and cached runtime access.</p>
+      <div class="pipeline">
+        <span class="pill"><b>middleware</b></span>
+        <span class="arrow">&rarr;</span>
+        <span class="pill"><b>strategies</b></span>
+        <span class="arrow">&rarr;</span>
+        <span class="pill"><b>context</b> / frame</span>
+      </div>
+    </div>
+  </section>
 </Base>
