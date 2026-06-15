@@ -511,11 +511,23 @@ end
 NS.mark_settings_dirty = mark_settings_dirty
 NS.settings_dirty = settings_dirty
 
+-- Safety-net revalidation interval. The dirty flag is the instant fast-path
+-- (custom UI marks dirty on write), but the framework's generated ProfileUI
+-- panel writes toggles via SetToggle without calling mark_settings_dirty. To
+-- keep cached_settings from going stale on that path, re-scan at most this
+-- often even when nothing flagged a change. Bounded staleness, negligible cost
+-- (update_setting diffs, so unchanged values do no work and emit no logs).
+local SETTINGS_REVALIDATE_INTERVAL = 2
+local last_settings_refresh = 0
+
 local function refresh_settings(force)
-   if not force and not settings_dirty then return end
+   local now = GetTime()
+   if not force and not settings_dirty
+      and (now - last_settings_refresh) < SETTINGS_REVALIDATE_INTERVAL then
+      return
+   end
    if #settings_list == 0 then build_settings_list() end
 
-   local now = GetTime()
    local debug_mode = GetToggle(2, "debug_mode")
    local changed_list = settings_changed_list
    for i = 1, #changed_list do changed_list[i] = nil end
@@ -542,6 +554,7 @@ local function refresh_settings(force)
       end
    end
 
+   last_settings_refresh = now
    settings_dirty = false
    NS.settings_dirty = false
 end
