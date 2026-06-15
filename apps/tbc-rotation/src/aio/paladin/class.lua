@@ -52,32 +52,32 @@ Action[A.PlayerClass] = {
 
     -- Healing (no explicit Click — framework sets autounit="help" automatically,
     -- enabling [@mouseover,help][@focus,help][@target,help][@player] targeting via meta3 macro)
-    FlashOfLight    = Create({ Type = "Spell", ID = 19750, useMaxRank = true }),
-    HolyLight       = Create({ Type = "Spell", ID = 635, useMaxRank = true }),
+    FlashOfLight    = Create({ Type = "Spell", ID = 19750, useMaxRank = true, Desc = "Flash of Light" }),
+    HolyLight       = Create({ Type = "Spell", ID = 635, useMaxRank = true, Desc = "Holy Light" }),
     HolyShock       = Create({ Type = "Spell", ID = 20473, useMaxRank = true }),         -- 31-pt Holy talent
     LayOnHands      = Create({ Type = "Spell", ID = 633, useMaxRank = true }),
 
     -- Healing rank tables (for downranking)
     -- isRank = N tells the framework to cast the specific rank, not max
-    HolyLightR1  = Create({ Type = "Spell", ID = 635, isRank = 1 }),
-    HolyLightR2  = Create({ Type = "Spell", ID = 639, isRank = 2 }),
-    HolyLightR3  = Create({ Type = "Spell", ID = 647, isRank = 3 }),
-    HolyLightR4  = Create({ Type = "Spell", ID = 1026, isRank = 4 }),
-    HolyLightR5  = Create({ Type = "Spell", ID = 1042, isRank = 5 }),
-    HolyLightR6  = Create({ Type = "Spell", ID = 3472, isRank = 6 }),
-    HolyLightR7  = Create({ Type = "Spell", ID = 10328, isRank = 7 }),
-    HolyLightR8  = Create({ Type = "Spell", ID = 10329, isRank = 8 }),
-    HolyLightR9  = Create({ Type = "Spell", ID = 25292, isRank = 9 }),
-    HolyLightR10 = Create({ Type = "Spell", ID = 27135, isRank = 10 }),
-    HolyLightR11 = Create({ Type = "Spell", ID = 27136, isRank = 11 }),
+    HolyLightR1  = Create({ Type = "Spell", ID = 635, isRank = 1, Desc = "Holy Light Rank 1" }),
+    HolyLightR2  = Create({ Type = "Spell", ID = 639, isRank = 2, Desc = "Holy Light Rank 2" }),
+    HolyLightR3  = Create({ Type = "Spell", ID = 647, isRank = 3, Desc = "Holy Light Rank 3" }),
+    HolyLightR4  = Create({ Type = "Spell", ID = 1026, isRank = 4, Desc = "Holy Light Rank 4" }),
+    HolyLightR5  = Create({ Type = "Spell", ID = 1042, isRank = 5, Desc = "Holy Light Rank 5" }),
+    HolyLightR6  = Create({ Type = "Spell", ID = 3472, isRank = 6, Desc = "Holy Light Rank 6" }),
+    HolyLightR7  = Create({ Type = "Spell", ID = 10328, isRank = 7, Desc = "Holy Light Rank 7" }),
+    HolyLightR8  = Create({ Type = "Spell", ID = 10329, isRank = 8, Desc = "Holy Light Rank 8" }),
+    HolyLightR9  = Create({ Type = "Spell", ID = 25292, isRank = 9, Desc = "Holy Light Rank 9" }),
+    HolyLightR10 = Create({ Type = "Spell", ID = 27135, isRank = 10, Desc = "Holy Light Rank 10" }),
+    HolyLightR11 = Create({ Type = "Spell", ID = 27136, isRank = 11, Desc = "Holy Light Rank 11" }),
 
-    FlashOfLightR1 = Create({ Type = "Spell", ID = 19759, isRank = 1 }),
-    FlashOfLightR2 = Create({ Type = "Spell", ID = 19939, isRank = 2 }),
-    FlashOfLightR3 = Create({ Type = "Spell", ID = 19940, isRank = 3 }),
-    FlashOfLightR4 = Create({ Type = "Spell", ID = 19941, isRank = 4 }),
-    FlashOfLightR5 = Create({ Type = "Spell", ID = 19942, isRank = 5 }),
-    FlashOfLightR6 = Create({ Type = "Spell", ID = 19943, isRank = 6 }),
-    FlashOfLightR7 = Create({ Type = "Spell", ID = 27137, isRank = 7 }),
+    FlashOfLightR1 = Create({ Type = "Spell", ID = 19750, isRank = 1, Desc = "Flash of Light Rank 1" }),
+    FlashOfLightR2 = Create({ Type = "Spell", ID = 19939, isRank = 2, Desc = "Flash of Light Rank 2" }),
+    FlashOfLightR3 = Create({ Type = "Spell", ID = 19940, isRank = 3, Desc = "Flash of Light Rank 3" }),
+    FlashOfLightR4 = Create({ Type = "Spell", ID = 19941, isRank = 4, Desc = "Flash of Light Rank 4" }),
+    FlashOfLightR5 = Create({ Type = "Spell", ID = 19942, isRank = 5, Desc = "Flash of Light Rank 5" }),
+    FlashOfLightR6 = Create({ Type = "Spell", ID = 19943, isRank = 6, Desc = "Flash of Light Rank 6" }),
+    FlashOfLightR7 = Create({ Type = "Spell", ID = 27137, isRank = 7, Desc = "Flash of Light Rank 7" }),
 
     -- Defensive
     DivineShield     = Create({ Type = "Spell", ID = 642, Click = { unit = "player", type = "spell", spell = 642 } }),

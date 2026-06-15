@@ -1352,6 +1352,9 @@ end
 
 NS.toggle_dashboard = toggle_dashboard
 
+SLASH_MENAGERIEDASH1 = "/mdash"
+SlashCmdList["MENAGERIEDASH"] = toggle_dashboard
+
 -- ============================================================================
 -- UPDATE TIMER (10 Hz when visible)
 -- ============================================================================

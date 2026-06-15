@@ -905,6 +905,7 @@ SlashCmdList["MENAGERIE"] = function(msg)
             print("  /menagerie raptor    - Force one manual Raptor queue window")
         end
         print("  /menagerie status    - Toggle combat dashboard")
+        print("  /mdash               - Toggle combat dashboard")
         print("  /mticks         - Toggle cat energy-tick debug print")
         print("  /menagerie help      - Show this help")
         return

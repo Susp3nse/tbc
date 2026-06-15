@@ -20,6 +20,102 @@ function runLua(source: string): string {
   return result.stdout;
 }
 
+{
+  const output = runLua(String.raw`
+local frame = {}
+function frame:RegisterEvent() end
+function frame:SetScript() end
+
+function CreateFrame() return frame end
+function print() end
+
+UIParent = {}
+SlashCmdList = {}
+
+Menagerie = {
+   Theme = {
+      state = {},
+      text_dim = { 0.7, 0.7, 0.7 },
+   },
+   Player = {},
+   Unit = function() return {} end,
+   rotation_registry = {},
+}
+
+dofile("src/aio/dashboard.lua")
+
+if SLASH_MENAGERIEDASH1 ~= "/mdash" then
+   error("expected /mdash slash alias")
+end
+if SlashCmdList["MENAGERIEDASH"] ~= Menagerie.toggle_dashboard then
+   error("expected /mdash to call dashboard toggle")
+end
+
+io.write("PASS: dashboard slash alias\n")
+`);
+
+  assert.match(output, /PASS: dashboard slash alias/);
+}
+
+{
+  const output = runLua(String.raw`
+local created_actions = {}
+
+Action = {
+   PlayerClass = "PALADIN",
+   MultiUnits = {},
+   Create = function(args)
+      created_actions[#created_actions + 1] = args
+      return args
+   end,
+}
+
+Menagerie = {
+   Player = {},
+   Unit = function() return {} end,
+   rotation_registry = {
+      register_class = function(_, config)
+         Menagerie.registered_class = config
+      end,
+   },
+}
+
+function UnitFactionGroup() return "Horde" end
+function print() end
+
+dofile("src/aio/paladin/class.lua")
+
+local A = Menagerie.A
+local function assert_equal(actual, expected, label)
+   if actual ~= expected then
+      error(label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
+   end
+end
+
+assert_equal(A.FlashOfLight.ID, 19750, "Flash of Light base spell")
+assert_equal(A.FlashOfLight.useMaxRank, true, "Flash of Light uses max rank")
+assert_equal(A.FlashOfLightR1.ID, 19750, "Flash of Light rank 1 spell")
+assert_equal(A.FlashOfLightR6.ID, 19943, "Flash of Light rank 6 spell")
+assert_equal(A.FlashOfLightR7.ID, 27137, "Flash of Light rank 7 spell")
+
+local seen_desc = {}
+for _, entry in ipairs(Menagerie.FLASH_OF_LIGHT_RANKS) do
+   local desc = entry.spell.Desc
+   if not desc then
+      error("Flash of Light rank " .. entry.label .. " is missing unique Desc metadata")
+   end
+   if seen_desc[desc] then
+      error("duplicate Flash of Light rank Desc: " .. desc)
+   end
+   seen_desc[desc] = true
+end
+
+io.write("PASS: Paladin Flash of Light ranks\n")
+`);
+
+  assert.match(output, /PASS: Paladin Flash of Light ranks/);
+}
+
 const loadCore = String.raw`
 local function aura_key(spell_id, source)
    return tostring(spell_id) .. "|" .. tostring(source or "")
