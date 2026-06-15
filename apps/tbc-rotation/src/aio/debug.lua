@@ -134,6 +134,7 @@ local function create_debug_button(parent, text, width)
    end)
    return btn
 end
+NS.CreateDebugButton = create_debug_button
 
 local function CreateDebugWindow(title_text)
    local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")

@@ -18,6 +18,7 @@
     { "slot": "shared", "source": "ui.lua", "order": 3 },
     { "slot": "shared", "source": "core.lua", "order": 4 },
     { "slot": "shared", "source": "debug.lua", "order": 5 },
+    { "slot": "shared", "source": "livepanel.lua", "order": 6 },
     { "slot": "class", "source": "class.lua", "order": 6 },
     { "slot": "class", "source": "healing.lua", "order": 7 },
     { "slot": "shared", "source": "settings.lua", "order": 7 },
