@@ -250,8 +250,8 @@ classes or unrelated apps. Each nested doc owns its own concerns and does not re
 
 > Cross-area orchestration, so the canonical runbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).
 > `apps/tbc-rotation/AGENTS.md` and `apps/website/AGENTS.md` reference this section. **Only rotation
-> code changes get a tag/release** — website-only changes deploy via their own workflow
-> (`deploy-website.yml`) and need no tag.
+> code changes get a tag/release** — website-only changes deploy via Cloudflare Workers Builds
+> (on push to `main`) and need no tag.
 
 The full step-by-step (from-main flow, PR variant, what CI does) is in
 [`docs/RELEASING.md`](docs/RELEASING.md). In short, a release is two commands around one human step:

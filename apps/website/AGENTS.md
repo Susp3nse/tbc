@@ -4,8 +4,8 @@
 > workspace map.
 
 An **Astro** static site (`output: 'static'`) that distributes the addon and documents the classes.
-Deployed to GitHub Pages at `https://menagerie.dev` (`base: '/tbc'` — use the `url()`
-helper from `src/config.ts` for internal links, never bare absolute paths).
+Served at `https://menagerie.dev` (site root — use the `url()` helper from `src/config.ts` for
+internal links, never bare absolute paths).
 
 ## Commands
 
@@ -51,6 +51,8 @@ no ordering to manage. This is the website substep of the root release workflow 
 
 ## Deploy
 
-`.github/workflows/deploy-website.yml` builds and publishes to GitHub Pages on push to `main` that
-touches `apps/website/**` (or via `workflow_dispatch`). **Website-only changes don't need a rotation
-version bump or tag** — they ship through this workflow on their own.
+Hosted on **Cloudflare Workers** (static assets), configured by `wrangler.jsonc` (assets-only Worker
+serving `./dist`). Deploys run via **Cloudflare Workers Builds** connected to the Git repo: on push to
+`main`, Cloudflare runs `pnpm install --frozen-lockfile && pnpm --filter @menagerie/website build`
+then `npx wrangler deploy --config apps/website/wrangler.jsonc`. **Website-only changes don't need a
+rotation version bump or tag** — they ship through Cloudflare on their own.
