@@ -109,6 +109,59 @@ local function add_wrapped_tooltip_line(text, r, g, b)
    end
 end
 
+-- Split `text` on a literal separator into an array of the pieces between it.
+local function split_on(text, sep)
+   local parts, start, sep_len = {}, 1, #sep
+   while true do
+      local i = string.find(text, sep, start, true)
+      if not i then
+         parts[#parts + 1] = string.sub(text, start)
+         return parts
+      end
+      parts[#parts + 1] = string.sub(text, start, i - 1)
+      start = i + sep_len
+   end
+end
+
+-- A section "looks like" key=value tokens when (almost) every whitespace token
+-- contains an '='. One stray label token is tolerated; anything looser is treated
+-- as free text and rendered as a wrapped paragraph instead.
+local function section_is_kv(section)
+   local total, kv = 0, 0
+   for token in string.gmatch(section, "%S+") do
+      total = total + 1
+      if string.find(token, "=", 1, true) then kv = kv + 1 end
+   end
+   return total > 0 and kv >= total - 1
+end
+
+-- Render a class context blob as aligned key -> value rows instead of one wrapped
+-- paragraph. The blob convention (see e.g. druid bear's format_context_log) is
+-- " | "-separated sections of space-separated `key=value` tokens; sections render
+-- as grouped rows separated by a blank line. A formatter that emits free text
+-- falls back to a wrapped line per section, so nothing renders worse than before.
+local function add_structured_ctx_tooltip(ctx_text)
+   local kr, kg, kb = DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3]
+   local vr, vg, vb = DBG_THEME.text[1], DBG_THEME.text[2], DBG_THEME.text[3]
+   local sections = split_on(ctx_text, " | ")
+   for si = 1, #sections do
+      local section = sections[si]
+      if si > 1 then GameTooltip:AddLine(" ") end
+      if section_is_kv(section) then
+         for token in string.gmatch(section, "%S+") do
+            local key, value = string.match(token, "^([^=]+)=(.+)$")
+            if key then
+               GameTooltip:AddDoubleLine(key, value, kr, kg, kb, vr, vg, vb)
+            else
+               add_wrapped_tooltip_line(token, kr, kg, kb)
+            end
+         end
+      else
+         add_wrapped_tooltip_line(section, kr, kg, kb)
+      end
+   end
+end
+
 -- Thin wrapper over the shared widget so the (width, height=22, GameFontHighlight)
 -- debug-button signature and the NS.CreateDebugButton export stay byte-stable.
 local function create_debug_button(parent, text, width)
@@ -351,7 +404,8 @@ local function CreateDebugLogFrame()
          local msg_color = entry.forced and DBG_CAT.forced or DBG_THEME.text
          add_wrapped_tooltip_line(entry.text, msg_color[1], msg_color[2], msg_color[3])
          if entry.ctx then
-            add_wrapped_tooltip_line(entry.ctx, DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+            GameTooltip:AddLine(" ")
+            add_structured_ctx_tooltip(entry.ctx)
          end
          GameTooltip:Show()
       end)
