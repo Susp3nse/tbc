@@ -78,7 +78,7 @@ function UnitDetailedThreatSituation() return nil, nil, nil end
 function CombatLogGetCurrentEventInfo() return nil end
 
 local function new_frame(kind, name, parent)
-   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, hooks = {}, visible = false }
    function f:SetSize(w, h) self.width = w; self.height = h end
    function f:SetWidth(w) self.width = w end
    function f:SetHeight(h) self.height = h end
@@ -96,6 +96,9 @@ local function new_frame(kind, name, parent)
    function f:SetScript(event, cb) self.scripts[event] = cb end
    function f:GetScript(event) return self.scripts[event] end
    function f:SetFrameStrata(v) self.strata = v end
+   function f:SetToplevel(v) self.toplevel = v end
+   function f:Raise() self.raised = true end
+   function f:HookScript(event, cb) self.hooks[event] = cb end
    function f:SetAlpha(v) self.alpha = v end
    function f:GetCenter() return nil end
    function f:IsShown() return self.visible end
@@ -247,7 +250,7 @@ function UnitDetailedThreatSituation() return nil, nil, nil end
 function CombatLogGetCurrentEventInfo() return nil end
 
 local function new_frame(kind, name, parent)
-   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, hooks = {}, visible = false }
    function f:SetSize(w, h) self.width = w; self.height = h end
    function f:SetWidth(w) self.width = w end
    function f:SetHeight(h) self.height = h end
@@ -265,6 +268,9 @@ local function new_frame(kind, name, parent)
    function f:SetScript(event, cb) self.scripts[event] = cb end
    function f:GetScript(event) return self.scripts[event] end
    function f:SetFrameStrata(v) self.strata = v end
+   function f:SetToplevel(v) self.toplevel = v end
+   function f:Raise() self.raised = true end
+   function f:HookScript(event, cb) self.hooks[event] = cb end
    function f:SetAlpha(v) self.alpha = v end
    function f:GetCenter() return nil end
    function f:IsShown() return self.visible end
@@ -409,7 +415,7 @@ local printed = {}
 function print(msg) printed[#printed + 1] = tostring(msg or "") end
 
 local function new_frame(kind, name, parent)
-   local f = { kind = kind, name = name, parent = parent, scripts = {}, visible = false }
+   local f = { kind = kind, name = name, parent = parent, scripts = {}, hooks = {}, visible = false }
    function f:SetSize(w, h) self.width = w; self.height = h end
    function f:SetFrameStrata(v) self.strata = v end
    function f:SetFrameLevel(v) self.level = v end
@@ -436,6 +442,9 @@ local function new_frame(kind, name, parent)
    function f:SetWidth(v) self.width = v end
    function f:SetHeight(v) self.height = v end
    function f:GetCenter() return nil end
+   function f:SetToplevel(v) self.toplevel = v end
+   function f:Raise() self.raised = true end
+   function f:HookScript(event, cb) self.hooks[event] = cb end
    function f:IsShown() return self.visible end
    function f:Show() self.visible = true end
    function f:Hide() self.visible = false end
@@ -1361,7 +1370,7 @@ function print() end
 
 local created = {}
 local function new_frame(kind, name)
-   local f = { kind = kind, name = name, scripts = {}, visible = false }
+   local f = { kind = kind, name = name, scripts = {}, hooks = {}, visible = false }
    function f:SetSize(w, h) self.width = w; self.height = h end
    function f:SetPoint(...) self.point = { ... } end
    function f:ClearAllPoints() self.point = nil end
@@ -1376,6 +1385,9 @@ local function new_frame(kind, name)
    function f:RegisterForDrag(...) self.drag = { ... } end
    function f:SetScript(event, cb) self.scripts[event] = cb end
    function f:SetFrameStrata(strata) self.strata = strata end
+   function f:SetToplevel(v) self.toplevel = v end
+   function f:Raise() self.raised = true end
+   function f:HookScript(event, cb) self.hooks[event] = cb end
    function f:SetScrollChild(child) self.scrollChild = child end
    function f:SetMultiLine(v) self.multiLine = v end
    function f:SetFontObject(obj) self.fontObject = obj end
