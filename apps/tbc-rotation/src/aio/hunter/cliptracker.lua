@@ -121,7 +121,7 @@ local ClipTracker = {
 
     -- Log buffer
     ClipLog = {},
-    ClipLogMax = 5000,
+    ClipLogMax = 500,
     LastAutoResult = nil,
 
     -- Combat session stats
@@ -1174,80 +1174,7 @@ function ClipTracker:ShowExportWindow()
     if text == "" then
         text = "-- No clip data to export --"
     end
-
-    local f = _G["HunterClipTrackerExportFrame"]
-    if not f then
-        f = CreateFrame("Frame", "HunterClipTrackerExportFrame", UIParent, "BackdropTemplate")
-        f:SetSize(600, 400)
-        f:SetPoint("CENTER")
-        f:SetBackdrop(BACKDROP_THIN)
-        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
-        f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-        f:SetMovable(true)
-        f:EnableMouse(true)
-        f:RegisterForDrag("LeftButton")
-        f:SetScript("OnDragStart", f.StartMoving)
-        f:SetScript("OnDragStop", f.StopMovingOrSizing)
-        f:SetFrameStrata("DIALOG")
-
-        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        f.title:SetPoint("TOPLEFT", 12, -8)
-        f.title:SetText("Export Clip Data")
-        f.title:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-
-        local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        hint:SetPoint("TOPRIGHT", -12, -12)
-        hint:SetText("Select All (Ctrl+A) & Copy (Ctrl+C)")
-        hint:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-
-        -- Close button
-        local closeBtn = CreateFrame("Button", nil, f)
-        closeBtn:SetSize(22, 22)
-        closeBtn:SetPoint("TOPRIGHT", -6, -6)
-        local cx = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        cx:SetPoint("CENTER")
-        cx:SetText("x")
-        cx:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-        closeBtn:SetScript("OnClick", function() f:Hide() end)
-        closeBtn:SetScript("OnEnter", function() cx:SetTextColor(1, 0.3, 0.3) end)
-        closeBtn:SetScript("OnLeave", function() cx:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3]) end)
-
-        -- Separator
-        local sep = f:CreateTexture(nil, "ARTWORK")
-        sep:SetPoint("TOPLEFT", 1, -28)
-        sep:SetPoint("TOPRIGHT", -1, -28)
-        sep:SetHeight(1)
-        sep:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-
-        local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 10, -34)
-        sf:SetPoint("BOTTOMRIGHT", -30, 42)
-
-        local eb = CreateFrame("EditBox", nil, sf)
-        eb:SetMultiLine(true)
-        eb:SetFontObject("ChatFontNormal")
-        eb:SetWidth(540)
-        eb:SetAutoFocus(false)
-        eb:SetScript("OnEscapePressed", function() f:Hide() end)
-        sf:SetScrollChild(eb)
-        f.editBox = eb
-
-        -- Bottom separator
-        local sep2 = f:CreateTexture(nil, "ARTWORK")
-        sep2:SetPoint("BOTTOMLEFT", 1, 36)
-        sep2:SetPoint("BOTTOMRIGHT", -1, 36)
-        sep2:SetHeight(1)
-        sep2:SetColorTexture(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-
-        local btn = create_theme_button(f, 100, 25, "Close")
-        btn:SetPoint("BOTTOM", 0, 8)
-        btn:SetScript("OnClick", function() f:Hide() end)
-    end
-
-    f.editBox:SetText(text)
-    f.editBox:HighlightText()
-    f.editBox:SetFocus()
-    f:Show()
+    NS.ShowCopyWindow("Clip Log", text)
 end
 
 -- ============================================================================

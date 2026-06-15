@@ -367,54 +367,7 @@ end
 function Panel:ShowDecisionExport()
     local HA = NS.HunterAdaptive
     local text = HA and HA.GetDecisionCSV and HA.GetDecisionCSV() or "-- Adaptive decision log unavailable --"
-
-    local f = _G["HunterAdaptiveDecisionExportFrame"]
-    if not f then
-        f = CreateFrame("Frame", "HunterAdaptiveDecisionExportFrame", UIParent, "BackdropTemplate")
-        f:SetSize(760, 460)
-        f:SetPoint("CENTER")
-        f:SetBackdrop(BACKDROP)
-        f:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 0.97)
-        f:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 1)
-        f:SetMovable(true)
-        f:EnableMouse(true)
-        f:RegisterForDrag("LeftButton")
-        f:SetScript("OnDragStart", f.StartMoving)
-        f:SetScript("OnDragStop", f.StopMovingOrSizing)
-        f:SetFrameStrata("DIALOG")
-
-        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        f.title:SetPoint("TOPLEFT", 12, -8)
-        f.title:SetText("Export Adaptive Decisions")
-        f.title:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
-
-        local close = panelButton(f, 52, 22, "Close")
-        close:SetPoint("BOTTOMRIGHT", -10, 8)
-        close:SetScript("OnClick", function() f:Hide() end)
-
-        local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        hint:SetPoint("TOPRIGHT", -12, -12)
-        hint:SetText("Ctrl+C to copy")
-        hint:SetTextColor(THEME.text_dim[1], THEME.text_dim[2], THEME.text_dim[3])
-
-        local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 10, -34)
-        sf:SetPoint("BOTTOMRIGHT", -30, 42)
-
-        local eb = CreateFrame("EditBox", nil, sf)
-        eb:SetMultiLine(true)
-        eb:SetFontObject("ChatFontNormal")
-        eb:SetWidth(700)
-        eb:SetAutoFocus(false)
-        eb:SetScript("OnEscapePressed", function() f:Hide() end)
-        sf:SetScrollChild(eb)
-        f.editBox = eb
-    end
-
-    f.editBox:SetText(text)
-    f.editBox:HighlightText()
-    f.editBox:SetFocus()
-    f:Show()
+    NS.ShowCopyWindow("Adaptive Decisions", text)
 end
 
 function Panel:Show()

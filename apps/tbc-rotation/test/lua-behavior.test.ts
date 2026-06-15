@@ -835,6 +835,219 @@ io.write("PASS: Paladin HoJ stun-interrupt middleware\n")
   const output = runLua(String.raw`
 function print() end
 
+local created = {}
+local function new_frame(kind, name)
+   local f = { kind = kind, name = name, scripts = {}, visible = false }
+   function f:SetSize(w, h) self.width = w; self.height = h end
+   function f:SetPoint(...) self.point = { ... } end
+   function f:ClearAllPoints() self.point = nil end
+   function f:SetBackdrop(backdrop) self.backdrop = backdrop end
+   function f:SetBackdropColor(...) self.backdropColor = { ... } end
+   function f:SetBackdropBorderColor(...) self.borderColor = { ... } end
+   function f:SetMovable(v) self.movable = v end
+   function f:SetResizable(v) self.resizable = v end
+   function f:EnableMouse(v) self.mouse = v end
+   function f:EnableMouseWheel(v) self.mouseWheel = v end
+   function f:SetClampedToScreen(v) self.clamped = v end
+   function f:RegisterForDrag(...) self.drag = { ... } end
+   function f:SetScript(event, cb) self.scripts[event] = cb end
+   function f:SetFrameStrata(strata) self.strata = strata end
+   function f:SetScrollChild(child) self.scrollChild = child end
+   function f:SetMultiLine(v) self.multiLine = v end
+   function f:SetFontObject(obj) self.fontObject = obj end
+   function f:SetWidth(w) self.width = w end
+   function f:SetAutoFocus(v) self.autoFocus = v end
+   function f:SetText(text) self.text = text end
+   function f:SetTextColor(...) self.textColor = { ... } end
+   function f:HighlightText() self.highlighted = true end
+   function f:SetFocus() self.focused = true end
+   function f:Hide() self.visible = false end
+   function f:Show() self.visible = true end
+   function f:CreateFontString()
+      return new_frame("FontString")
+   end
+   function f:CreateTexture()
+      local texture = new_frame("Texture")
+      function texture:SetHeight(h) self.height = h end
+      function texture:SetColorTexture(...) self.color = { ... } end
+      return texture
+   end
+   created[#created + 1] = f
+   return f
+end
+
+function CreateFrame(kind, name)
+   return new_frame(kind, name)
+end
+
+UIParent = {}
+SlashCmdList = {}
+Menagerie = {
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+   },
+}
+
+dofile("src/aio/debug.lua")
+
+local first = Menagerie.ShowCopyWindow("First Export", "alpha")
+local second = Menagerie.ShowCopyWindow("Second Export", "beta")
+
+if not first then error("ShowCopyWindow should return the shared frame") end
+if first ~= second then error("ShowCopyWindow should reuse a singleton frame") end
+if first.title.text ~= "Second Export" then error("ShowCopyWindow should update the title") end
+if first.editBox.text ~= "beta" then error("ShowCopyWindow should update edit text") end
+if first.editBox.highlighted ~= true then error("ShowCopyWindow should select the text") end
+if first.editBox.focused ~= true then error("ShowCopyWindow should focus the edit box") end
+if first.visible ~= true then error("ShowCopyWindow should show the frame") end
+
+io.write("PASS: shared copy window singleton\n")
+`);
+
+  assert.match(output, /PASS: shared copy window singleton/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
+local now = 1
+TMW = { time = now, UPD_INTV = 0.05 }
+
+Action = {
+   PlayerClass = "HUNTER",
+   Listener = { Add = function() end },
+   GetCurrentGCD = function() return 0 end,
+   GetLatency = function() return 0 end,
+}
+
+local function never_ready() return false end
+
+Menagerie = {
+   cached_settings = {
+      weapon_speed = 2.9,
+      inhouse_swingshot = false,
+      mana_save = 30,
+      aoe = false,
+      use_arcane = false,
+      show_adaptive_panel = false,
+   },
+   A = {
+      Listener = Action.Listener,
+      GetCurrentGCD = Action.GetCurrentGCD,
+      GetLatency = Action.GetLatency,
+      MortalShots = { GetTalentRank = function() return 0 end },
+      MultiShot = { IsReady = never_ready },
+      ArcaneShot = { IsReady = never_ready },
+   },
+   Player = {
+      GetSwingShoot = function() return 1.0 end,
+      ManaPercentage = function() return 100 end,
+   },
+}
+
+function GetTime() return now end
+function UnitRangedAttackPower() return 1200, 0, 0 end
+function UnitRangedDamage() return 2.9, 500, 600, 0, 0, 1 end
+function GetRangedCritChance() return 25 end
+function UnitBuff() return nil end
+function UnitGUID() return "Player-1" end
+function GetCVar() return "400" end
+function CombatLogGetCurrentEventInfo() return nil end
+
+dofile("src/aio/hunter/adaptive.lua")
+
+local HA = Menagerie.HunterAdaptive
+if not HA then error("adaptive module did not load") end
+
+HA.ChooseAction("target", { useMulti = false, useArcane = false, manaPct = 100 })
+local state = HA.GetState()
+if state.lastDecision.now ~= 1 then error("lastDecision should update while panel is closed") end
+if #state.decisionLog ~= 0 then error("decisionLog should not accrue while panel is closed") end
+
+now = 2
+TMW.time = now
+Menagerie.cached_settings.show_adaptive_panel = true
+HA.ChooseAction("target", { useMulti = false, useArcane = false, manaPct = 100 })
+if #state.decisionLog ~= 1 then error("decisionLog should accrue while panel is open") end
+
+now = 3
+TMW.time = now
+Menagerie.cached_settings.show_adaptive_panel = false
+HA.ChooseAction("target", { useMulti = false, useArcane = false, manaPct = 100 })
+if state.lastDecision.now ~= 3 then error("lastDecision should keep updating after panel closes") end
+if #state.decisionLog ~= 1 then error("decisionLog should stop accruing after panel closes") end
+
+io.write("PASS: adaptive decision log panel gate\n")
+`);
+
+  assert.match(output, /PASS: adaptive decision log panel gate/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+function wipe(t) for k in pairs(t) do t[k] = nil end end
+
+local frame = { scripts = {}, elapsed = 0 }
+function frame:SetScript(event, cb) self.scripts[event] = cb end
+function frame:IsShown() return false end
+
+function CreateFrame() return frame end
+UIParent = {}
+
+Action = {
+   PlayerClass = "HUNTER",
+   Listener = { Add = function() end },
+   GetLatency = function() return 0 end,
+   GetPing = function() return 0 end,
+}
+
+Menagerie = {
+   Theme = {
+      bg = { 0, 0, 0 },
+      bg_widget = { 0.1, 0.1, 0.1 },
+      bg_hover = { 0.2, 0.2, 0.2 },
+      border = { 0.3, 0.3, 0.3 },
+      accent = { 1, 0.8, 0.4 },
+      text = { 1, 1, 1 },
+      text_dim = { 0.7, 0.7, 0.7 },
+      state = {},
+   },
+   cached_settings = {},
+}
+
+function GetTime() return 0 end
+function UnitRangedDamage() return 2.9 end
+function UnitGUID() return "Player-1" end
+function CombatLogGetCurrentEventInfo() return nil end
+function date() return "2026-06-15 00:00:00" end
+function time() return 0 end
+function GetSpellInfo(spell) return tostring(spell) end
+function GetFramerate() return 60 end
+
+dofile("src/aio/hunter/cliptracker.lua")
+
+if Menagerie.HunterClipTracker.ClipLogMax ~= 500 then
+   error("ClipLogMax expected 500, got " .. tostring(Menagerie.HunterClipTracker.ClipLogMax))
+end
+
+io.write("PASS: clip log cap\n")
+`);
+
+  assert.match(output, /PASS: clip log cap/);
+}
+
+{
+  const output = runLua(String.raw`
+function print() end
+
 dofile("src/aio/common.lua")
 
 local S = Menagerie_SECTIONS

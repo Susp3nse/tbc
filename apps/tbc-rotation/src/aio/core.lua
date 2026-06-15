@@ -366,12 +366,14 @@ local function is_spell_immune(unit, spell_ids)
             bucket[id] = nil -- lazy prune
          end
       end
+      if next(bucket) == nil then learned_immune[npc_id] = nil end
       return false
    end
    local expiry = bucket[spell_ids]
    if not expiry then return false end
    if now >= expiry then
       bucket[spell_ids] = nil -- lazy prune
+      if next(bucket) == nil then learned_immune[npc_id] = nil end
       return false
    end
    return true

@@ -179,6 +179,62 @@ local function CreateDebugWindow(title_text)
 end
 NS.CreateDebugWindow = CreateDebugWindow
 
+local CopyWindowFrame
+local function CreateCopyWindow()
+   if CopyWindowFrame then return CopyWindowFrame end
+
+   local f = CreateDebugWindow("Export")
+   f:SetSize(760, 460)
+   f:ClearAllPoints()
+   f:SetPoint("CENTER")
+   f:SetFrameStrata("DIALOG")
+
+   local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+   hint:SetPoint("TOPRIGHT", -12, -12)
+   hint:SetText("Ctrl+C to copy")
+   hint:SetTextColor(DBG_THEME.text_dim[1], DBG_THEME.text_dim[2], DBG_THEME.text_dim[3])
+   f.copyHint = hint
+
+   local scrollframe = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+   scrollframe:SetPoint("TOPLEFT", 10, -34)
+   scrollframe:SetPoint("BOTTOMRIGHT", -30, 42)
+   f.copyScrollFrame = scrollframe
+
+   local editBox = CreateFrame("EditBox", nil, scrollframe)
+   editBox:SetMultiLine(true)
+   editBox:SetFontObject("ChatFontNormal")
+   editBox:SetWidth(700)
+   editBox:SetAutoFocus(false)
+   editBox:SetScript("OnEscapePressed", function() f:Hide() end)
+   scrollframe:SetScrollChild(editBox)
+   f.editBox = editBox
+
+   local bottom_sep = f:CreateTexture(nil, "ARTWORK")
+   bottom_sep:SetPoint("BOTTOMLEFT", 1, 36)
+   bottom_sep:SetPoint("BOTTOMRIGHT", -1, 36)
+   bottom_sep:SetHeight(1)
+   bottom_sep:SetColorTexture(DBG_THEME.border[1], DBG_THEME.border[2], DBG_THEME.border[3], 1)
+   f.copyBottomSeparator = bottom_sep
+
+   local close = create_debug_button(f, "Close", 100)
+   close:SetPoint("BOTTOM", 0, 8)
+   close:SetScript("OnClick", function() f:Hide() end)
+   f.copyCloseButton = close
+
+   CopyWindowFrame = f
+   return f
+end
+
+function NS.ShowCopyWindow(title, text)
+   local f = CreateCopyWindow()
+   f.title:SetText(title or "Export")
+   f.editBox:SetText(text or "")
+   f.editBox:HighlightText()
+   f.editBox:SetFocus()
+   f:Show()
+   return f
+end
+
 local function CreateDebugLogFrame()
    if DebugLogFrame then return DebugLogFrame end
 

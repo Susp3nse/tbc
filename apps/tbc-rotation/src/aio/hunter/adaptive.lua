@@ -897,7 +897,9 @@ local function ChooseAction(unit, opts)
     d.steadyClipGated = steadyClipGated
     d.multiClipGated = multiClipGated
     d.arcaneClipGated = arcaneClipGated
-    logDecision(unit, d, shootAt, shootDoneAt)
+    if NS.cached_settings and NS.cached_settings.show_adaptive_panel then
+        logDecision(unit, d, shootAt, shootDoneAt)
+    end
 
     if State.debug then
         print(string.format(
