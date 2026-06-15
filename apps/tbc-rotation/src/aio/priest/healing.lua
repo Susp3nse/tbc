@@ -52,8 +52,12 @@ for i = 1, 40 do
     healing_targets[i] = {}
 end
 
-local is_in_raid = NS.is_in_raid
-local is_in_party = NS.is_in_party
+-- Capture core's generic scanner NOW, before we publish our wrapper below. The
+-- wrapper used to call NS.scan_healing_targets, but the export at the bottom
+-- overwrote that field with the wrapper itself — so it recursed into itself and
+-- stack-overflowed on the first in-combat scan. Hold a direct reference instead
+-- (mirrors the paladin/healing.lua fix).
+local core_scan_healing_targets = NS.scan_healing_targets
 
 local function decorate_priest_heal_entry(entry, unit)
     entry.has_renew = has_renew(unit)
@@ -79,7 +83,7 @@ local function scan_healing_targets()
     end
     scan_frame = now
 
-    local _, count = NS.scan_healing_targets(nil, healing_scan_options)
+    local _, count = core_scan_healing_targets(nil, healing_scan_options)
     healing_targets_count = count
 
     return healing_targets, healing_targets_count
@@ -89,19 +93,6 @@ local function get_tank_target()
     for i = 1, healing_targets_count do
         local entry = healing_targets[i]
         if entry and entry.is_tank then
-            return entry
-        end
-    end
-
-    return nil
-end
-
-local function get_lowest_hp_target(threshold)
-    threshold = threshold or 100
-
-    for i = 1, healing_targets_count do
-        local entry = healing_targets[i]
-        if entry and entry.effective_hp < threshold then
             return entry
         end
     end
@@ -129,11 +120,10 @@ NS.has_weakened_soul = has_weakened_soul
 NS.has_renew = has_renew
 NS.has_pws = has_pws
 
-NS.is_in_raid = is_in_raid
-NS.is_in_party = is_in_party
-NS.scan_healing_targets = scan_healing_targets
+-- Namespaced so we never clobber core's shared NS.scan_healing_targets (other
+-- classes / recovery middleware rely on the generic scanner).
+NS.scan_priest_healing_targets = scan_healing_targets
 NS.get_tank_target = get_tank_target
-NS.get_lowest_hp_target = get_lowest_hp_target
 NS.count_below_hp = count_below_hp
 
 NS.PARTY_UNITS = PARTY_UNITS

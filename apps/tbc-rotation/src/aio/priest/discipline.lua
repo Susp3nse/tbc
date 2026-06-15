@@ -22,7 +22,7 @@ local try_cast_fmt = NS.try_cast_fmt
 local try_heal_cast_fmt = NS.try_heal_cast_fmt
 local named = NS.named
 local create_racial_strategy = NS.create_racial_strategy
-local scan_healing_targets = NS.scan_healing_targets
+local scan_healing_targets = NS.scan_priest_healing_targets
 local get_tank_target = NS.get_tank_target
 local count_below_hp = NS.count_below_hp
 
