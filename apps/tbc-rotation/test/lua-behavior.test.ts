@@ -894,6 +894,7 @@ Menagerie = {
    },
 }
 
+dofile("src/aio/widgets.lua")
 dofile("src/aio/debug.lua")
 
 local first = Menagerie.ShowCopyWindow("First Export", "alpha")
@@ -1032,6 +1033,7 @@ function time() return 0 end
 function GetSpellInfo(spell) return tostring(spell) end
 function GetFramerate() return 60 end
 
+dofile("src/aio/widgets.lua")
 dofile("src/aio/hunter/cliptracker.lua")
 
 if Menagerie.HunterClipTracker.ClipLogMax ~= 500 then
