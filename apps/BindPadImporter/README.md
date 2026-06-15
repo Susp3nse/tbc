@@ -31,14 +31,14 @@ the game loads BindPadImporter after it automatically.
 Every macro is one object/table. The same shape works as Lua (in `Macros.lua`)
 or as JSON (paste window or API).
 
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `name` | string | yes | Macro name; shown on the BindPad slot. Auto-suffixed if it collides. |
-| `macrotext` | string | yes | The macro body or script. |
-| `key` | string | optional | Keybind, e.g. `"F"`, `"SHIFT-E"`, `"CTRL-1"`, `"ALT-BUTTON3"`, `"NUMPAD1"`. Omit for no bind. |
-| `icon` | string or number | optional | A bare icon name (`"Spell_Fire_FlameBolt"`), a full path (`"Interface\\Icons\\Spell_Fire_FlameBolt"`), or a fileID number. Bare names are prefixed with `Interface\Icons\`. Defaults to a question-mark icon. |
-| `tab` | number | optional | BindPad tab to write into. `1` = General (default), `2` to `4` = character-specific. |
-| `forAllCharacters` | boolean | optional | General tab only: bind on every character. |
+| Field              | Type             | Required | Meaning                                                                                                                                                                                                       |
+| ------------------ | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`             | string           | yes      | Macro name; shown on the BindPad slot. Auto-suffixed if it collides.                                                                                                                                          |
+| `macrotext`        | string           | yes      | The macro body or script.                                                                                                                                                                                     |
+| `key`              | string           | optional | Keybind, e.g. `"F"`, `"SHIFT-E"`, `"CTRL-1"`, `"ALT-BUTTON3"`, `"NUMPAD1"`. Omit for no bind.                                                                                                                 |
+| `icon`             | string or number | optional | A bare icon name (`"Spell_Fire_FlameBolt"`), a full path (`"Interface\\Icons\\Spell_Fire_FlameBolt"`), or a fileID number. Bare names are prefixed with `Interface\Icons\`. Defaults to a question-mark icon. |
+| `tab`              | number           | optional | BindPad tab to write into. `1` = General (default), `2` to `4` = character-specific.                                                                                                                          |
+| `forAllCharacters` | boolean          | optional | General tab only: bind on every character.                                                                                                                                                                    |
 
 The minimum object is `name` plus `macrotext`.
 
@@ -83,7 +83,7 @@ Run `/bpi` to open a window, paste a JSON object or array, click Import.
 ```json
 [
   { "name": "Fireball", "key": "SHIFT-F", "macrotext": "/cast Fireball" },
-  { "name": "Heal",     "key": "CTRL-1",  "macrotext": "/cast [@player] Lesser Heal" }
+  { "name": "Heal", "key": "CTRL-1", "macrotext": "/cast [@player] Lesser Heal" }
 ]
 ```
 
@@ -97,11 +97,11 @@ BindPadImporter.ImportJSON(jsonString)  -- JSON string -> importedCount or nil,e
 
 ## Slash commands
 
-| Command | Action |
-|---|---|
-| `/bpi` | Open the paste-JSON window. |
-| `/bpi run` | Re-import everything in `Macros.lua`. |
-| `/bpi list` | List macros this addon has imported. |
+| Command      | Action                                                    |
+| ------------ | --------------------------------------------------------- |
+| `/bpi`       | Open the paste-JSON window.                               |
+| `/bpi run`   | Re-import everything in `Macros.lua`.                     |
+| `/bpi list`  | List macros this addon has imported.                      |
 | `/bpi clear` | Remove every macro this addon imported (and its keybind). |
 
 ## Behavior notes

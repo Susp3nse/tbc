@@ -75,7 +75,7 @@ body {
   font-family: var(--font-body);
   background: var(--ink);
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -8%, rgba(230, 196, 120, 0.10), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% -8%, rgba(230, 196, 120, 0.1), transparent 60%),
     radial-gradient(ellipse 55% 45% at 88% 18%, rgba(105, 204, 240, 0.045), transparent 55%),
     radial-gradient(ellipse 55% 55% at 8% 62%, rgba(148, 130, 201, 0.045), transparent 55%);
   background-attachment: fixed;

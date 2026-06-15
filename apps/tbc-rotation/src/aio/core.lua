@@ -223,12 +223,12 @@ NS.ttd_too_short = ttd_too_short
 -- ============================================================================
 -- IMMUNITY SPELL IDS (from LibAuraTypes.lua TBC section)
 -- ============================================================================
-local IMMUNITY_TOTAL = { 642, 1020, 45438, 11958, 1022, 5599, 10278, 31224, 33786, 710, 18647, 498, 19263 }
-local IMMUNITY_PHYS = { 1022, 5599, 10278, 642, 1020, 45438, 11958, 33786, 710, 18647, 3169, 19263 }
-local IMMUNITY_MAGIC = { 31224, 8178, 642, 1020, 45438, 11958, 33786 }
-local IMMUNITY_CC = { 19574, 34471, 18499, 1719, 31224, 642, 1020, 45438, 11958, 33786, 6346, 12328 }
-local IMMUNITY_STUN = { 19574, 34471, 18499, 642, 1020, 45438, 11958, 33786, 6615, 24364 }
-local IMMUNITY_KICK = { 31224, 642, 1020, 45438, 11958, 33786 }
+local IMMUNITY_TOTAL = { 642, 1020, 45438, 11958, 33786, 710, 18647 }
+local IMMUNITY_PHYS = { 1022, 5599, 10278, 3169 }
+local IMMUNITY_MAGIC = { 31224, 8178 }
+local IMMUNITY_CC = { 19574, 34471, 18499, 1719, 31224, 6346 }
+local IMMUNITY_STUN = { 19574, 34471, 18499, 6615, 24364 }
+local IMMUNITY_KICK = { 31224 }
 
 local function has_immunity_buff(target, buff_ids)
    if not target or not _G.UnitExists(target) then return false end
@@ -236,27 +236,34 @@ local function has_immunity_buff(target, buff_ids)
    return duration > 0
 end
 
+local has_total_immunity
+
 local function has_phys_immunity(target)
-   return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_PHYS)
+   target = target or TARGET_UNIT
+   return has_immunity_buff(target, IMMUNITY_PHYS) or has_total_immunity(target)
 end
 
 local function has_magic_immunity(target)
-   return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_MAGIC)
+   target = target or TARGET_UNIT
+   return has_immunity_buff(target, IMMUNITY_MAGIC) or has_total_immunity(target)
 end
 
 local function has_cc_immunity(target)
-   return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_CC)
+   target = target or TARGET_UNIT
+   return has_immunity_buff(target, IMMUNITY_CC) or has_total_immunity(target)
 end
 
 local function has_stun_immunity(target)
-   return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_STUN)
+   target = target or TARGET_UNIT
+   return has_immunity_buff(target, IMMUNITY_STUN) or has_total_immunity(target)
 end
 
 local function has_kick_immunity(target)
-   return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_KICK)
+   target = target or TARGET_UNIT
+   return has_immunity_buff(target, IMMUNITY_KICK) or has_total_immunity(target)
 end
 
-local function has_total_immunity(target)
+function has_total_immunity(target)
    return has_immunity_buff(target or TARGET_UNIT, IMMUNITY_TOTAL)
 end
 
@@ -1562,7 +1569,7 @@ local function register_trinket_middleware()
       return
    end
 
-   -- Offensive trinkets: fire during burst windows or /menagerie burst
+   -- Offensive trinkets: fire during burst windows or /mburst
    rotation_registry:register_middleware({
       name = "Trinkets_Burst",
       priority = 80,
@@ -1593,7 +1600,7 @@ local function register_trinket_middleware()
       end,
    })
 
-   -- Defensive trinkets: fire at low HP or /menagerie def
+   -- Defensive trinkets: fire at low HP or /mdef
    rotation_registry:register_middleware({
       name = "Trinkets_Defensive",
       priority = 290,
